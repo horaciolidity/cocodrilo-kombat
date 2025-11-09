@@ -337,3 +337,17 @@ body {
   border: 1px solid hsla(140, 25%, 30%, 0.4);
   box-shadow: 0 8px 30px hsla(140, 30%, 8%, 0.5);
 }
+/* ======== 🩵 FIX PARPADEO EN TABS (Radix / Shadcn) ======== */
+[data-state='inactive'] {
+  opacity: 0.4;
+  pointer-events: none;
+  visibility: visible !important;
+  display: block !important;
+  transition: opacity 0.25s ease;
+}
+
+/* Mantiene el espacio mientras cambia de tab */
+[data-state='active'] {
+  display: block !important;
+  opacity: 1;
+}
