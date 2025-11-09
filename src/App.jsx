@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/components/ui/use-toast';
@@ -26,16 +25,32 @@ import { useGameLogic } from '@/hooks/useGameLogic';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useSound } from '@/hooks/useSound';
 
-import { 
-  Home, BarChart3, Settings, Wallet, ListChecks, Award, Layers, ShoppingCart, Rocket, FileText, Target as TargetIcon,
-  Send, Instagram, Twitter, Facebook, Youtube, Twitch
+import {
+  Home,
+  BarChart3,
+  Settings,
+  Wallet,
+  ListChecks,
+  Award,
+  Layers,
+  ShoppingCart,
+  Rocket,
+  FileText,
+  Target as TargetIcon,
 } from 'lucide-react';
-import { INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, SOCIAL_LINKS_DATA, TUTORIAL_STEPS_CONTENT, FARMING_MILESTONES } from '@/config/gameConfig';
+
+import {
+  INITIAL_GAME_STATE,
+  INITIAL_UPGRADES_STATE,
+  INITIAL_MISSIONS_STATE,
+  SOCIAL_LINKS_DATA,
+  TUTORIAL_STEPS_CONTENT,
+} from '@/config/gameConfig';
 
 function App() {
   const { toast } = useToast();
   const { playSound } = useSound();
-  
+
   const [user, setUser] = useLocalStorage('cocodriloKombatUser', null);
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState('game');
@@ -77,7 +92,15 @@ function App() {
     buyShopItem,
     resetProgress,
     claimFarmingMilestone,
-  } = useGameLogic(INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, toast, playSound, setShowMilestoneModal, setLastReachedMilestone);
+  } = useGameLogic(
+    INITIAL_GAME_STATE,
+    INITIAL_UPGRADES_STATE,
+    INITIAL_MISSIONS_STATE,
+    toast,
+    playSound,
+    setShowMilestoneModal,
+    setLastReachedMilestone
+  );
 
   useEffect(() => {
     const hasPlayedBefore = localStorage.getItem('cocodriloKombatPlayed');
@@ -89,18 +112,21 @@ function App() {
 
   const logout = useCallback(() => {
     setUser(null);
-    toast({ title: "👋 Hasta luego", description: "Sesión cerrada correctamente", duration: 2000 });
+    toast({ title: '👋 Hasta luego', description: 'Sesión cerrada correctamente', duration: 2000 });
     playSound('logout');
   }, [setUser, toast, playSound]);
 
   const nextTutorialStep = useCallback(() => {
-    if (tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1) setTutorialStep(prev => prev + 1);
-    else { setShowTutorial(false); setTutorialStep(0); }
+    if (tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1) setTutorialStep((prev) => prev + 1);
+    else {
+      setShowTutorial(false);
+      setTutorialStep(0);
+    }
     playSound('uiClick');
   }, [tutorialStep, playSound]);
 
-  const skipTutorial = useCallback(() => { 
-    setShowTutorial(false); 
+  const skipTutorial = useCallback(() => {
+    setShowTutorial(false);
     setTutorialStep(0);
     playSound('uiClick');
   }, [playSound]);
@@ -126,11 +152,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Barra superior */}
       <nav className="bg-card/50 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-40">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">🐊 Cocodrilo Kombat</h1>
           <div className="flex items-center space-x-0.5 md:space-x-1 overflow-x-auto scrollbar-hide">
-            {navigationItems.map(item => (
+            {navigationItems.map((item) => (
               <Button
                 key={item.view}
                 onClick={() => handleNavigation(item.view)}
@@ -146,43 +173,107 @@ function App() {
         </div>
       </nav>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentView}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="pb-16"
-        >
-          {currentView === 'game' && <GameView gameState={gameState} upgrades={upgrades} buyUpgrade={buyUpgrade} handleClick={handleClick} clickEffect={clickEffect} floatingNumbers={floatingNumbers} dailyRewards={dailyRewards} claimDailyReward={claimDailyReward} tutorialStep={tutorialStep} showTutorial={showTutorial} activeSkin={activeSkin} toast={toast} />}
-          {currentView === 'missions' && <MissionsView missions={missions} completeMission={completeMission} claimMissionReward={claimMissionReward} gameState={gameState} upgrades={upgrades} toast={toast} playSound={playSound} />}
-          {currentView === 'farming_milestones' && <FarmingMilestonesView gameState={gameState} farmingMilestonesState={farmingMilestonesState} claimFarmingMilestone={claimFarmingMilestone} />}
-          {currentView === 'cards' && <CardsView ownedCards={ownedCards} />}
-          {currentView === 'shop' && <ShopView buyShopItem={buyShopItem} coins={gameState.coins} ownedItems={ownedItems} activeSkin={activeSkin} />}
-          {currentView === 'ranking' && <RankingView user={user} gameState={gameState} />}
-          {currentView === 'fairlaunch' && <FairlaunchView toast={toast} />}
-          {currentView === 'whitepaper' && <WhitepaperView />}
-          {currentView === 'wallet' && <WalletView toast={toast} playSound={playSound} />}
-          {currentView === 'stats' && <StatsView gameState={gameState} upgrades={upgrades} achievementsUnlocked={achievementsUnlocked} ownedCardsCount={ownedCards.length} ownedItemsCount={ownedItems.length} farmingMilestonesCount={Object.values(farmingMilestonesState).filter(m => m.claimed).length} />}
-          {currentView === 'settings' && <SettingsView user={user} logout={logout} setShowAuth={setShowAuth} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} setShowTutorial={setShowTutorial} resetProgress={resetProgress} playSound={playSound} />}
-        </motion.div>
-      </AnimatePresence>
+      {/* Vista principal con transición suave (sin desmontar) */}
+      <motion.div
+        key={currentView}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25 }}
+        className="pb-16 min-h-[80vh]"
+      >
+        {currentView === 'game' && (
+          <GameView
+            gameState={gameState}
+            upgrades={upgrades}
+            buyUpgrade={buyUpgrade}
+            handleClick={handleClick}
+            clickEffect={clickEffect}
+            floatingNumbers={floatingNumbers}
+            dailyRewards={dailyRewards}
+            claimDailyReward={claimDailyReward}
+            tutorialStep={tutorialStep}
+            showTutorial={showTutorial}
+            activeSkin={activeSkin}
+            toast={toast}
+          />
+        )}
 
+        {currentView === 'missions' && (
+          <MissionsView
+            missions={missions}
+            completeMission={completeMission}
+            claimMissionReward={claimMissionReward}
+            gameState={gameState}
+            upgrades={upgrades}
+            toast={toast}
+            playSound={playSound}
+          />
+        )}
+
+        {currentView === 'farming_milestones' && (
+          <FarmingMilestonesView
+            gameState={gameState}
+            farmingMilestonesState={farmingMilestonesState}
+            claimFarmingMilestone={claimFarmingMilestone}
+          />
+        )}
+
+        {currentView === 'cards' && <CardsView ownedCards={ownedCards} />}
+
+        {currentView === 'shop' && (
+          <ShopView buyShopItem={buyShopItem} coins={gameState.coins} ownedItems={ownedItems} activeSkin={activeSkin} />
+        )}
+
+        {currentView === 'ranking' && <RankingView user={user} gameState={gameState} />}
+        {currentView === 'fairlaunch' && <FairlaunchView toast={toast} />}
+        {currentView === 'whitepaper' && <WhitepaperView />}
+        {currentView === 'wallet' && <WalletView toast={toast} playSound={playSound} />}
+        {currentView === 'stats' && (
+          <StatsView
+            gameState={gameState}
+            upgrades={upgrades}
+            achievementsUnlocked={achievementsUnlocked}
+            ownedCardsCount={ownedCards.length}
+            ownedItemsCount={ownedItems.length}
+            farmingMilestonesCount={Object.values(farmingMilestonesState).filter((m) => m.claimed).length}
+          />
+        )}
+        {currentView === 'settings' && (
+          <SettingsView
+            user={user}
+            logout={logout}
+            setShowAuth={setShowAuth}
+            soundEnabled={soundEnabled}
+            setSoundEnabled={setSoundEnabled}
+            setShowTutorial={setShowTutorial}
+            resetProgress={resetProgress}
+            playSound={playSound}
+          />
+        )}
+      </motion.div>
+
+      {/* Modales */}
       <AuthModal showAuth={showAuth} setShowAuth={setShowAuth} setUser={setUser} toast={toast} playSound={playSound} />
-      <TutorialModal showTutorial={showTutorial} tutorialStep={tutorialStep} nextTutorialStep={nextTutorialStep} skipTutorial={skipTutorial} />
-      <MilestoneReachedModal 
-        isOpen={showMilestoneModal} 
+      <TutorialModal
+        showTutorial={showTutorial}
+        tutorialStep={tutorialStep}
+        nextTutorialStep={nextTutorialStep}
+        skipTutorial={skipTutorial}
+      />
+      <MilestoneReachedModal
+        isOpen={showMilestoneModal}
         onClose={() => {
           setShowMilestoneModal(false);
           playSound('uiClose');
-        }} 
-        milestone={lastReachedMilestone} 
+        }}
+        milestone={lastReachedMilestone}
       />
-      
+
+      {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-md border-t border-border p-3 z-40">
         <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
       </footer>
+
       <Toaster />
     </div>
   );
