@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, Palette, Gem, Zap, Check } from 'lucide-react';
 import { SHOP_ITEMS } from '@/config/gameConfig';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
   const [selectedTab, setSelectedTab] = useState("skins");
-  const [refresh, setRefresh] = useState(0); // 🔄 Forzar re-render tras compras
 
   const getItemStatus = (item) => {
     if (item.type === 'skin') {
@@ -63,10 +62,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         </div>
 
         <Button
-          onClick={() => {
-            buyShopItem(item.id);
-            setRefresh((r) => r + 1); // 🔄 Refrescar tras compra
-          }}
+          onClick={() => buyShopItem(item.id)}
           disabled={status.disabled}
           variant={
             status.variant === 'outline'
@@ -117,7 +113,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+        <Tabs defaultValue="skins" value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="skins">
               <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
@@ -130,27 +126,32 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </TabsTrigger>
           </TabsList>
 
-          <AnimatePresence mode="wait">
-            {["skins", "items", "consumables"].map((tab) => (
-              selectedTab === tab && (
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <TabsContent value={tab} forceMount key={`${tab}-${refresh}`}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredItems(tab === "skins" ? "skin" : tab.slice(0, -1)).map((item, index) => (
-                        <ItemCard item={item} index={index} key={item.id} />
-                      ))}
-                    </div>
-                  </TabsContent>
-                </motion.div>
-              )
-            ))}
-          </AnimatePresence>
+          {/* ✅ Contenedor estable sin parpadeos */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+            <TabsContent value="skins">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('skin').map((item, index) => (
+                  <ItemCard item={item} index={index} key={item.id} />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="items">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('item').map((item, index) => (
+                  <ItemCard item={item} index={index} key={item.id} />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="consumables">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('consumable').map((item, index) => (
+                  <ItemCard item={item} index={index} key={item.id} />
+                ))}
+              </div>
+            </TabsContent>
+          </motion.div>
         </Tabs>
       </div>
     </div>

@@ -22,18 +22,30 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
   const [floatingNumbers, setFloatingNumbers] = useState([]);
   const [clickEffect, setClickEffect] = useState(false);
 
-  useEffect(() => {
-    loadGameState();
-    loadUpgrades();
-    loadMissions();
-    loadOwnedCards();
-    loadOwnedItems();
-    loadActiveSkin();
-    loadAchievementsUnlocked();
-    loadDailyRewards();
-    loadSoundEnabled();
-    loadFarmingMilestonesState();
-  }, []);
+ useEffect(() => {
+  // 🚀 Carga inicial agrupada: evita múltiples setState simultáneos
+  const loadAllData = async () => {
+    try {
+      await Promise.allSettled([
+        loadGameState(),
+        loadUpgrades(),
+        loadMissions(),
+        loadOwnedCards(),
+        loadOwnedItems(),
+        loadActiveSkin(),
+        loadAchievementsUnlocked(),
+        loadDailyRewards(),
+        loadSoundEnabled(),
+        loadFarmingMilestonesState(),
+      ]);
+    } catch (error) {
+      console.error("Error loading game data:", error);
+    }
+  };
+  loadAllData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
   useEffect(() => {
     let effectiveCoinsPerSecond = gameState.coinsPerSecond;
