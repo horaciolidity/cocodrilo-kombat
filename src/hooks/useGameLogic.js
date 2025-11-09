@@ -143,22 +143,26 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     }
   }, [gameState.clickPower, gameState.energy, gameState.experience, gameState.level, ownedItems, ownedCards, toast, playSound, setGameState]);
 
-  useEffect(() => {
-    let energyRegenRate = 2000; 
-    ownedCards.forEach(cardId => {
-        const card = CARDS_DATA.find(c => c.id === cardId);
-        if (card && card.effect.type === 'energy_regen_boost_percent') {
-            energyRegenRate /= (1 + card.effect.value / 100);
-        }
-    });
-
-    if (gameState.energy < gameState.maxEnergy) {
-      const interval = setInterval(() => {
-        setGameState(prev => ({ ...prev, energy: Math.min(prev.maxEnergy, prev.energy + 1) }));
-      }, energyRegenRate);
-      return () => clearInterval(interval);
+useEffect(() => {
+  let regenRate = 2000;
+  ownedCards.forEach(cardId => {
+    const card = CARDS_DATA.find(c => c.id === cardId);
+    if (card && card.effect.type === 'energy_regen_boost_percent') {
+      regenRate /= (1 + card.effect.value / 100);
     }
-  }, [gameState.energy, gameState.maxEnergy, ownedCards, setGameState]);
+  });
+
+  const interval = setInterval(() => {
+    setGameState(prev => {
+      if (prev.energy < prev.maxEnergy) {
+        return { ...prev, energy: Math.min(prev.maxEnergy, prev.energy + 1) };
+      }
+      return prev;
+    });
+  }, regenRate);
+
+  return () => clearInterval(interval);
+}, [ownedCards, setGameState]);
 
   const buyUpgrade = useCallback((upgradeId) => {
     const upgrade = UPGRADES.find(u => u.id === upgradeId);
