@@ -34,7 +34,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
       <motion.div
         key={item.id}
         className="stats-card rounded-xl p-4 flex flex-col justify-between hover-lift"
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
       >
@@ -113,7 +113,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        <Tabs defaultValue="skins" value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="skins">
               <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
@@ -126,32 +126,32 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </TabsTrigger>
           </TabsList>
 
-          {/* ✅ Contenedor estable sin parpadeos */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <TabsContent value="skins" forceMount>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('skin').map((item, index) => (
-                  <ItemCard item={item} index={index} key={item.id} />
-                ))}
-              </div>
+          {/* ✅ Sin flicker ni desmontes */}
+          {["skins", "items", "consumables"].map((tab) => (
+            <TabsContent
+              key={tab}
+              value={tab}
+              forceMount
+              className={`transition-opacity duration-300 ${
+                selectedTab === tab ? "opacity-100 block" : "opacity-0 hidden"
+              }`}
+            >
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems(tab === "skins" ? "skin" : tab.slice(0, -1)).map(
+                    (item, index) => (
+                      <ItemCard item={item} index={index} key={item.id} />
+                    )
+                  )}
+                </div>
+              </motion.div>
             </TabsContent>
-
-            <TabsContent value="items" forceMount>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('item').map((item, index) => (
-                  <ItemCard item={item} index={index} key={item.id} />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="consumables" forceMount>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('consumable').map((item, index) => (
-                  <ItemCard item={item} index={index} key={item.id} />
-                ))}
-              </div>
-            </TabsContent>
-          </motion.div>
+          ))}
         </Tabs>
       </div>
     </div>
