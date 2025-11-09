@@ -1,24 +1,41 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Coins, TrendingUp, Star, Zap, ShoppingCart, Gift, Palette, DollarSign, BarChart2, ExternalLink } from 'lucide-react';
+import {
+  Coins, TrendingUp, Star, Zap, ShoppingCart, Gift,
+  Palette, DollarSign, BarChart2, ExternalLink
+} from 'lucide-react';
 import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid
+} from 'recharts';
 
 const generateRandomPriceData = () => {
   let price = 0.05;
   const data = [];
   for (let i = 0; i < 30; i++) {
-    data.push({ name: `D${i+1}`, price: parseFloat(price.toFixed(4)) });
-    price += (Math.random() - 0.45) * 0.01; 
-    if (price < 0.01) price = 0.01; 
+    data.push({ name: `D${i + 1}`, price: parseFloat(price.toFixed(4)) });
+    price += (Math.random() - 0.45) * 0.01;
+    if (price < 0.01) price = 0.01;
   }
   return data;
 };
 
-
-export function GameView({ gameState, upgrades, buyUpgrade, handleClick, clickEffect, floatingNumbers, dailyRewards, claimDailyReward, tutorialStep, showTutorial, activeSkin, toast }) {
+export function GameView({
+  gameState,
+  upgrades,
+  buyUpgrade,
+  handleClick,
+  clickEffect,
+  floatingNumbers,
+  dailyRewards,
+  claimDailyReward,
+  tutorialStep,
+  showTutorial,
+  activeSkin,
+  toast,
+}) {
   const [tokenPrice, setTokenPrice] = useState(0.05);
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
@@ -28,39 +45,40 @@ export function GameView({ gameState, upgrades, buyUpgrade, handleClick, clickEf
       setTokenPrice(prev => parseFloat(Math.max(0.01, prev + (Math.random() - 0.5) * 0.005).toFixed(4)));
       setLiquidity(prev => Math.max(10000, prev + (Math.random() - 0.5) * 1000));
       setPriceData(prevData => {
-        const currentTokenPrice = parseFloat(Math.max(0.01, tokenPrice + (Math.random() - 0.5) * 0.005).toFixed(4));
-        const newData = [...prevData.slice(1), { name: `D${prevData.length}`, price: currentTokenPrice }];
-        return newData;
+        const newPrice = parseFloat(Math.max(0.01, tokenPrice + (Math.random() - 0.5) * 0.005).toFixed(4));
+        return [...prevData.slice(1), { name: `D${prevData.length}`, price: newPrice }];
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, []); 
-  
+  }, [tokenPrice]);
+
   const getCrocodileCharacter = () => {
     if (activeSkin) {
       const skin = SHOP_ITEMS.find(item => item.id === activeSkin);
-      if (skin && skin.id === 'skin_golden_croc') return '🌟🐊';
-      if (skin && skin.id === 'skin_camo_croc') return '🌳🐊';
-      if (skin && skin.id === 'skin_cyborg_croc') return '🤖🐊';
+      if (skin?.id === 'skin_golden_croc') return '🌟🐊';
+      if (skin?.id === 'skin_camo_croc') return '🌳🐊';
+      if (skin?.id === 'skin_cyborg_croc') return '🤖🐊';
     }
-    return '🐊'; 
+    return '🐊';
   };
 
   const handleBuyToken = () => {
     toast({
       title: "🚧 Comprar Token CROC",
-      description: "Esta función te redirigirá a un exchange descentralizado (DEX) para comprar tokens CROC. ¡Próximamente!",
+      description: "Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).",
       duration: 5000,
     });
   };
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <StatCard icon={Coins} value={Math.floor(gameState.coins).toLocaleString()} label="Monedas" color="text-yellow-400" />
         <StatCard icon={TrendingUp} value={`${gameState.coinsPerSecond}/s`} label="Por Segundo" color="text-green-400" />
         <StatCard icon={Star} value={gameState.level} label="Nivel" color="text-purple-400" />
         <EnergyStatCard energy={gameState.energy} maxEnergy={gameState.maxEnergy} />
+        {/* 🪙 Bloque agregado para mostrar CROC */}
+        <StatCard icon={BarChart2} value={`${gameState.nativeTokenBalance?.toLocaleString() || 0}`} label="CROC Tokens" color="text-emerald-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -72,7 +90,7 @@ export function GameView({ gameState, upgrades, buyUpgrade, handleClick, clickEf
           >
             <Button
               onClick={handleClick}
-              className={`w-48 h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-green-500 via-lime-500 to-emerald-600 hover:from-green-400 hover:via-lime-400 hover:to-emerald-500 border-4 border-green-300 shadow-2xl glow-effect mobile-button ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
+              className={`w-48 h-48 md:w-64 md:h-64 rounded-full bg-linear-to-br from-green-500 via-lime-500 to-emerald-600 hover:from-green-400 hover:via-lime-400 hover:to-emerald-500 border-4 border-green-300 shadow-2xl glow-effect mobile-button ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
               disabled={gameState.energy <= 0}
             >
               <div className="text-center">
@@ -105,8 +123,8 @@ export function GameView({ gameState, upgrades, buyUpgrade, handleClick, clickEf
               <span>{gameState.experience % 100}/100 XP</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-3">
-              <div 
-                className="progress-bar h-3 rounded-full transition-all duration-300" 
+              <div
+                className="progress-bar h-3 rounded-full transition-all duration-300"
                 style={{ width: `${(gameState.experience % 100)}%` }}
               />
             </div>
@@ -122,6 +140,8 @@ export function GameView({ gameState, upgrades, buyUpgrade, handleClick, clickEf
     </div>
   );
 }
+
+/* ===================== Subcomponentes ===================== */
 
 function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
   return (
@@ -143,8 +163,8 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={priceData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
-            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
             <Tooltip
               contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }}
               itemStyle={{ color: 'hsl(var(--foreground))' }}
@@ -161,13 +181,12 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
   );
 }
 
-
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
       <div className="flex items-center justify-center mb-1 md:mb-2">
         <Icon className={`w-5 h-5 md:w-6 md:h-6 ${color} mr-2`} />
-        <span className={`text-md md:text-lg font-bold ${label === 'Monedas' ? 'gradient-text' : color}`}>{value}</span>
+        <span className={`text-md md:text-lg font-bold ${color}`}>{value}</span>
       </div>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
@@ -179,12 +198,14 @@ function EnergyStatCard({ energy, maxEnergy }) {
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
       <div className="flex items-center justify-center mb-1 md:mb-2">
         <Zap className="w-5 h-5 md:w-6 md:h-6 text-blue-400 mr-2" />
-        <span className="text-md md:text-lg font-bold text-blue-400">{energy}/{maxEnergy}</span>
+        <span className="text-md md:text-lg font-bold text-blue-400">
+          {energy}/{maxEnergy}
+        </span>
       </div>
       <p className="text-xs text-muted-foreground">Energía</p>
       <div className="w-full bg-gray-700 rounded-full h-1.5 md:h-2 mt-2">
-        <div 
-          className="energy-bar h-1.5 md:h-2 rounded-full" 
+        <div
+          className="energy-bar h-1.5 md:h-2 rounded-full"
           style={{ width: `${(energy / maxEnergy) * 100}%` }}
         />
       </div>

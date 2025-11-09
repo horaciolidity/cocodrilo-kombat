@@ -65,7 +65,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         <Button
           onClick={() => {
             buyShopItem(item.id);
-            setRefresh((r) => r + 1); // 🔄 Forzar refresco
+            setRefresh((r) => r + 1); // 🔄 Refrescar tras compra
           }}
           disabled={status.disabled}
           variant={
@@ -110,9 +110,9 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-4 text-center gradient-text flex items-center justify-center">
-          <ShoppingCart className="w-8 h-8 mr-3 text-pink-400" /> Tienda del
-          Pantano
+          <ShoppingCart className="w-8 h-8 mr-3 text-pink-400" /> Tienda del Pantano
         </h1>
+
         <div className="text-center mb-8 text-lg font-semibold">
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
@@ -131,59 +131,25 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           </TabsList>
 
           <AnimatePresence mode="wait">
-            {selectedTab === 'skins' && (
-              <motion.div
-                key="skins"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.25 }}
-              >
-                <TabsContent value="skins" key={refresh}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredItems('skin').map((item, index) => (
-                      <ItemCard item={item} index={index} key={item.id} />
-                    ))}
-                  </div>
-                </TabsContent>
-              </motion.div>
-            )}
-
-            {selectedTab === 'items' && (
-              <motion.div
-                key="items"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-              >
-                <TabsContent value="items" key={refresh}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredItems('item').map((item, index) => (
-                      <ItemCard item={item} index={index} key={item.id} />
-                    ))}
-                  </div>
-                </TabsContent>
-              </motion.div>
-            )}
-
-            {selectedTab === 'consumables' && (
-              <motion.div
-                key="consumables"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-              >
-                <TabsContent value="consumables" key={refresh}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredItems('consumable').map((item, index) => (
-                      <ItemCard item={item} index={index} key={item.id} />
-                    ))}
-                  </div>
-                </TabsContent>
-              </motion.div>
-            )}
+            {["skins", "items", "consumables"].map((tab) => (
+              selectedTab === tab && (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <TabsContent value={tab} forceMount key={`${tab}-${refresh}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredItems(tab === "skins" ? "skin" : tab.slice(0, -1)).map((item, index) => (
+                        <ItemCard item={item} index={index} key={item.id} />
+                      ))}
+                    </div>
+                  </TabsContent>
+                </motion.div>
+              )
+            ))}
           </AnimatePresence>
         </Tabs>
       </div>
