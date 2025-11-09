@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Palette, Gem, Zap, Check } from 'lucide-react';
+import { ShoppingCart, Palette, Gem, Zap, Check, DollarSign } from 'lucide-react';
 import { SHOP_ITEMS } from '@/config/gameConfig';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
@@ -10,22 +10,15 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
 
   const getItemStatus = (item) => {
     if (item.type === 'skin') {
-      if (activeSkin === item.id)
-        return { text: 'Equipada', disabled: true, variant: 'outline' };
-      if (ownedItems.includes(item.id))
-        return { text: 'Equipar', disabled: false, variant: 'default' };
+      if (activeSkin === item.id) return { text: 'Equipada', disabled: true, variant: 'outline' };
+      if (ownedItems.includes(item.id)) return { text: 'Equipar', disabled: false, variant: 'default' };
     } else if (item.type === 'item') {
-      if (ownedItems.includes(item.id))
-        return { text: 'Comprado', disabled: true, variant: 'outline' };
+      if (ownedItems.includes(item.id)) return { text: 'Comprado', disabled: true, variant: 'outline' };
     }
-    return {
-      text: `Comprar (${item.price.toLocaleString()}💰)`,
-      disabled: coins < item.price,
-      variant: 'default',
-    };
+    return { text: `Comprar (${item.price.toLocaleString()}💰)`, disabled: coins < item.price, variant: 'default' };
   };
-
-  const filteredItems = (type) => SHOP_ITEMS.filter((item) => item.type === type);
+  
+  const filteredItems = (type) => SHOP_ITEMS.filter(item => item.type === type);
 
   const ItemCard = ({ item, index }) => {
     const status = getItemStatus(item);
@@ -34,54 +27,27 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
       <motion.div
         key={item.id}
         className="stats-card rounded-xl p-4 flex flex-col justify-between hover-lift"
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
       >
         <div>
           <div className="flex items-center mb-3">
-            <Icon
-              className={`w-10 h-10 p-2 rounded-lg mr-3 ${
-                item.type === 'skin'
-                  ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-              }`}
-            />
+            <Icon className={`w-10 h-10 p-2 rounded-lg mr-3 ${item.type === 'skin' ? 'bg-purple-500/20 text-purple-400' : 'bg-yellow-500/20 text-yellow-400'}`} />
             <div>
               <h3 className="text-md font-semibold">{item.name}</h3>
               {item.type === 'skin' && activeSkin === item.id && (
-                <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-                  Equipada
-                </span>
+                <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">Equipada</span>
               )}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mb-3 h-10 overflow-hidden">
-            {item.description}
-          </p>
+          <p className="text-xs text-muted-foreground mb-3 h-10 overflow-hidden">{item.description}</p>
         </div>
-
         <Button
           onClick={() => buyShopItem(item.id)}
           disabled={status.disabled}
-          variant={
-            status.variant === 'outline'
-              ? 'outline'
-              : coins < item.price &&
-                !ownedItems.includes(item.id) &&
-                activeSkin !== item.id
-              ? 'secondary'
-              : 'default'
-          }
-          className={`w-full mobile-button ${
-            status.disabled &&
-            status.text !== 'Equipada' &&
-            status.text !== 'Comprado'
-              ? 'bg-gray-600'
-              : status.text === 'Equipar'
-              ? 'bg-primary hover:bg-primary/90'
-              : ''
-          }`}
+          variant={status.variant === 'outline' ? 'outline' : (coins < item.price && !ownedItems.includes(item.id) && activeSkin !== item.id ? 'secondary' : 'default')}
+          className={`w-full mobile-button ${status.disabled && status.text !== 'Equipada' && status.text !== 'Comprado' ? 'bg-gray-600' : (status.text === 'Equipar' ? 'bg-primary hover:bg-primary/90' : '')}`}
         >
           {status.text.includes('Comprar') ? (
             <>
@@ -92,8 +58,9 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
               <Palette className="w-4 h-4 mr-2" /> {status.text}
             </>
           ) : (
-            <>
-              <Check className="w-4 h-4 mr-2 text-green-400" />
+             <>
+              {status.text === 'Equipada' && <Check className="w-4 h-4 mr-2 text-green-400" />}
+              {status.text === 'Comprado' && <Check className="w-4 h-4 mr-2 text-green-400" />}
               {status.text}
             </>
           )}
@@ -108,50 +75,42 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         <h1 className="text-3xl font-bold mb-4 text-center gradient-text flex items-center justify-center">
           <ShoppingCart className="w-8 h-8 mr-3 text-pink-400" /> Tienda del Pantano
         </h1>
-
         <div className="text-center mb-8 text-lg font-semibold">
-          Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
+            Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+        <Tabs defaultValue="skins" onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="skins">
-              <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
-            </TabsTrigger>
-            <TabsTrigger value="items">
-              <Gem className="w-4 h-4 mr-2 inline-block" /> Ítems
-            </TabsTrigger>
-            <TabsTrigger value="consumables">
-              <Zap className="w-4 h-4 mr-2 inline-block" /> Consumibles
-            </TabsTrigger>
+            <TabsTrigger value="skins"><Palette className="w-4 h-4 mr-2 inline-block" />Skins</TabsTrigger>
+            <TabsTrigger value="items"><Gem className="w-4 h-4 mr-2 inline-block" />Ítems</TabsTrigger>
+            <TabsTrigger value="consumables"><Zap className="w-4 h-4 mr-2 inline-block" />Consumibles</TabsTrigger>
           </TabsList>
-
-          {/* ✅ Sin flicker ni desmontes */}
-          {["skins", "items", "consumables"].map((tab) => (
-            <TabsContent
-              key={tab}
-              value={tab}
-              forceMount
-              className={`transition-opacity duration-300 ${
-                selectedTab === tab ? "opacity-100 block" : "opacity-0 hidden"
-              }`}
+          
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedTab}
+              initial={{ opacity: 0, x: selectedTab === "skins" ? -20 : 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: selectedTab === "skins" ? 20 : -20 }}
+              transition={{ duration: 0.2 }}
             >
-              <motion.div
-                key={tab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-              >
+              <TabsContent value="skins">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredItems(tab === "skins" ? "skin" : tab.slice(0, -1)).map(
-                    (item, index) => (
-                      <ItemCard item={item} index={index} key={item.id} />
-                    )
-                  )}
+                  {filteredItems('skin').map((item, index) => <ItemCard item={item} index={index} key={item.id}/>)}
                 </div>
-              </motion.div>
-            </TabsContent>
-          ))}
+              </TabsContent>
+              <TabsContent value="items">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems('item').map((item, index) => <ItemCard item={item} index={index} key={item.id}/>)}
+                </div>
+              </TabsContent>
+              <TabsContent value="consumables">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems('consumable').map((item, index) => <ItemCard item={item} index={index} key={item.id}/>)}
+                </div>
+              </TabsContent>
+            </motion.div>
+          </AnimatePresence>
         </Tabs>
       </div>
     </div>
