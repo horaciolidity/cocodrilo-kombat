@@ -146,15 +146,16 @@ function App() {
         </div>
       </nav>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentView}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="pb-16"
-        >
+     <AnimatePresence mode="sync">
+  <motion.div
+    key={currentView}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.25 }}
+    className="pb-16"
+  >
+
           {currentView === 'game' && <GameView gameState={gameState} upgrades={upgrades} buyUpgrade={buyUpgrade} handleClick={handleClick} clickEffect={clickEffect} floatingNumbers={floatingNumbers} dailyRewards={dailyRewards} claimDailyReward={claimDailyReward} tutorialStep={tutorialStep} showTutorial={showTutorial} activeSkin={activeSkin} toast={toast} />}
           {currentView === 'missions' && <MissionsView missions={missions} completeMission={completeMission} claimMissionReward={claimMissionReward} gameState={gameState} upgrades={upgrades} toast={toast} playSound={playSound} />}
           {currentView === 'farming_milestones' && <FarmingMilestonesView gameState={gameState} farmingMilestonesState={farmingMilestonesState} claimFarmingMilestone={claimFarmingMilestone} />}

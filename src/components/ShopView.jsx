@@ -96,7 +96,6 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        {/* ✅ FIX: Evita ocultar las tabs con overflow o transiciones */}
         <Tabs
           value={selectedTab}
           onValueChange={setSelectedTab}
@@ -114,7 +113,8 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="skins" className="fade-in block opacity-100">
+          {/* ✅ Forzamos el montaje para evitar contenido invisible */}
+          <TabsContent value="skins" forceMount className="fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('skin').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -122,7 +122,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="items" className="fade-in block opacity-100">
+          <TabsContent value="items" forceMount className="fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('item').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -130,7 +130,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="consumables" className="fade-in block opacity-100">
+          <TabsContent value="consumables" forceMount className="fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('consumable').map((item) => (
                 <ItemCard item={item} key={item.id} />
