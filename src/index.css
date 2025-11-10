@@ -337,7 +337,6 @@ body {
   border: 1px solid hsla(140, 25%, 30%, 0.4);
   box-shadow: 0 8px 30px hsla(140, 30%, 8%, 0.5);
 }
-/* ✅ Fix definitivo para Tabs visibles sin parpadeo */
 [data-state='inactive'] {
   display: none !important;
   opacity: 0 !important;
@@ -348,6 +347,5 @@ body {
   display: block !important;
   opacity: 1 !important;
   pointer-events: auto;
-  position: relative;
   transition: opacity 0.3s ease-in-out;
 }
