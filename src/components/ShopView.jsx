@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, Palette, Gem, Zap, Check } from 'lucide-react';
 import { SHOP_ITEMS } from '@/config/gameConfig';
 
-export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
+export function ShopView({ buyShopItem, coins = 0, ownedItems = [], activeSkin }) {
   const [selectedTab, setSelectedTab] = useState("skins");
 
+  // ✅ Previene errores si SHOP_ITEMS no existe o está vacío
+  const safeItems = Array.isArray(SHOP_ITEMS) ? SHOP_ITEMS.filter(Boolean) : [];
+
   const getItemStatus = (item) => {
+    if (!item) return { text: 'Error', disabled: true, variant: 'outline' };
+
     if (item.type === 'skin') {
       if (activeSkin === item.id)
         return { text: 'Equipada', disabled: true, variant: 'outline' };
@@ -17,17 +22,20 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         return { text: 'Comprado', disabled: true, variant: 'outline' };
     }
     return {
-      text: `Comprar (${item.price.toLocaleString()}💰)`,
-      disabled: coins < item.price,
+      text: `Comprar (${item.price?.toLocaleString?.() || 0}💰)`,
+      disabled: coins < (item.price || 0),
       variant: 'default',
     };
   };
 
-  const filteredItems = (type) => SHOP_ITEMS.filter((item) => item.type === type);
+  const filteredItems = (type) =>
+    safeItems.filter((item) => item?.type === type);
 
   const ItemCard = ({ item }) => {
+    if (!item) return null;
     const status = getItemStatus(item);
-    const Icon = item.icon;
+    const Icon = item.icon || ShoppingCart;
+
     return (
       <div className="stats-card rounded-xl p-4 flex flex-col justify-between hover-lift transition-all duration-200">
         <div>
@@ -56,7 +64,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         </div>
 
         <Button
-          onClick={() => buyShopItem(item.id)}
+          onClick={() => buyShopItem?.(item.id)}
           disabled={status.disabled}
           className={`w-full mobile-button ${
             status.disabled && status.text !== 'Equipada' && status.text !== 'Comprado'
@@ -95,7 +103,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        {/* ✅ Fix: reemplazo TabsContent por condicionales normales para evitar pointer-events bloqueados */}
+        {/* ✅ Tabs manuales, sin dependencias externas */}
         <div className="w-full relative z-10">
           <div className="grid w-full grid-cols-3 mb-6 bg-card/60 backdrop-blur-md border border-border rounded-lg">
             <button
@@ -133,25 +141,37 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           <div className="relative z-20">
             {selectedTab === "skins" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('skin').map((item) => (
-                  <ItemCard item={item} key={item.id} />
-                ))}
+                {filteredItems('skin')?.length > 0 ? (
+                  filteredItems('skin').map((item) => (
+                    <ItemCard item={item} key={item?.id || Math.random()} />
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground">Sin skins disponibles</p>
+                )}
               </div>
             )}
 
             {selectedTab === "items" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('item').map((item) => (
-                  <ItemCard item={item} key={item.id} />
-                ))}
+                {filteredItems('item')?.length > 0 ? (
+                  filteredItems('item').map((item) => (
+                    <ItemCard item={item} key={item?.id || Math.random()} />
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground">Sin ítems disponibles</p>
+                )}
               </div>
             )}
 
             {selectedTab === "consumables" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems('consumable').map((item) => (
-                  <ItemCard item={item} key={item.id} />
-                ))}
+                {filteredItems('consumable')?.length > 0 ? (
+                  filteredItems('consumable').map((item) => (
+                    <ItemCard item={item} key={item?.id || Math.random()} />
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground">Sin consumibles disponibles</p>
+                )}
               </div>
             )}
           </div>
