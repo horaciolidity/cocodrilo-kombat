@@ -298,64 +298,115 @@ useEffect(() => {
     }
   }, [dailyRewards.lastClaim, setDailyRewards]);
   
-  const buyShopItem = useCallback((itemId) => {
-    const item = SHOP_ITEMS.find(i => i.id === itemId);
-    if (!item) return;
+ const buyShopItem = useCallback((itemId) => {
+  const item = SHOP_ITEMS.find(i => i.id === itemId);
+  if (!item) return;
 
-    const isAlreadyOwnedNonConsumable = ownedItems.some(owned => (typeof owned === 'string' && owned === itemId) || (typeof owned === 'object' && owned.id === itemId && owned.type !== 'consumable'));
+  // Ya lo tiene
+  const isAlreadyOwned = ownedItems.some(owned =>
+    (typeof owned === 'string' && owned === itemId) ||
+    (typeof owned === 'object' && owned.id === itemId)
+  );
 
-    if (isAlreadyOwnedNonConsumable && item.type !== 'consumable') {
-        toast({ title: "🚫 Ya Posees Este Ítem", description: `Ya tienes "${item.name}".`, duration: 2000 });
-        playSound('error');
-        return;
-    }
-    
-    if (item.type === 'skin' && activeSkin === itemId) {
-        toast({ title: "🎨 Skin ya Activa", description: `La skin "${item.name}" ya está en uso.`, duration: 2000 });
+  if (isAlreadyOwned && item.type !== 'consumable') {
+    // Si es skin, equiparla
+    if (item.type === 'skin') {
+      if (activeSkin === itemId) {
+        toast({
+          title: "🎨 Skin ya activa",
+          description: `La skin "${item.name}" ya está equipada.`,
+          duration: 2000,
+        });
         playSound('uiClick');
-        return;
-    }
-
-    if (gameState.coins >= item.price) {
-        setGameState(prev => ({ ...prev, coins: prev.coins - item.price }));
-        if (item.type === 'skin') {
-            setActiveSkin(itemId);
-            if (!ownedItems.some(owned => (typeof owned === 'string' && owned === itemId) || (typeof owned === 'object' && owned.id === itemId))) {
-              setOwnedItems(prev => [...prev, itemId]);
-            }
-            toast({ title: "🎨 Skin Aplicada", description: `¡Ahora usas la skin "${item.name}"!`, duration: 3000 });
-            playSound('equip');
-        } else {
-            setOwnedItems(prev => {
-                if (item.type === 'consumable') {
-                    const existingItemIndex = prev.findIndex(i => typeof i === 'object' && i.id === itemId);
-                    if (existingItemIndex > -1) {
-                        const updatedItems = [...prev];
-                        updatedItems[existingItemIndex] = { ...updatedItems[existingItemIndex], quantity: (updatedItems[existingItemIndex].quantity || 0) + 1 };
-                        return updatedItems;
-                    } else {
-                        return [...prev, { ...item, quantity: 1 }];
-                    }
-                } else {
-                     if (!prev.some(owned => (typeof owned === 'string' && owned === itemId) || (typeof owned === 'object' && owned.id === itemId))) {
-                        return [...prev, itemId];
-                     }
-                     return prev;
-                }
-            });
-            toast({ title: "🛍️ Ítem Comprado", description: `¡Has comprado "${item.name}"!`, duration: 3000 });
-            playSound('buy');
-            if (item.type === 'consumable' && item.effect.type === 'energy_fill') {
-                setGameState(prev => ({...prev, energy: Math.min(prev.maxEnergy, prev.energy + item.effect.value)}));
-                toast({ title: "⚡ Energía Restaurada", description: `+${item.effect.value} de energía.`, duration: 2000 });
-                playSound('powerUp');
-            }
-        }
+      } else {
+        setActiveSkin(itemId);
+        toast({
+          title: "✅ Skin equipada",
+          description: `Has equipado "${item.name}" con éxito.`,
+          duration: 2000,
+        });
+        playSound('equip');
+      }
     } else {
-        toast({ title: "💰 Monedas Insuficientes", description: `Necesitas ${item.price - gameState.coins} monedas más para "${item.name}".`, duration: 2000 });
-        playSound('error');
+      toast({
+        title: "🪙 Ya comprado",
+        description: `${item.name} ya está en tu inventario.`,
+        duration: 2000,
+      });
+      playSound('uiClick');
     }
-  }, [gameState.coins, ownedItems, activeSkin, toast, playSound, setGameState, setActiveSkin, setOwnedItems]);
+    return;
+  }
+
+  // Sin monedas suficientes
+  if (gameState.coins < item.price) {
+    toast({
+      title: "💰 Monedas insuficientes",
+      description: `Necesitas ${item.price.toLocaleString()}💰 para comprar "${item.name}".`,
+      duration: 2500,
+    });
+    playSound('error');
+    return;
+  }
+
+  // Compra válida
+  setGameState(prev => ({
+    ...prev,
+    coins: prev.coins - item.price,
+  }));
+
+  // Guardar item o skin
+  if (item.type === 'skin') {
+    setActiveSkin(itemId);
+    setOwnedItems(prev => [...prev, itemId]);
+    toast({
+      title: "🎨 Skin aplicada",
+      description: `Ahora usas la skin "${item.name}".`,
+      duration: 3000,
+    });
+    playSound('equip');
+  } else if (item.type === 'consumable') {
+    // Consumibles (por cantidad)
+    setOwnedItems(prev => {
+      const existing = prev.find(i => typeof i === 'object' && i.id === itemId);
+      if (existing) {
+        return prev.map(i =>
+          i.id === itemId ? { ...i, quantity: (i.quantity || 0) + 1 } : i
+        );
+      }
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    toast({
+      title: "⚡ Ítem consumible comprado",
+      description: `+1 "${item.name}" agregado.`,
+      duration: 2500,
+    });
+    playSound('purchase');
+
+    // Efecto instantáneo (por ejemplo, energía)
+    if (item.effect.type === 'energy_fill') {
+      setGameState(prev => ({
+        ...prev,
+        energy: Math.min(prev.maxEnergy, prev.energy + item.effect.value),
+      }));
+      toast({
+        title: "💥 Energía restaurada",
+        description: `+${item.effect.value} de energía.`,
+        duration: 2000,
+      });
+      playSound('powerUp');
+    }
+  } else {
+    // Ítems normales
+    setOwnedItems(prev => [...prev, itemId]);
+    toast({
+      title: "🛒 Compra exitosa",
+      description: `Has comprado "${item.name}" por ${item.price.toLocaleString()}💰.`,
+      duration: 3000,
+    });
+    playSound('purchase');
+  }
+}, [gameState.coins, ownedItems, activeSkin, toast, playSound, setGameState, setActiveSkin, setOwnedItems]);
 
   const claimFarmingMilestone = useCallback((milestoneId) => {
     const milestone = FARMING_MILESTONES.find(m => m.id === milestoneId);
