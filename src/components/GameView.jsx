@@ -144,83 +144,93 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 🐊 Zona click principal */}
-        <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
+        {/* 🐊 Zona del cocodrilo */}
+<div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
+  <motion.div
+    whileHover={{ scale: 1.06 }} // leve efecto al pasar el mouse
+    animate={isClicked ? { scale: [1, 0.9, 1.1, 1] } : { scale: 1 }}
+    transition={{ duration: 0.25, ease: 'easeOut' }}
+    className="relative"
+  >
+<Button
+  onClick={handleCrocClick}
+  className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
+    transition-transform duration-150 border-4 mobile-button 
+    ${
+      activeSkin === 'skin_golden_croc'
+        ? 'from-yellow-400 via-amber-500 to-yellow-600 border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)] animate-golden-glow'
+        : activeSkin === 'skin_camo_croc'
+        ? 'from-green-600 via-lime-600 to-emerald-700 border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)] animate-camo-glow'
+        : activeSkin === 'skin_cyborg_croc'
+        ? 'from-sky-500 via-cyan-600 to-blue-700 border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)] animate-cyber-glow'
+        : 'from-green-500 via-lime-500 to-emerald-600 border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)] animate-default-glow'
+    } 
+    bg-gradient-to-br hover:scale-[1.03]
+    ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
+  disabled={gameState.energy <= 0}
+>
+  <div className="text-center select-none">
+    <motion.div
+      animate={isClicked ? { scale: [1, 1.2, 0.95, 1] } : { scale: 1 }}
+      transition={{ duration: 0.25 }}
+      className="text-8xl mb-2"
+    >
+      {getCrocodileCharacter()}
+    </motion.div>
+    <div className="text-white font-bold text-lg md:text-xl neon-glow">
+      ¡MORDER!
+    </div>
+    <div className="text-lime-200 text-sm md:text-base">
+      +{Math.floor(gameState.clickPower)}
+    </div>
+  </div>
+</Button>
+
+
+    {/* 💫 Números flotantes con colores dinámicos */}
+    <AnimatePresence>
+      {floatingNumbers.map(num => {
+        let colorClass = 'text-lime-300';
+        if (num.value >= 2 && num.value < 3) colorClass = 'text-yellow-300';
+        if (num.value >= 3) colorClass = 'text-purple-400';
+
+        return (
           <motion.div
-            whileHover={{ scale: 1.03 }} // hover suave
-            animate={
-              isClicked
-                ? {
-                    scale: [1, 0.94, 1.05, 1],
-                    rotate: [0, -4, 2, 0],
-                  }
-                : { scale: 1, rotate: 0 }
-            }
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className={`relative ${isClicked ? 'punch-glow' : ''}`}
+            key={num.id}
+            className={`absolute font-bold text-xl md:text-2xl pointer-events-none ${colorClass}`}
+            initial={{ opacity: 1, y: 0, scale: 0.8 }}
+            animate={{ opacity: 0, y: -100, scale: 2 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.4, ease: 'easeOut' }} // más duración y crecimiento suave
+            style={{
+              top: (num.y || 0) - 10,
+              left: (num.x || 0),
+              zIndex: 60,
+              textShadow: '0 0 10px rgba(255,255,255,0.6)',
+            }}
           >
-            <Button
-              onClick={handleCrocClick}
-              className={`
-                relative w-60 h-60 md:w-80 md:h-80 rounded-full
-                bg-gradient-to-br from-green-500 via-lime-500 to-emerald-600
-                hover:from-green-400 hover:via-lime-400 hover:to-emerald-500
-                border-4 border-green-300
-                shadow-[0_0_40px_rgba(34,197,94,0.6)]
-                mobile-button select-none overflow-hidden
-                transition-transform duration-150
-                ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}
-              `}
-              disabled={gameState.energy <= 0}
-            >
-              <div className="text-center select-none">
-                <div className="text-8xl mb-2">
-                  {getCrocodileCharacter()}
-                </div>
-                <div className="text-white font-bold text-lg md:text-xl neon-glow">
-                  ¡MORDER!
-                </div>
-                <div className="text-lime-200 text-sm md:text-base">
-                  +{Math.floor(gameState.clickPower)}
-                </div>
-              </div>
-            </Button>
-
-            {/* 💫 Números flotantes cerca del click */}
-            <AnimatePresence>
-              {floatingNumbers.map(num => (
-                <motion.div
-                  key={num.id}
-                  className="absolute text-lime-300 font-bold text-lg md:text-xl pointer-events-none"
-                  initial={{ opacity: 1, y: 0, scale: 1 }}
-                  animate={{ opacity: 0, y: -40, scale: 1.25 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.65, ease: 'ease-out' }}
-                  style={{
-                    top: (num.y || 0) - 10,
-                    left: (num.x || 0),
-                    zIndex: 60,
-                  }}
-                >
-                  +{num.value}
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            +{num.value}
           </motion.div>
+        );
+      })}
+    </AnimatePresence>
+  </motion.div>
 
-          {/* Barra de progreso XP */}
-          <div className="mt-8 w-full max-w-md">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Nivel {gameState.level}</span>
-              <span>{gameState.experience % 100}/100 XP</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-3">
-              <div
-                className="progress-bar h-3 rounded-full transition-all duration-300"
-                style={{ width: `${gameState.experience % 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
+  {/* Barra de progreso */}
+  <div className="mt-8 w-full max-w-md">
+    <div className="flex justify-between text-sm mb-2">
+      <span>Nivel {gameState.level}</span>
+      <span>{gameState.experience % 100}/100 XP</span>
+    </div>
+    <div className="w-full bg-gray-700 rounded-full h-3">
+      <div
+        className="progress-bar h-3 rounded-full transition-all duration-300"
+        style={{ width: `${(gameState.experience % 100)}%` }}
+      />
+    </div>
+  </div>
+</div>
+
 
         {/* 📊 Panel lateral */}
         <div className="w-full space-y-4">
