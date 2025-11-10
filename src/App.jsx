@@ -144,6 +144,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Barra superior */}
       <nav className="bg-card/50 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-40">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">🐊 Cocodrilo Kombat</h1>
@@ -164,7 +165,7 @@ function App() {
         </div>
       </nav>
 
-      {/* ✅ Fix visual flicker and tab render issues */}
+      {/* Contenido dinámico */}
       <AnimatePresence mode="sync">
         <motion.div
           key={currentView}
@@ -262,6 +263,7 @@ function App() {
         </motion.div>
       </AnimatePresence>
 
+      {/* Modales */}
       <AuthModal
         showAuth={showAuth}
         setShowAuth={setShowAuth}
@@ -284,7 +286,8 @@ function App() {
         milestone={lastReachedMilestone} 
       />
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-md border-t border-border p-3 z-40">
+      {/* Footer (ya no bloquea los clics) */}
+      <footer className="relative bg-card/80 backdrop-blur-md border-t border-border p-3 mt-16 z-10">
         <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
       </footer>
 
