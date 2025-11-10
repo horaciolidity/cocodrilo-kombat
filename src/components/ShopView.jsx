@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, Palette, Gem, Zap, Check } from 'lucide-react';
 import { SHOP_ITEMS } from '@/config/gameConfig';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
   const [selectedTab, setSelectedTab] = useState("skins");
@@ -61,7 +60,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           disabled={status.disabled}
           className={`w-full mobile-button ${
             status.disabled && status.text !== 'Equipada' && status.text !== 'Comprado'
-              ? 'bg-gray-600'
+              ? 'bg-gray-600 cursor-not-allowed'
               : status.text === 'Equipar'
               ? 'bg-primary hover:bg-primary/90'
               : ''
@@ -96,48 +95,67 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        <Tabs
-          value={selectedTab}
-          onValueChange={setSelectedTab}
-          className="w-full relative z-10"
-        >
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-card/60 backdrop-blur-md border border-border rounded-lg">
-            <TabsTrigger value="skins">
+        {/* ✅ Fix: reemplazo TabsContent por condicionales normales para evitar pointer-events bloqueados */}
+        <div className="w-full relative z-10">
+          <div className="grid w-full grid-cols-3 mb-6 bg-card/60 backdrop-blur-md border border-border rounded-lg">
+            <button
+              onClick={() => setSelectedTab("skins")}
+              className={`py-2 text-sm font-semibold rounded-l-lg transition-colors ${
+                selectedTab === "skins"
+                  ? "bg-primary text-white"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+            >
               <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
-            </TabsTrigger>
-            <TabsTrigger value="items">
+            </button>
+            <button
+              onClick={() => setSelectedTab("items")}
+              className={`py-2 text-sm font-semibold transition-colors ${
+                selectedTab === "items"
+                  ? "bg-primary text-white"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+            >
               <Gem className="w-4 h-4 mr-2 inline-block" /> Ítems
-            </TabsTrigger>
-            <TabsTrigger value="consumables">
+            </button>
+            <button
+              onClick={() => setSelectedTab("consumables")}
+              className={`py-2 text-sm font-semibold rounded-r-lg transition-colors ${
+                selectedTab === "consumables"
+                  ? "bg-primary text-white"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+            >
               <Zap className="w-4 h-4 mr-2 inline-block" /> Consumibles
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
-          {/* ✅ TabsContent sin forzar visibilidad */}
-          <TabsContent value="skins">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems('skin').map((item) => (
-                <ItemCard item={item} key={item.id} />
-              ))}
-            </div>
-          </TabsContent>
+          <div className="relative z-20">
+            {selectedTab === "skins" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('skin').map((item) => (
+                  <ItemCard item={item} key={item.id} />
+                ))}
+              </div>
+            )}
 
-          <TabsContent value="items">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems('item').map((item) => (
-                <ItemCard item={item} key={item.id} />
-              ))}
-            </div>
-          </TabsContent>
+            {selectedTab === "items" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('item').map((item) => (
+                  <ItemCard item={item} key={item.id} />
+                ))}
+              </div>
+            )}
 
-          <TabsContent value="consumables">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems('consumable').map((item) => (
-                <ItemCard item={item} key={item.id} />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+            {selectedTab === "consumables" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems('consumable').map((item) => (
+                  <ItemCard item={item} key={item.id} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
