@@ -37,7 +37,9 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
               className={`w-10 h-10 p-2 rounded-lg mr-3 ${
                 item.type === 'skin'
                   ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
+                  : item.type === 'item'
+                  ? 'bg-yellow-500/20 text-yellow-400'
+                  : 'bg-blue-500/20 text-blue-400'
               }`}
             />
             <div>
@@ -94,8 +96,13 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           Monedas: <span className="text-yellow-400">{coins.toLocaleString()}</span> 💰
         </div>
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+        {/* ✅ FIX: Evita ocultar las tabs con overflow o transiciones */}
+        <Tabs
+          value={selectedTab}
+          onValueChange={setSelectedTab}
+          className="w-full relative z-10"
+        >
+          <TabsList className="grid w-full grid-cols-3 mb-6 overflow-visible bg-card/60 backdrop-blur-md border border-border rounded-lg">
             <TabsTrigger value="skins">
               <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
             </TabsTrigger>
@@ -107,7 +114,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="skins">
+          <TabsContent value="skins" className="fade-in block opacity-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('skin').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -115,7 +122,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="items">
+          <TabsContent value="items" className="fade-in block opacity-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('item').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -123,7 +130,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="consumables">
+          <TabsContent value="consumables" className="fade-in block opacity-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('consumable').map((item) => (
                 <ItemCard item={item} key={item.id} />
