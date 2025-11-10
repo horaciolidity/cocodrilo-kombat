@@ -337,3 +337,17 @@ body {
   border: 1px solid hsla(140, 25%, 30%, 0.4);
   box-shadow: 0 8px 30px hsla(140, 30%, 8%, 0.5);
 }
+.stats-card button {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+}
+
+.stats-card {
+  pointer-events: auto !important;
+}
+
+button, .btn, [role="button"] {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
