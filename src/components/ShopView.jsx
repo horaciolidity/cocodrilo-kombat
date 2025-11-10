@@ -13,7 +13,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
         return { text: 'Equipada', disabled: true, variant: 'outline' };
       if (ownedItems.includes(item.id))
         return { text: 'Equipar', disabled: false, variant: 'default' };
-    } else if (item.type === 'item') {
+    } else if (item.type === 'item' || item.type === 'consumable') {
       if (ownedItems.includes(item.id))
         return { text: 'Comprado', disabled: true, variant: 'outline' };
     }
@@ -101,7 +101,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
           onValueChange={setSelectedTab}
           className="w-full relative z-10"
         >
-          <TabsList className="grid w-full grid-cols-3 mb-6 overflow-visible bg-card/60 backdrop-blur-md border border-border rounded-lg">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-card/60 backdrop-blur-md border border-border rounded-lg">
             <TabsTrigger value="skins">
               <Palette className="w-4 h-4 mr-2 inline-block" /> Skins
             </TabsTrigger>
@@ -113,8 +113,8 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </TabsTrigger>
           </TabsList>
 
-          {/* ✅ Forzamos el montaje para evitar contenido invisible */}
-          <TabsContent value="skins" forceMount className="fade-in">
+          {/* ✅ TabsContent sin forzar visibilidad */}
+          <TabsContent value="skins">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('skin').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -122,7 +122,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="items" forceMount className="fade-in">
+          <TabsContent value="items">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('item').map((item) => (
                 <ItemCard item={item} key={item.id} />
@@ -130,7 +130,7 @@ export function ShopView({ buyShopItem, coins, ownedItems, activeSkin }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="consumables" forceMount className="fade-in">
+          <TabsContent value="consumables">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems('consumable').map((item) => (
                 <ItemCard item={item} key={item.id} />
