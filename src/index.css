@@ -337,15 +337,3 @@ body {
   border: 1px solid hsla(140, 25%, 30%, 0.4);
   box-shadow: 0 8px 30px hsla(140, 30%, 8%, 0.5);
 }
-[data-state='inactive'] {
-  display: none !important;
-  opacity: 0 !important;
-  pointer-events: none;
-}
-
-[data-state='active'] {
-  display: block !important;
-  opacity: 1 !important;
-  pointer-events: auto;
-  transition: opacity 0.3s ease-in-out;
-}
