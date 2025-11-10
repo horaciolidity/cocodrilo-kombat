@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   Coins, TrendingUp, Star, Zap, ShoppingCart, Gift,
-  Palette, DollarSign, BarChart2, ExternalLink
+  DollarSign, BarChart2, ExternalLink
 } from 'lucide-react';
 import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid
 } from 'recharts';
+import { useSound } from '@/hooks/useSound'; // 🔊 Asegurate de tenerlo importado
 
 const generateRandomPriceData = () => {
   let price = 0.05;
@@ -39,6 +40,8 @@ export function GameView({
   const [tokenPrice, setTokenPrice] = useState(0.05);
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
+  const [isClicked, setIsClicked] = useState(false);
+  const { playSound } = useSound(); // ✅ hook de sonido
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -62,6 +65,13 @@ export function GameView({
     return '🐊';
   };
 
+  const handleCrocClick = () => {
+    handleClick();
+    playSound('click'); // 🦷 sonido de mordida (configuralo en tu hook)
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 250);
+  };
+
   const handleBuyToken = () => {
     toast({
       title: "🚧 Comprar Token CROC",
@@ -72,51 +82,83 @@ export function GameView({
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
+      {/* 🔢 Estadísticas */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <StatCard icon={Coins} value={Math.floor(gameState.coins).toLocaleString()} label="Monedas" color="text-yellow-400" />
         <StatCard icon={TrendingUp} value={`${gameState.coinsPerSecond}/s`} label="Por Segundo" color="text-green-400" />
         <StatCard icon={Star} value={gameState.level} label="Nivel" color="text-purple-400" />
         <EnergyStatCard energy={gameState.energy} maxEnergy={gameState.maxEnergy} />
-        {/* 🪙 Bloque agregado para mostrar CROC */}
         <StatCard icon={BarChart2} value={`${gameState.nativeTokenBalance?.toLocaleString() || 0}`} label="CROC Tokens" color="text-emerald-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 🐊 Zona del cocodrilo */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
-            className={`relative ${clickEffect ? 'click-effect' : ''}`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            animate={{ scale: isClicked ? 0.95 : 1 }}
+            transition={{ type: 'spring', stiffness: 250, damping: 12 }}
+            className="relative"
           >
-            <Button
-              onClick={handleClick}
-              className={`w-48 h-48 md:w-64 md:h-64 rounded-full bg-linear-to-br from-green-500 via-lime-500 to-emerald-600 hover:from-green-400 hover:via-lime-400 hover:to-emerald-500 border-4 border-green-300 shadow-2xl glow-effect mobile-button ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
-              disabled={gameState.energy <= 0}
-            >
-              <div className="text-center">
-                <div className="text-6xl mb-2 crocodile-bounce">{getCrocodileCharacter()}</div>
-                <div className="text-white font-bold text-lg neon-glow">¡MORDER!</div>
-                <div className="text-lime-200 text-sm">+{Math.floor(gameState.clickPower)}</div>
-              </div>
-            </Button>
+            <motion.div
+  whileHover={{ scale: 1.1 }}
+  whileTap={{ scale: 0.9 }}
+  animate={{ scale: isClicked ? 0.95 : 1 }}
+  transition={{ type: 'spring', stiffness: 250, damping: 12 }}
+  className="relative"
+>
+  <Button
+    onClick={handleCrocClick}
+    className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full 
+      bg-gradient-to-br from-green-500 via-lime-500 to-emerald-600 
+      hover:from-green-400 hover:via-lime-400 hover:to-emerald-500 
+      border-4 border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)] 
+      mobile-button select-none overflow-hidden transition-transform duration-150 ${
+        isClicked ? 'impact-glow' : ''
+      } ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
+    disabled={gameState.energy <= 0}
+  >
+    <div className="text-center select-none">
+      <motion.div
+        animate={{ scale: isClicked ? 0.9 : 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+        className="text-8xl mb-2"
+      >
+        {getCrocodileCharacter()}
+      </motion.div>
+      <div className="text-white font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
+      <div className="text-lime-200 text-sm md:text-base">
+        +{Math.floor(gameState.clickPower)}
+      </div>
+    </div>
+  </Button>
+</motion.div>
+
+            {/* 💫 Números flotantes centrados */}
+            <AnimatePresence>
+              {floatingNumbers.map(num => (
+                <motion.div
+                  key={num.id}
+                  className="absolute text-yellow-300 font-bold text-lg md:text-xl floating-number"
+                  initial={{ opacity: 1, y: 0, scale: 1 }}
+                  animate={{ opacity: 0, y: -50, scale: 1.4 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8 }}
+                  style={{
+                    left: '50%',
+                    top: '46%',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  +{num.value}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </motion.div>
 
-          <AnimatePresence>
-            {floatingNumbers.map(num => (
-              <motion.div
-                key={num.id}
-                className="floating-number"
-                style={{ left: num.x, top: num.y }}
-                initial={{ opacity: 1, y: 0, scale: 1 }}
-                animate={{ opacity: 0, y: -80, scale: 1.2 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1 }}
-              >
-                +{num.value}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
+          {/* Barra de progreso */}
           <div className="mt-8 w-full max-w-md">
             <div className="flex justify-between text-sm mb-2">
               <span>Nivel {gameState.level}</span>
@@ -131,6 +173,7 @@ export function GameView({
           </div>
         </div>
 
+        {/* 📊 Panel lateral */}
         <div className="w-full space-y-4">
           <TokenInfoPanel tokenPrice={tokenPrice} liquidity={liquidity} priceData={priceData} onBuyToken={handleBuyToken} />
           <UpgradePanel upgradesConfig={UPGRADES} upgradesState={upgrades} buyUpgrade={buyUpgrade} coins={gameState.coins} tutorialStep={tutorialStep} showTutorial={showTutorial} />
@@ -213,7 +256,7 @@ function EnergyStatCard({ energy, maxEnergy }) {
   );
 }
 
-function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, tutorialStep, showTutorial }) {
+function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
   return (
     <div className="upgrade-card rounded-xl p-4">
       <h3 className="text-xl font-bold mb-4 flex items-center">
@@ -227,7 +270,7 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, tutori
           const canAfford = coins >= price;
           const Icon = upgrade.icon;
           return (
-            <div key={upgrade.id} className={`glass-effect rounded-lg p-3 hover-lift ${tutorialStep === 1 && showTutorial && upgrade.id === 'auto늪지' ? 'tutorial-highlight' : ''}`}>
+            <div key={upgrade.id} className="glass-effect rounded-lg p-3 hover-lift">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <Icon className={`w-5 h-5 mr-2 ${upgrade.color}`} />
