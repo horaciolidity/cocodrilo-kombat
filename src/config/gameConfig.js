@@ -12,6 +12,11 @@ export const INITIAL_GAME_STATE = {
   energy: 100,
   maxEnergy: 100,
   nativeTokenBalance: 0, 
+  referralsCount: 0,
+  crocFromRefs: 0,
+  coinsFromRefs: 0,
+  playerId: crypto.randomUUID(),
+
 };
 
 export const UPGRADES = [

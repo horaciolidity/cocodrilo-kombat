@@ -101,6 +101,39 @@ function App() {
     }
   }, []);
 
+  // 🪙 Detectar ingreso por link de referido
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ref = urlParams.get('ref');
+
+  if (ref && ref !== gameState.playerId) {
+    const refs = JSON.parse(localStorage.getItem('cocodriloKombatRefs') || '{}');
+    if (!refs[ref]) {
+      refs[ref] = true;
+      localStorage.setItem('cocodriloKombatRefs', JSON.stringify(refs));
+
+      // 💎 Recompensa al referidor
+      const players = JSON.parse(localStorage.getItem('cocodriloKombatPlayers') || '{}');
+      const refData = players[ref] || {};
+      refData.referralsCount = (refData.referralsCount || 0) + 1;
+      refData.crocFromRefs = (refData.crocFromRefs || 0) + 10;
+      refData.coinsFromRefs = (refData.coinsFromRefs || 0) + 500;
+      refData.nativeTokenBalance = (refData.nativeTokenBalance || 0) + 10;
+      refData.coins = (refData.coins || 0) + 500;
+      players[ref] = refData;
+      localStorage.setItem('cocodriloKombatPlayers', JSON.stringify(players));
+
+      toast({
+        title: '🐊 Nuevo referido!',
+        description: '¡Ganaste +10 CROC y +500 monedas!',
+        duration: 3000,
+      });
+      playSound('reward');
+    }
+  }
+}, [gameState.playerId]);
+
+
   const logout = useCallback(() => {
     setUser(null);
     toast({
@@ -202,6 +235,50 @@ function App() {
                 toast={toast}
               />
             )}
+
+{/* 🧩 Sistema de Referidos */}
+{currentView === 'game' && (
+  <div className="max-w-xl mx-auto mt-4 mb-6 bg-green-950/40 border border-green-700 rounded-2xl p-4 text-green-100 shadow-inner text-center">
+    <h2 className="text-lg font-bold text-green-300 mb-2 flex items-center justify-center gap-2">
+      🐊 Programa de Referidos
+    </h2>
+
+    <p className="text-sm text-green-200 mb-3">
+      Comparte tu enlace y gana <b>CROC</b> y monedas cada vez que un amigo juega.
+    </p>
+
+    <div className="flex flex-col sm:flex-row items-center gap-2 justify-center">
+      <input
+        type="text"
+        readOnly
+        value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
+        className="w-full sm:w-auto flex-1 bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-100 text-sm text-center"
+      />
+      <Button
+        onClick={() => {
+          navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
+          toast({
+            title: '📋 Enlace copiado',
+            description: '¡Compartí tu link y ganá recompensas!',
+            duration: 2000,
+          });
+          playSound('uiClick');
+        }}
+        className="bg-green-700 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition text-sm"
+      >
+        Copiar
+      </Button>
+    </div>
+
+    <div className="mt-3 text-sm text-green-200 grid grid-cols-3 gap-2">
+      <span>👥 Referidos: <b>{gameState?.referralsCount || 0}</b></span>
+      <span>💰 CROC: <b>{gameState?.crocFromRefs || 0}</b></span>
+      <span>🪙 Monedas: <b>{gameState?.coinsFromRefs || 0}</b></span>
+    </div>
+  </div>
+)}
+
+
 
             {currentView === 'missions' && (
               <MissionsView
