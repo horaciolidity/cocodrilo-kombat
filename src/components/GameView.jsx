@@ -152,51 +152,85 @@ const handleCrocClick = (event) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 🐊 Zona click principal */}
-        {/* 🐊 Zona del cocodrilo */}
-{/* 🐊 Video circular del cocodrilo */}
-<div
-  onClick={handleCrocClick}
-  className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full overflow-hidden border-4 cursor-pointer
-    transition-transform duration-150
-    ${
-      activeSkin === 'skin_golden_croc'
-        ? 'border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)]'
-        : activeSkin === 'skin_camo_croc'
-        ? 'border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)]'
-        : activeSkin === 'skin_cyborg_croc'
-        ? 'border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)]'
-        : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
-    }`}
->
-  {/* 🎥 Video del cocodrilo */}
-  <video
-    ref={videoRef}
-    src="/videos/crocodile_bite.mp4"
-    className="w-full h-full object-cover rounded-full"
-    playsInline
-    muted
-    preload="auto"
-    loop 
-    onEnded={() => videoRef.current.pause()}
-  />
-
-  {/* ✨ Efecto de brillo animado */}
+      
+{/* 🐊 Zona del cocodrilo */}
+<div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
   <motion.div
-    className="absolute inset-0 rounded-full border-[3px] border-lime-400 pointer-events-none"
-    animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
-    transition={{ repeat: Infinity, duration: 1.5 }}
-  />
+    whileHover={{ scale: 1.05 }}
+    animate={isClicked ? { scale: [1, 0.9, 1.1, 1] } : { scale: 1 }}
+    transition={{ duration: 0.25, ease: 'easeOut' }}
+    className="relative"
+  >
+    <Button
+      onClick={handleCrocClick}
+      className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
+        transition-transform duration-150 border-4 flex items-center justify-center
+        ${
+          activeSkin === 'skin_golden_croc'
+            ? 'border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)]'
+            : activeSkin === 'skin_camo_croc'
+            ? 'border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)]'
+            : activeSkin === 'skin_cyborg_croc'
+            ? 'border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)]'
+            : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
+        }`}
+    >
+      {/* 🎥 Video Idle */}
+      <video
+        ref={videoRefIdle}
+        src="/videos/crocodile_idle.mp4"
+        className="absolute inset-0 w-full h-full object-cover rounded-full"
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
 
-  {/* 🪙 Texto y valor del click */}
-  <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none">
-    <div className="font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
-    <div className="text-lime-200 text-sm md:text-base">
-      +{Math.floor(gameState.clickPower)}
+      {/* 🎥 Video Bite */}
+      <video
+        ref={videoRefBite}
+        src="/videos/crocodile_bite.mp4"
+        className="absolute inset-0 w-full h-full object-cover rounded-full"
+        muted
+        playsInline
+        onEnded={() => {
+          videoRefBite.current.pause();
+          videoRefBite.current.currentTime = 0;
+          videoRefIdle.current.play();
+        }}
+      />
+
+      {/* ✨ Efecto de energía */}
+      <motion.div
+        className="absolute inset-0 rounded-full border-[3px] border-lime-400 pointer-events-none"
+        animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
+        transition={{ repeat: Infinity, duration: 1.5 }}
+      />
+
+      {/* 🪙 Texto y valor */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
+        <div className="font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
+        <div className="text-lime-200 text-sm md:text-base">
+          +{Math.floor(gameState.clickPower)}
+        </div>
+      </div>
+    </Button>
+  </motion.div>
+
+  {/* Barra de progreso */}
+  <div className="mt-8 w-full max-w-md">
+    <div className="flex justify-between text-sm mb-2">
+      <span>Nivel {gameState.level}</span>
+      <span>{gameState.experience % 100}/100 XP</span>
+    </div>
+    <div className="w-full bg-gray-700 rounded-full h-3">
+      <div
+        className="progress-bar h-3 rounded-full transition-all duration-300"
+        style={{ width: `${(gameState.experience % 100)}%` }}
+      />
     </div>
   </div>
 </div>
-
 
 
         {/* 📊 Panel lateral */}
