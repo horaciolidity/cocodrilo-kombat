@@ -259,11 +259,60 @@ export function GameView({
 /* ===================== Subcomponentes ===================== */
 
 function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
+  // ⚙️ Acceso a sonido y toast desde el hook global
+  const { playSound } = useSound();
+  const gameState = window?.gameState || {}; // opcional, si no lo recibís por props
+  const toast = window?.toast || (() => {});
+
   return (
-    <div className="stats-card rounded-xl p-4">
-      <h3 className="text-xl font-bold mb-3 flex items-center">
-        <DollarSign className="w-6 h-6 mr-2 text-primary" /> Token CROC 🐊
-      </h3>
+    <div className="stats-card rounded-xl p-4 relative overflow-visible">
+      {/* Encabezado con Referidos integrado */}
+      <div className="flex items-start justify-between mb-3">
+        <h3 className="text-xl font-bold flex items-center">
+          <DollarSign className="w-6 h-6 mr-2 text-primary" /> Token CROC 🐊
+        </h3>
+
+        {/* 🧩 Widget de Referidos embebido */}
+        <div className="bg-green-950/60 border border-green-700/70 rounded-lg px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-60">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
+              🐊 Referidos
+            </span>
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
+                toast({
+                  title: '📋 Enlace copiado',
+                  description: '¡Compartí tu link y ganá recompensas!',
+                  duration: 2000,
+                });
+                playSound('uiClick');
+              }}
+              size="sm"
+              className="bg-green-700 hover:bg-green-600 text-white text-[11px] px-2 py-1 rounded-md"
+            >
+              Copiar
+            </Button>
+          </div>
+
+          <input
+            type="text"
+            readOnly
+            value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
+            className="w-full bg-green-900/30 border border-green-700/50 rounded-md px-2 py-1 text-green-100 text-[11px] mb-2 text-center select-all"
+          />
+
+          <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
+            <div className="flex items-center justify-center gap-1">
+              👥 <b>{gameState?.referralsCount || 0}</b>
+            </div>
+            <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
+            <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
+          </div>
+        </div>
+      </div>
+
+      {/* Datos del token */}
       <div className="space-y-2 text-sm mb-3">
         <div className="flex justify-between">
           <span>Precio Actual:</span>
@@ -278,29 +327,19 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
           </span>
         </div>
       </div>
+
+      {/* Gráfico */}
       <div className="h-24 w-full mb-3">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={priceData}
-            margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="hsl(var(--border))"
-            />
+          <LineChart data={priceData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="name"
-              tick={{
-                fontSize: 10,
-                fill: 'hsl(var(--muted-foreground))',
-              }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             />
             <YAxis
               domain={['auto', 'auto']}
-              tick={{
-                fontSize: 10,
-                fill: 'hsl(var(--muted-foreground))',
-              }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             />
             <Tooltip
               contentStyle={{
@@ -324,6 +363,7 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
       <Button
         onClick={onBuyToken}
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mobile-button"
@@ -333,6 +373,7 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
     </div>
   );
 }
+
 
 function StatCard({ icon: Icon, value, label, color }) {
   return (

@@ -236,69 +236,6 @@ useEffect(() => {
               />
             )}
 
-{/* 🧩 Widget de Referidos junto al panel de Token CROC */}
-{currentView === 'game' && (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    exit={{ opacity: 0, scale: 0.9 }}
-    transition={{ duration: 0.4, ease: "easeOut" }}
-    className="absolute top-[240px] right-[680px] z-20"
-  >
-    <div className="bg-green-950/60 border border-green-700/70 rounded-xl px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-60">
-      <div className="flex justify-between items-center mb-1">
-        <h2 className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
-          🐊 Referidos
-        </h2>
-        <Button
-          onClick={() => {
-            navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
-            toast({
-              title: '📋 Enlace copiado',
-              description: '¡Compartí tu link y ganá recompensas!',
-              duration: 2000,
-            });
-            playSound('uiClick');
-          }}
-          size="sm"
-          className="bg-green-700 hover:bg-green-600 text-white text-[11px] px-2 py-1 rounded-md"
-        >
-          Copiar
-        </Button>
-      </div>
-
-      <input
-        type="text"
-        readOnly
-        value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
-        className="w-full bg-green-900/30 border border-green-700/50 rounded-md px-2 py-1 text-green-100 text-[11px] mb-2 text-center select-all"
-      />
-
-      <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200 relative">
-        <div className="flex items-center justify-center gap-1">
-          👥 <b>{gameState?.referralsCount || 0}</b>
-        </div>
-        <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
-        <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
-
-        <AnimatePresence>
-          {gameState?.recentReferral && (
-            <motion.span
-              key="referralPlusOne"
-              initial={{ opacity: 1, y: 0, scale: 1 }}
-              animate={{ opacity: 0, y: -25, scale: 1.8 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute left-[18%] top-[-8px] text-green-400 font-bold text-sm"
-            >
-              +1
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  </motion.div>
-)}
 
 
 
