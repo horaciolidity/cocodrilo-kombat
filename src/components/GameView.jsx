@@ -91,13 +91,21 @@ export function GameView({
     return '🐊';
   };
 
-  // ⚠️ Importante: pasamos el event a handleClick para que se calculen bien las coords del +1
-  const handleCrocClick = (event) => {
-    handleClick(event);
-    playSound('click');
-    setIsClicked(true);
-    setTimeout(() => setIsClicked(false), 180);
-  };
+  // 🐊 Reproduce el video y el sonido cuando se hace clic en el cocodrilo
+const handleCrocClick = (event) => {
+  handleClick(event);
+  playSound('bite');
+
+  // reproducir video desde el inicio
+  if (videoRef.current) {
+    videoRef.current.currentTime = 0;
+    videoRef.current.play();
+  }
+
+  setIsClicked(true);
+  setTimeout(() => setIsClicked(false), 300);
+};
+
 
   const handleBuyToken = () => {
     toast({
@@ -152,39 +160,28 @@ export function GameView({
     transition={{ duration: 0.25, ease: 'easeOut' }}
     className="relative"
   >
-<Button
+{/* 🐊 Video circular del cocodrilo */}
+<div
   onClick={handleCrocClick}
-  className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
-    transition-transform duration-150 border-4 mobile-button 
-    ${
-      activeSkin === 'skin_golden_croc'
-        ? 'from-yellow-400 via-amber-500 to-yellow-600 border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)] animate-golden-glow'
-        : activeSkin === 'skin_camo_croc'
-        ? 'from-green-600 via-lime-600 to-emerald-700 border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)] animate-camo-glow'
-        : activeSkin === 'skin_cyborg_croc'
-        ? 'from-sky-500 via-cyan-600 to-blue-700 border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)] animate-cyber-glow'
-        : 'from-green-500 via-lime-500 to-emerald-600 border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)] animate-default-glow'
-    } 
-    bg-gradient-to-br hover:scale-[1.03]
-    ${tutorialStep === 0 && showTutorial ? 'tutorial-highlight' : ''}`}
-  disabled={gameState.energy <= 0}
+  className="relative w-60 h-60 md:w-80 md:h-80 rounded-full overflow-hidden border-4 border-lime-400 shadow-[0_0_40px_rgba(132,204,22,0.8)] cursor-pointer"
 >
-  <div className="text-center select-none">
-    <motion.div
-      animate={isClicked ? { scale: [1, 1.2, 0.95, 1] } : { scale: 1 }}
-      transition={{ duration: 0.25 }}
-      className="text-8xl mb-2"
-    >
-      {getCrocodileCharacter()}
-    </motion.div>
-    <div className="text-white font-bold text-lg md:text-xl neon-glow">
-      ¡MORDER!
-    </div>
-    <div className="text-lime-200 text-sm md:text-base">
-      +{Math.floor(gameState.clickPower)}
-    </div>
-  </div>
-</Button>
+  <video
+    ref={videoRef}
+    src="/videos/crocodile_bite.mp4"
+    className="w-full h-full object-cover rounded-full"
+    playsInline
+    muted
+    preload="auto"
+    onEnded={() => videoRef.current.pause()}
+  />
+  {/* Efecto de brillo animado */}
+  <motion.div
+    className="absolute inset-0 rounded-full border-[3px] border-green-400 pointer-events-none"
+    animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
+    transition={{ repeat: Infinity, duration: 1.2 }}
+  />
+</div>
+
 
 
     {/* 💫 Números flotantes con colores dinámicos */}
@@ -261,6 +258,8 @@ export function GameView({
 function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
   // ⚙️ Acceso a sonido y toast desde el hook global
   const { playSound } = useSound();
+  const videoRef = useRef(null);
+
   const gameState = window?.gameState || {}; // opcional, si no lo recibís por props
   const toast = window?.toast || (() => {});
 
