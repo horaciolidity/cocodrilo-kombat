@@ -236,14 +236,14 @@ useEffect(() => {
               />
             )}
 
-{/* 🧩 Widget de Referidos sobre el gráfico del Token CROC */}
+{/* 🧩 Widget de Referidos al lado del botón del cocodrilo */}
 {currentView === 'game' && (
   <motion.div
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
     transition={{ duration: 0.4 }}
-    className="absolute top-[235px] right-[115px] z-30"
+    className="absolute top-[330px] right-[320px] z-30"
   >
     <div className="bg-green-950/70 border border-green-700/70 rounded-xl px-3 py-2 shadow-lg text-green-100 backdrop-blur-md w-56">
       <div className="flex justify-between items-center mb-1">
@@ -281,16 +281,16 @@ useEffect(() => {
         <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
         <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
 
-        {/* ✨ Animación del +1 */}
+        {/* ✨ Animación del +1 al ganar un referido */}
         <AnimatePresence>
           {gameState?.recentReferral && (
             <motion.span
               key="referralPlusOne"
               initial={{ opacity: 1, y: 0, scale: 1 }}
-              animate={{ opacity: 0, y: -25, scale: 1.6 }}
+              animate={{ opacity: 0, y: -25, scale: 1.8 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1 }}
-              className="absolute left-[15%] top-[-8px] text-green-400 font-bold text-sm"
+              className="absolute left-[18%] top-[-8px] text-green-400 font-bold text-sm"
             >
               +1
             </motion.span>
@@ -300,6 +300,7 @@ useEffect(() => {
     </div>
   </motion.div>
 )}
+
 
 
 
