@@ -236,47 +236,74 @@ useEffect(() => {
               />
             )}
 
-{/* 🧩 Sistema de Referidos */}
-{currentView === 'game' && (
-  <div className="max-w-xl mx-auto mt-4 mb-6 bg-green-950/40 border border-green-700 rounded-2xl p-4 text-green-100 shadow-inner text-center">
-    <h2 className="text-lg font-bold text-green-300 mb-2 flex items-center justify-center gap-2">
-      🐊 Programa de Referidos
-    </h2>
+{/* 🧩 Widget de Referidos Flotante con animación */}
+<AnimatePresence>
+  {currentView === 'game' && (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }}
+      className="fixed top-20 right-4 sm:right-6 md:right-10 z-50"
+    >
+      <div className="relative bg-green-950/60 border border-green-700 backdrop-blur-md rounded-2xl p-3 shadow-lg text-green-100 w-64">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-sm font-semibold text-green-300 flex items-center gap-1">
+            🐊 Referidos
+          </h2>
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
+              toast({
+                title: '📋 Enlace copiado',
+                description: '¡Compartí tu link y ganá recompensas!',
+                duration: 2000,
+              });
+              playSound('uiClick');
+            }}
+            size="sm"
+            className="bg-green-700 hover:bg-green-600 text-white text-xs px-2 py-1 rounded-lg"
+          >
+            Copiar
+          </Button>
+        </div>
 
-    <p className="text-sm text-green-200 mb-3">
-      Comparte tu enlace y gana <b>CROC</b> y monedas cada vez que un amigo juega.
-    </p>
+        <input
+          type="text"
+          readOnly
+          value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
+          className="w-full bg-green-900/40 border border-green-700 rounded-lg px-2 py-1 text-green-100 text-xs mb-2 text-center"
+        />
 
-    <div className="flex flex-col sm:flex-row items-center gap-2 justify-center">
-      <input
-        type="text"
-        readOnly
-        value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
-        className="w-full sm:w-auto flex-1 bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-100 text-sm text-center"
-      />
-      <Button
-        onClick={() => {
-          navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
-          toast({
-            title: '📋 Enlace copiado',
-            description: '¡Compartí tu link y ganá recompensas!',
-            duration: 2000,
-          });
-          playSound('uiClick');
-        }}
-        className="bg-green-700 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition text-sm"
-      >
-        Copiar
-      </Button>
-    </div>
+        {/* Contadores */}
+        <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200 relative">
+          <div className="flex items-center justify-center gap-1">
+            👥 <b>{gameState?.referralsCount || 0}</b>
+          </div>
+          <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
+          <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
 
-    <div className="mt-3 text-sm text-green-200 grid grid-cols-3 gap-2">
-      <span>👥 Referidos: <b>{gameState?.referralsCount || 0}</b></span>
-      <span>💰 CROC: <b>{gameState?.crocFromRefs || 0}</b></span>
-      <span>🪙 Monedas: <b>{gameState?.coinsFromRefs || 0}</b></span>
-    </div>
-  </div>
-)}
+          {/* ✨ Animación del +1 al ganar un referido */}
+          <AnimatePresence>
+            {gameState?.recentReferral && (
+              <motion.span
+                key="referralPlusOne"
+                initial={{ opacity: 1, y: 0, scale: 1 }}
+                animate={{ opacity: 0, y: -25, scale: 1.8 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1 }}
+                className="absolute left-[18%] top-[-8px] text-green-400 font-bold text-sm"
+              >
+                +1
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
 
 
 
