@@ -236,15 +236,16 @@ useEffect(() => {
               />
             )}
 
-{/* 🧩 Widget de Referidos embebido en la barra superior derecha */}
+{/* 🧩 Widget de Referidos al lado izquierdo del gráfico CROC */}
 {currentView === 'game' && (
   <motion.div
-    initial={{ opacity: 0, y: -15 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, ease: 'easeOut' }}
-    className="absolute top-3 right-4 z-30"
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
+    transition={{ duration: 0.4 }}
+    className="absolute top-[125px] right-[365px] z-30"
   >
-    <div className="bg-green-950/60 border border-green-700/80 rounded-xl px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-60 flex flex-col items-stretch">
+    <div className="bg-green-950/60 border border-green-700/80 rounded-xl px-3 py-2 shadow-lg text-green-100 backdrop-blur-md w-60">
       <div className="flex justify-between items-center mb-1">
         <h2 className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
           🐊 Referidos
@@ -280,16 +281,16 @@ useEffect(() => {
         <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
         <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
 
-        {/* ✨ Animación del +1 flotante */}
+        {/* ✨ Animación del +1 al ganar un referido */}
         <AnimatePresence>
           {gameState?.recentReferral && (
             <motion.span
               key="referralPlusOne"
               initial={{ opacity: 1, y: 0, scale: 1 }}
-              animate={{ opacity: 0, y: -20, scale: 1.6 }}
+              animate={{ opacity: 0, y: -25, scale: 1.8 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1 }}
-              className="absolute left-[16%] top-[-6px] text-green-400 font-bold text-sm"
+              className="absolute left-[18%] top-[-8px] text-green-400 font-bold text-sm"
             >
               +1
             </motion.span>
@@ -299,6 +300,7 @@ useEffect(() => {
     </div>
   </motion.div>
 )}
+
 
 
 
