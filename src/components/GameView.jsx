@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,6 +53,7 @@ export function GameView({
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
   const { playSound } = useSound();
+  const videoRef = useRef(null);
 
   // Simulación simple de precio/token
   useEffect(() => {
@@ -153,18 +154,22 @@ const handleCrocClick = (event) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 🐊 Zona click principal */}
         {/* 🐊 Zona del cocodrilo */}
-<div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
-  <motion.div
-    whileHover={{ scale: 1.06 }} // leve efecto al pasar el mouse
-    animate={isClicked ? { scale: [1, 0.9, 1.1, 1] } : { scale: 1 }}
-    transition={{ duration: 0.25, ease: 'easeOut' }}
-    className="relative"
-  >
 {/* 🐊 Video circular del cocodrilo */}
 <div
   onClick={handleCrocClick}
-  className="relative w-60 h-60 md:w-80 md:h-80 rounded-full overflow-hidden border-4 border-lime-400 shadow-[0_0_40px_rgba(132,204,22,0.8)] cursor-pointer"
+  className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full overflow-hidden border-4 cursor-pointer
+    transition-transform duration-150
+    ${
+      activeSkin === 'skin_golden_croc'
+        ? 'border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)]'
+        : activeSkin === 'skin_camo_croc'
+        ? 'border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)]'
+        : activeSkin === 'skin_cyborg_croc'
+        ? 'border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)]'
+        : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
+    }`}
 >
+  {/* 🎥 Video del cocodrilo */}
   <video
     ref={videoRef}
     src="/videos/crocodile_bite.mp4"
@@ -172,61 +177,26 @@ const handleCrocClick = (event) => {
     playsInline
     muted
     preload="auto"
+    loop 
     onEnded={() => videoRef.current.pause()}
   />
-  {/* Efecto de brillo animado */}
+
+  {/* ✨ Efecto de brillo animado */}
   <motion.div
-    className="absolute inset-0 rounded-full border-[3px] border-green-400 pointer-events-none"
+    className="absolute inset-0 rounded-full border-[3px] border-lime-400 pointer-events-none"
     animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
-    transition={{ repeat: Infinity, duration: 1.2 }}
+    transition={{ repeat: Infinity, duration: 1.5 }}
   />
-</div>
 
-
-
-    {/* 💫 Números flotantes con colores dinámicos */}
-    <AnimatePresence>
-      {floatingNumbers.map(num => {
-        let colorClass = 'text-lime-300';
-        if (num.value >= 2 && num.value < 3) colorClass = 'text-yellow-300';
-        if (num.value >= 3) colorClass = 'text-purple-400';
-
-        return (
-          <motion.div
-            key={num.id}
-            className={`absolute font-bold text-xl md:text-2xl pointer-events-none ${colorClass}`}
-            initial={{ opacity: 1, y: 0, scale: 0.8 }}
-            animate={{ opacity: 0, y: -100, scale: 2 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.4, ease: 'easeOut' }} // más duración y crecimiento suave
-            style={{
-              top: (num.y || 0) - 10,
-              left: (num.x || 0),
-              zIndex: 60,
-              textShadow: '0 0 10px rgba(255,255,255,0.6)',
-            }}
-          >
-            +{num.value}
-          </motion.div>
-        );
-      })}
-    </AnimatePresence>
-  </motion.div>
-
-  {/* Barra de progreso */}
-  <div className="mt-8 w-full max-w-md">
-    <div className="flex justify-between text-sm mb-2">
-      <span>Nivel {gameState.level}</span>
-      <span>{gameState.experience % 100}/100 XP</span>
-    </div>
-    <div className="w-full bg-gray-700 rounded-full h-3">
-      <div
-        className="progress-bar h-3 rounded-full transition-all duration-300"
-        style={{ width: `${(gameState.experience % 100)}%` }}
-      />
+  {/* 🪙 Texto y valor del click */}
+  <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none">
+    <div className="font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
+    <div className="text-lime-200 text-sm md:text-base">
+      +{Math.floor(gameState.clickPower)}
     </div>
   </div>
 </div>
+
 
 
         {/* 📊 Panel lateral */}
@@ -258,7 +228,6 @@ const handleCrocClick = (event) => {
 function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
   // ⚙️ Acceso a sonido y toast desde el hook global
   const { playSound } = useSound();
-  const videoRef = useRef(null);
 
   const gameState = window?.gameState || {}; // opcional, si no lo recibís por props
   const toast = window?.toast || (() => {});
