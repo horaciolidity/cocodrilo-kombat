@@ -471,41 +471,51 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
 
       <div className="space-y-4 max-h-60 md:max-h-96 overflow-y-auto scrollbar-hide">
         {upgradesConfig.map((upgrade) => {
-          const currentLevel = upgradesState[upgrade.id].level;
-          const price = Math.floor(
-            upgrade.basePrice * Math.pow(1.5, currentLevel)
-          );
+          const currentLevel = upgradesState[upgrade.id]?.level || 0;
+          const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
           const canAfford = coins >= price;
           const Icon = upgrade.icon;
 
           return (
             <div
               key={upgrade.id}
-              className="relative upgrade-card rounded-xl overflow-hidden shadow-lg hover-lift transition-all duration-300"
+              className="glass-effect rounded-lg overflow-hidden hover-lift transition-all duration-200"
             >
-              {/* 🖼️ Imagen superior */}
-              <div className="h-24 w-full relative overflow-hidden">
-                <img
-                  src={upgrade.image || '/images/upgrades/default.jpg'}
-                  alt={upgrade.name}
-                  className="w-full h-full object-cover brightness-90 hover:brightness-100 transition-all duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                <div className="absolute bottom-2 left-3 flex items-center gap-2">
-                  <Icon className={`w-5 h-5 ${upgrade.color}`} />
-                  <h4 className="text-sm font-bold text-white">{upgrade.name}</h4>
+              {/* 🖼️ Imagen de portada */}
+              {upgrade.image && (
+                <div className="relative w-full h-28 md:h-32 overflow-hidden">
+                  <img
+                    src={upgrade.image}
+                    alt={upgrade.name}
+                    className={`w-full h-full object-cover ${
+                      canAfford ? "brightness-100" : "brightness-50 grayscale"
+                    } transition-all duration-300`}
+                  />
+                  {canAfford && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  )}
                 </div>
-                {currentLevel > 0 && (
-                  <div className="absolute top-2 right-2 bg-green-600/80 text-white text-xs px-2 py-1 rounded-full shadow-md">
-                    Nv. {currentLevel}
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* 💬 Descripción + botón */}
-              <div className="p-3 bg-black/30 backdrop-blur-md">
-                <p className="text-xs text-gray-300 mb-2">{upgrade.description}</p>
+              {/* 🧩 Contenido */}
+              <div className="p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`w-5 h-5 ${upgrade.color}`} />
+                    <div>
+                      <h4 className="font-semibold text-sm">{upgrade.name}</h4>
+                      <p className="text-xs text-muted-foreground">{upgrade.description}</p>
+                    </div>
+                  </div>
+                  {currentLevel > 0 && (
+                    <div className="level-badge text-xs px-2 py-1 rounded-full text-white">
+                      Nv. {currentLevel}
+                    </div>
+                  )}
+                </div>
+
+                {/* 💰 Precio y botón */}
+                <div className="flex items-center justify-between mt-1">
                   <span className="text-yellow-400 font-bold text-sm">
                     {price.toLocaleString()} 💰
                   </span>
@@ -515,8 +525,8 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                     size="sm"
                     className={`mobile-button ${
                       canAfford
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : 'bg-gray-600 cursor-not-allowed opacity-70'
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-gray-600 cursor-not-allowed"
                     }`}
                   >
                     Comprar
@@ -530,6 +540,7 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
     </div>
   );
 }
+
 
 function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
   return (
