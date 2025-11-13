@@ -378,3 +378,17 @@ button, .btn, [role="button"] {
 .animate-golden-glow { animation: goldenPulse 2.5s ease-in-out infinite; }
 .animate-cyber-glow { animation: cyberPulse 2s ease-in-out infinite; }
 .animate-camo-glow { animation: camoPulse 3s ease-in-out infinite; }
+ @keyframes riseUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translate(-50%, -140%) scale(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -180%) scale(1.8);
+  }
+}
