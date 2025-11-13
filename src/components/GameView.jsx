@@ -196,9 +196,9 @@ const handleCrocClick = (event) => {
         clickEffect.style.transform = 'translate(-50%, -50%)';
         clickEffect.style.pointerEvents = 'none';
         clickEffect.style.fontWeight = 'bold';
-        clickEffect.style.fontSize = '28px';
+        clickEffect.style.fontSize = '32px';
         clickEffect.style.zIndex = '50';
-        clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
+        clickEffect.style.animation = 'riseUp 1.3s ease-out forwards';
 
         const lvl = gameState.level;
         clickEffect.style.color =
@@ -208,21 +208,22 @@ const handleCrocClick = (event) => {
           lvl < 30 ? '#22c55e' : '#16a34a';
 
         event.currentTarget.appendChild(clickEffect);
-        setTimeout(() => clickEffect.remove(), 1200);
+        setTimeout(() => clickEffect.remove(), 1300);
 
         // 🔁 Reset estado de clic
         setTimeout(() => setIsClicked(false), 200);
       }}
-      className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
-        transition-transform duration-150 border-4 flex items-center justify-center cursor-pointer
+      className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
+        rounded-full select-none overflow-hidden
+        transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
         ${
           activeSkin === 'skin_golden_croc'
-            ? 'border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)]'
+            ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)]'
             : activeSkin === 'skin_camo_croc'
-            ? 'border-lime-400 shadow-[0_0_50px_rgba(132,204,22,0.7)]'
+            ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)]'
             : activeSkin === 'skin_cyborg_croc'
-            ? 'border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)]'
-            : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
+            ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)]'
+            : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
         }`}
     >
       {/* 🎥 Video Idle (base) */}
@@ -257,17 +258,17 @@ const handleCrocClick = (event) => {
 
       {/* ✨ Efecto de brillo circular */}
       <motion.div
-        className="absolute inset-0 rounded-full border-[3px] border-lime-400 pointer-events-none"
+        className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
         animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
         transition={{ repeat: Infinity, duration: 1.5 }}
       />
 
       {/* 🪙 Texto principal */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
-        <div className="font-bold text-lg md:text-xl neon-glow">
+        <div className="font-bold text-2xl md:text-3xl neon-glow">
           {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
         </div>
-        <div className="text-lime-200 text-sm md:text-base">
+        <div className="text-lime-200 text-lg md:text-xl mt-1">
           +{Math.floor(gameState.clickPower)}
         </div>
       </div>
@@ -275,7 +276,7 @@ const handleCrocClick = (event) => {
   </motion.div>
 
   {/* Barra de progreso */}
-  <div className="mt-8 w-full max-w-md">
+  <div className="mt-10 w-full max-w-md">
     <div className="flex justify-between text-sm mb-2">
       <span>Nivel {gameState.level}</span>
       <span>{gameState.experience % 100}/100 XP</span>
