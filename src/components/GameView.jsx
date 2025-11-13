@@ -53,7 +53,8 @@ export function GameView({
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
   const { playSound } = useSound();
-  const videoRef = useRef(null);
+  const videoRefIdle = useRef(null);
+  const videoRefBite = useRef(null);
 
   // Simulación simple de precio/token
   useEffect(() => {
