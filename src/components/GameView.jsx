@@ -167,6 +167,15 @@ const handleCrocClick = (event) => {
   >
     <div
       onClick={(event) => {
+        // ⚡ Bloquea si no hay energía
+        if (gameState.energy <= 0) {
+          const el = event.currentTarget;
+          el.classList.add('shake');
+          playSound('error'); // opcional: si tenés un sonido de error
+          setTimeout(() => el.classList.remove('shake'), 500);
+          return;
+        }
+
         handleClick(event);
         playSound('bite');
         setIsClicked(true);
@@ -180,16 +189,18 @@ const handleCrocClick = (event) => {
 
         // ✨ Reinicia animación +1
         const clickEffect = document.createElement('div');
-        const x = event.clientX - event.target.getBoundingClientRect().left;
-        const y = event.clientY - event.target.getBoundingClientRect().top;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
         clickEffect.style.position = 'absolute';
         clickEffect.style.left = `${x}px`;
         clickEffect.style.top = `${y}px`;
         clickEffect.style.transform = 'translate(-50%, -50%)';
         clickEffect.style.pointerEvents = 'none';
         clickEffect.style.fontWeight = 'bold';
-        clickEffect.style.fontSize = '18px';
-        clickEffect.style.animation = 'riseUp 0.8s ease-out forwards';
+        clickEffect.style.fontSize = '26px';
+        clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
 
         // 🎨 Color del +1 según nivel
         const lvl = gameState.level;
@@ -201,7 +212,7 @@ const handleCrocClick = (event) => {
 
         clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
         event.currentTarget.appendChild(clickEffect);
-        setTimeout(() => clickEffect.remove(), 800);
+        setTimeout(() => clickEffect.remove(), 1200);
 
         // 🔁 Reset estado de clic
         setTimeout(() => setIsClicked(false), 200);
@@ -217,6 +228,7 @@ const handleCrocClick = (event) => {
             ? 'border-sky-300 shadow-[0_0_55px_rgba(56,189,248,0.8)]'
             : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
         }`}
+
     >
       {/* 🎥 Video Idle (base) */}
       <video
@@ -227,6 +239,10 @@ const handleCrocClick = (event) => {
         loop
         muted
         playsInline
+        onEnded={() => {
+          videoRefIdle.current.currentTime = 0;
+          videoRefIdle.current.play().catch(() => {});
+        }}
       />
 
       {/* 🎥 Video Bite (solo al click) */}
@@ -239,7 +255,7 @@ const handleCrocClick = (event) => {
         onEnded={() => {
           videoRefBite.current.pause();
           videoRefBite.current.currentTime = 0;
-          videoRefIdle.current.play();
+          videoRefIdle.current.play().catch(() => {});
         }}
       />
 
@@ -252,7 +268,9 @@ const handleCrocClick = (event) => {
 
       {/* 🪙 Texto principal */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
-        <div className="font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
+        <div className="font-bold text-lg md:text-xl neon-glow">
+          {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
+        </div>
         <div className="text-lime-200 text-sm md:text-base">
           +{Math.floor(gameState.clickPower)}
         </div>
@@ -274,6 +292,7 @@ const handleCrocClick = (event) => {
     </div>
   </div>
 </div>
+
 
 
 
