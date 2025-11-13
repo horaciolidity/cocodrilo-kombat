@@ -98,15 +98,18 @@ const handleCrocClick = (event) => {
   handleClick(event);
   playSound('bite');
 
-  // reproducir video desde el inicio
-  if (videoRef.current) {
-    videoRef.current.currentTime = 0;
-    videoRef.current.play();
+  if (videoRefIdle.current && videoRefBite.current) {
+    // pausa el video idle
+    videoRefIdle.current.pause();
+    // reinicia y reproduce el video de mordida
+    videoRefBite.current.currentTime = 0;
+    videoRefBite.current.play();
   }
 
   setIsClicked(true);
   setTimeout(() => setIsClicked(false), 300);
 };
+
 
 
   const handleBuyToken = () => {
