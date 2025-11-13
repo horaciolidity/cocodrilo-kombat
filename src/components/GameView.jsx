@@ -165,15 +165,49 @@ const handleCrocClick = (event) => {
     transition={{ duration: 0.25, ease: 'easeOut' }}
     className="relative"
   >
-    <Button
+    <div
       onClick={(event) => {
         handleClick(event);
         playSound('bite');
         setIsClicked(true);
-        setTimeout(() => setIsClicked(false), 300);
+
+        // 🐊 Control de videos
+        if (videoRefIdle.current && videoRefBite.current) {
+          videoRefIdle.current.pause();
+          videoRefBite.current.currentTime = 0;
+          videoRefBite.current.play();
+        }
+
+        // ✨ Reinicia animación +1
+        const clickEffect = document.createElement('div');
+        const x = event.clientX - event.target.getBoundingClientRect().left;
+        const y = event.clientY - event.target.getBoundingClientRect().top;
+        clickEffect.style.position = 'absolute';
+        clickEffect.style.left = `${x}px`;
+        clickEffect.style.top = `${y}px`;
+        clickEffect.style.transform = 'translate(-50%, -50%)';
+        clickEffect.style.pointerEvents = 'none';
+        clickEffect.style.fontWeight = 'bold';
+        clickEffect.style.fontSize = '18px';
+        clickEffect.style.animation = 'riseUp 0.8s ease-out forwards';
+
+        // 🎨 Color del +1 según nivel
+        const lvl = gameState.level;
+        clickEffect.style.color =
+          lvl < 5 ? '#a3e635' :
+          lvl < 10 ? '#4ade80' :
+          lvl < 20 ? '#22c55e' :
+          lvl < 30 ? '#16a34a' : '#15803d';
+
+        clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
+        event.currentTarget.appendChild(clickEffect);
+        setTimeout(() => clickEffect.remove(), 800);
+
+        // 🔁 Reset estado de clic
+        setTimeout(() => setIsClicked(false), 200);
       }}
       className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
-        transition-transform duration-150 border-4 flex items-center justify-center
+        transition-transform duration-150 border-4 flex items-center justify-center cursor-pointer
         ${
           activeSkin === 'skin_golden_croc'
             ? 'border-yellow-300 shadow-[0_0_50px_rgba(250,204,21,0.8)]'
@@ -184,7 +218,7 @@ const handleCrocClick = (event) => {
             : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
         }`}
     >
-      {/* 🎥 Solo video Idle */}
+      {/* 🎥 Video Idle (base) */}
       <video
         ref={videoRefIdle}
         src="/videos/crocodile_idle.mp4"
@@ -195,21 +229,35 @@ const handleCrocClick = (event) => {
         playsInline
       />
 
-      {/* ✨ Efecto de energía */}
+      {/* 🎥 Video Bite (solo al click) */}
+      <video
+        ref={videoRefBite}
+        src="/videos/crocodile_bite.mp4"
+        className="absolute inset-0 w-full h-full object-cover rounded-full"
+        muted
+        playsInline
+        onEnded={() => {
+          videoRefBite.current.pause();
+          videoRefBite.current.currentTime = 0;
+          videoRefIdle.current.play();
+        }}
+      />
+
+      {/* ✨ Efecto de brillo circular */}
       <motion.div
         className="absolute inset-0 rounded-full border-[3px] border-lime-400 pointer-events-none"
         animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
         transition={{ repeat: Infinity, duration: 1.5 }}
       />
 
-      {/* 🪙 Texto y valor */}
+      {/* 🪙 Texto principal */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
         <div className="font-bold text-lg md:text-xl neon-glow">¡MORDER!</div>
         <div className="text-lime-200 text-sm md:text-base">
           +{Math.floor(gameState.clickPower)}
         </div>
       </div>
-    </Button>
+    </div>
   </motion.div>
 
   {/* Barra de progreso */}
@@ -221,11 +269,12 @@ const handleCrocClick = (event) => {
     <div className="w-full bg-gray-700 rounded-full h-3">
       <div
         className="progress-bar h-3 rounded-full transition-all duration-300"
-        style={{ width: `${gameState.experience % 100}%` }}
+        style={{ width: `${(gameState.experience % 100)}%` }}
       />
     </div>
   </div>
 </div>
+
 
 
         {/* 📊 Panel lateral */}
