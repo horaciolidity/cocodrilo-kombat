@@ -166,7 +166,12 @@ const handleCrocClick = (event) => {
     className="relative"
   >
     <Button
-      onClick={handleCrocClick}
+      onClick={(event) => {
+        handleClick(event);
+        playSound('bite');
+        setIsClicked(true);
+        setTimeout(() => setIsClicked(false), 300);
+      }}
       className={`relative w-60 h-60 md:w-80 md:h-80 rounded-full select-none overflow-hidden
         transition-transform duration-150 border-4 flex items-center justify-center
         ${
@@ -179,7 +184,7 @@ const handleCrocClick = (event) => {
             : 'border-green-300 shadow-[0_0_40px_rgba(34,197,94,0.6)]'
         }`}
     >
-      {/* 🎥 Video Idle */}
+      {/* 🎥 Solo video Idle */}
       <video
         ref={videoRefIdle}
         src="/videos/crocodile_idle.mp4"
@@ -188,20 +193,6 @@ const handleCrocClick = (event) => {
         loop
         muted
         playsInline
-      />
-
-      {/* 🎥 Video Bite */}
-      <video
-        ref={videoRefBite}
-        src="/videos/crocodile_bite.mp4"
-        className="absolute inset-0 w-full h-full object-cover rounded-full"
-        muted
-        playsInline
-        onEnded={() => {
-          videoRefBite.current.pause();
-          videoRefBite.current.currentTime = 0;
-          videoRefIdle.current.play();
-        }}
       />
 
       {/* ✨ Efecto de energía */}
@@ -230,7 +221,7 @@ const handleCrocClick = (event) => {
     <div className="w-full bg-gray-700 rounded-full h-3">
       <div
         className="progress-bar h-3 rounded-full transition-all duration-300"
-        style={{ width: `${(gameState.experience % 100)}%` }}
+        style={{ width: `${gameState.experience % 100}%` }}
       />
     </div>
   </div>
