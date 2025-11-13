@@ -403,3 +403,11 @@ button, .btn, [role="button"] {
   50% { transform: translateX(4px); }
   75% { transform: translateX(-4px); }
 }
+.upgrade-card img {
+  transition: transform 0.8s ease, filter 0.5s ease;
+}
+
+.upgrade-card:hover img {
+  transform: scale(1.08);
+  filter: brightness(1.1);
+}

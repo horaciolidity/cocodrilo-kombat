@@ -468,53 +468,60 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
         <ShoppingCart className="w-6 h-6 mr-2 text-blue-400" />
         Mejoras
       </h3>
-      <div className="space-y-3 max-h-60 md:max-h-96 overflow-y-auto scrollbar-hide">
-        {upgradesConfig.map(upgrade => {
+
+      <div className="space-y-4 max-h-60 md:max-h-96 overflow-y-auto scrollbar-hide">
+        {upgradesConfig.map((upgrade) => {
           const currentLevel = upgradesState[upgrade.id].level;
           const price = Math.floor(
-            upgrade.basePrice * Math.pow(1.5, currentLevel),
+            upgrade.basePrice * Math.pow(1.5, currentLevel)
           );
           const canAfford = coins >= price;
           const Icon = upgrade.icon;
+
           return (
             <div
               key={upgrade.id}
-              className="glass-effect rounded-lg p-3 hover-lift"
+              className="relative upgrade-card rounded-xl overflow-hidden shadow-lg hover-lift transition-all duration-300"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <Icon className={`w-5 h-5 mr-2 ${upgrade.color}`} />
-                  <div>
-                    <h4 className="font-semibold text-sm">
-                      {upgrade.name}
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {upgrade.description}
-                    </p>
-                  </div>
+              {/* 🖼️ Imagen superior */}
+              <div className="h-24 w-full relative overflow-hidden">
+                <img
+                  src={upgrade.image || '/images/upgrades/default.jpg'}
+                  alt={upgrade.name}
+                  className="w-full h-full object-cover brightness-90 hover:brightness-100 transition-all duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                <div className="absolute bottom-2 left-3 flex items-center gap-2">
+                  <Icon className={`w-5 h-5 ${upgrade.color}`} />
+                  <h4 className="text-sm font-bold text-white">{upgrade.name}</h4>
                 </div>
                 {currentLevel > 0 && (
-                  <div className="level-badge text-xs px-2 py-1 rounded-full text-white">
+                  <div className="absolute top-2 right-2 bg-green-600/80 text-white text-xs px-2 py-1 rounded-full shadow-md">
                     Nv. {currentLevel}
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-400 font-bold text-sm">
-                  {price.toLocaleString()} 💰
-                </span>
-                <Button
-                  onClick={() => buyUpgrade(upgrade.id)}
-                  disabled={!canAfford}
-                  size="sm"
-                  className={`mobile-button ${
-                    canAfford
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-gray-600'
-                  }`}
-                >
-                  Comprar
-                </Button>
+
+              {/* 💬 Descripción + botón */}
+              <div className="p-3 bg-black/30 backdrop-blur-md">
+                <p className="text-xs text-gray-300 mb-2">{upgrade.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-yellow-400 font-bold text-sm">
+                    {price.toLocaleString()} 💰
+                  </span>
+                  <Button
+                    onClick={() => buyUpgrade(upgrade.id)}
+                    disabled={!canAfford}
+                    size="sm"
+                    className={`mobile-button ${
+                      canAfford
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-gray-600 cursor-not-allowed opacity-70'
+                    }`}
+                  >
+                    Comprar
+                  </Button>
+                </div>
               </div>
             </div>
           );
