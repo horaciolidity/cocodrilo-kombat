@@ -383,29 +383,23 @@ button, .btn, [role="button"] {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
-  40% {
+  60% {
     opacity: 1;
-    transform: translate(-50%, -150%) scale(1.5);
-  }
-  80% {
-    opacity: 0.9;
-    transform: translate(-50%, -250%) scale(1.8);
+    transform: translate(-50%, -100%) scale(1.2);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -320%) scale(2);
+    transform: translate(-50%, -180%) scale(1.5);
   }
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  50% { transform: translateX(5px); }
-  75% { transform: translateX(-3px); }
+.shake {
+  animation: shakeAnim 0.4s ease;
 }
 
-.shake {
-  animation: shake 0.4s;
-  border-color: #f87171 !important; /* rojo */
-  box-shadow: 0 0 15px rgba(248, 113, 113, 0.7);
+@keyframes shakeAnim {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
 }
