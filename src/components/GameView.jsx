@@ -167,11 +167,10 @@ const handleCrocClick = (event) => {
   >
     <div
       onClick={(event) => {
-        // ⚡ Bloquea si no hay energía
         if (gameState.energy <= 0) {
           const el = event.currentTarget;
           el.classList.add('shake');
-          playSound('error'); // opcional
+          playSound('error');
           setTimeout(() => el.classList.remove('shake'), 500);
           return;
         }
@@ -180,25 +179,29 @@ const handleCrocClick = (event) => {
         playSound('bite');
         setIsClicked(true);
 
-        // 🎥 Intercambio de videos
-        if (videoRefIdle.current && videoRefBite.current) {
-          videoRefIdle.current.pause();
+        // 🎥 Solo video 2 (mordida)
+        if (videoRefBite.current) {
+          videoRefBite.current.pause();
           videoRefBite.current.currentTime = 0;
           videoRefBite.current.play().catch(() => {});
         }
 
-        // 🪙 Efecto +1 (flota hacia arriba y sale desde el centro)
+        // 🪙 Efecto +1 — aparece donde se hace click
         const clickEffect = document.createElement('div');
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
         clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
         clickEffect.style.position = 'absolute';
-        clickEffect.style.left = '50%';
-        clickEffect.style.top = '50%';
+        clickEffect.style.left = `${x}px`;
+        clickEffect.style.top = `${y}px`;
         clickEffect.style.transform = 'translate(-50%, -50%)';
         clickEffect.style.pointerEvents = 'none';
         clickEffect.style.fontWeight = 'bold';
-        clickEffect.style.fontSize = '32px';
+        clickEffect.style.fontSize = '30px';
         clickEffect.style.zIndex = '50';
-        clickEffect.style.animation = 'riseUp 1.3s ease-out forwards';
+        clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
 
         const lvl = gameState.level;
         clickEffect.style.color =
@@ -208,9 +211,9 @@ const handleCrocClick = (event) => {
           lvl < 30 ? '#22c55e' : '#16a34a';
 
         event.currentTarget.appendChild(clickEffect);
-        setTimeout(() => clickEffect.remove(), 1300);
+        setTimeout(() => clickEffect.remove(), 1200);
 
-        // 🔁 Reset estado de clic
+        // 🔁 Reset efecto de clic visual
         setTimeout(() => setIsClicked(false), 200);
       }}
       className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
@@ -226,37 +229,24 @@ const handleCrocClick = (event) => {
             : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
         }`}
     >
-      {/* 🎥 Video Idle (base) */}
-      <video
-        ref={videoRefIdle}
-        src="/videos/crocodile_idle.mp4"
-        className="absolute inset-0 w-full h-full object-cover rounded-full"
-        muted
-        playsInline
-        autoPlay
-        loop
-        onCanPlay={() => {
-          // fuerza que comience siempre en loop
-          videoRefIdle.current.play().catch(() => {});
-        }}
-      />
-
-      {/* 🎥 Video Bite (solo al click) */}
+      {/* 🎥 Video único (mordida) */}
       <video
         ref={videoRefBite}
         src="/videos/crocodile_bite.mp4"
         className="absolute inset-0 w-full h-full object-cover rounded-full"
         muted
         playsInline
+        preload="auto"
+        onLoadedData={() => {
+          videoRefBite.current.pause();
+        }}
         onEnded={() => {
-          // cuando termina el de mordida, vuelve al idle
           videoRefBite.current.pause();
           videoRefBite.current.currentTime = 0;
-          videoRefIdle.current.play().catch(() => {});
         }}
       />
 
-      {/* ✨ Efecto de brillo circular */}
+      {/* ✨ Efecto circular brillante */}
       <motion.div
         className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
         animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
