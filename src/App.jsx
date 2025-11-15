@@ -1,33 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/toaster';
-import { useToast } from '@/components/ui/use-toast';
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/components/ui/use-toast";
 
-import { GameView } from '@/components/GameView';
-import { StatsView } from '@/components/StatsView';
-import { SettingsView } from '@/components/SettingsView';
-import { WalletView } from '@/components/WalletView';
-import { MissionsView } from '@/components/MissionsView';
-import { RankingView } from '@/components/RankingView';
-import { CardsView } from '@/components/CardsView';
-import { ShopView } from '@/components/ShopView';
-import { FairlaunchView } from '@/components/FairlaunchView';
-import { WhitepaperView } from '@/components/WhitepaperView';
-import { FarmingMilestonesView } from '@/components/FarmingMilestonesView';
+import { supabase } from "@/lib/supabaseClient";
+import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
 
-import { AuthModal } from '@/components/AuthModal';
-import { TutorialModal } from '@/components/TutorialModal';
-import { SocialLinks } from '@/components/SocialLinks';
-import { MilestoneReachedModal } from '@/components/MilestoneReachedModal';
+import { GameView } from "@/components/GameView";
+import { StatsView } from "@/components/StatsView";
+import { SettingsView } from "@/components/SettingsView";
+import { WalletView } from "@/components/WalletView";
+import { MissionsView } from "@/components/MissionsView";
+import { RankingView } from "@/components/RankingView";
+import { CardsView } from "@/components/CardsView";
+import { ShopView } from "@/components/ShopView";
+import { FairlaunchView } from "@/components/FairlaunchView";
+import { WhitepaperView } from "@/components/WhitepaperView";
+import { FarmingMilestonesView } from "@/components/FarmingMilestonesView";
 
-import { useGameLogic } from '@/hooks/useGameLogic';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useSound } from '@/hooks/useSound';
+import { AuthModal } from "@/components/AuthModal";
+import { TutorialModal } from "@/components/TutorialModal";
+import { SocialLinks } from "@/components/SocialLinks";
+import { MilestoneReachedModal } from "@/components/MilestoneReachedModal";
+
+import { useGameLogic } from "@/hooks/useGameLogic";
+import { useSound } from "@/hooks/useSound";
 
 import {
-  Home, BarChart3, Settings, Wallet, ListChecks, Award, Layers, ShoppingCart, Rocket, FileText, Target as TargetIcon
-} from 'lucide-react';
+  Home,
+  BarChart3,
+  Settings,
+  Wallet,
+  ListChecks,
+  Award,
+  Layers,
+  ShoppingCart,
+  Rocket,
+  FileText,
+  Target as TargetIcon,
+} from "lucide-react";
 
 import {
   INITIAL_GAME_STATE,
@@ -35,21 +47,44 @@ import {
   INITIAL_MISSIONS_STATE,
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
-  FARMING_MILESTONES
-} from '@/config/gameConfig';
+  FARMING_MILESTONES,
+} from "@/config/gameConfig";
 
 function App() {
   const { toast } = useToast();
   const { playSound } = useSound();
 
-  const [user, setUser] = useLocalStorage('cocodriloKombatUser', null);
+  // 🔐 Sesión y usuario de Supabase
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+
+  // 🎮 Estados UI
   const [showAuth, setShowAuth] = useState(false);
-  const [currentView, setCurrentView] = useState('game');
+  const [currentView, setCurrentView] = useState("game");
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
+  // 🧩 Escucha sesión Supabase
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user || null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user || null);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // 🧠 Hook jugador Supabase
+  const { player, stats, setStats } = useSupabasePlayer(user);
+
+  // ⚙️ Lógica del juego local (puede sincronizarse luego con stats)
   const {
     gameState,
     upgrades,
@@ -93,57 +128,32 @@ function App() {
     setLastReachedMilestone
   );
 
+  // 🎓 Tutorial primera vez
   useEffect(() => {
-    const hasPlayedBefore = localStorage.getItem('cocodriloKombatPlayed');
+    const hasPlayedBefore = localStorage.getItem("cocodriloKombatPlayed");
     if (!hasPlayedBefore) {
       setShowTutorial(true);
-      localStorage.setItem('cocodriloKombatPlayed', 'true');
+      localStorage.setItem("cocodriloKombatPlayed", "true");
     }
   }, []);
 
-  // 🪙 Detectar ingreso por link de referido
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const ref = urlParams.get('ref');
+  // 🪙 Fallback de monedas (usa Supabase si está disponible)
+  const safeCoins = stats?.coins ?? gameState?.coins ?? 0;
+  const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
 
-  if (ref && ref !== gameState.playerId) {
-    const refs = JSON.parse(localStorage.getItem('cocodriloKombatRefs') || '{}');
-    if (!refs[ref]) {
-      refs[ref] = true;
-      localStorage.setItem('cocodriloKombatRefs', JSON.stringify(refs));
-
-      // 💎 Recompensa al referidor
-      const players = JSON.parse(localStorage.getItem('cocodriloKombatPlayers') || '{}');
-      const refData = players[ref] || {};
-      refData.referralsCount = (refData.referralsCount || 0) + 1;
-      refData.crocFromRefs = (refData.crocFromRefs || 0) + 10;
-      refData.coinsFromRefs = (refData.coinsFromRefs || 0) + 500;
-      refData.nativeTokenBalance = (refData.nativeTokenBalance || 0) + 10;
-      refData.coins = (refData.coins || 0) + 500;
-      players[ref] = refData;
-      localStorage.setItem('cocodriloKombatPlayers', JSON.stringify(players));
-
-      toast({
-        title: '🐊 Nuevo referido!',
-        description: '¡Ganaste +10 CROC y +500 monedas!',
-        duration: 3000,
-      });
-      playSound('reward');
-    }
-  }
-}, [gameState.playerId]);
-
-
-  const logout = useCallback(() => {
+  // 🚪 Logout real Supabase
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
     toast({
-      title: '👋 Hasta luego',
-      description: 'Sesión cerrada correctamente',
+      title: "👋 Hasta luego",
+      description: "Sesión cerrada correctamente",
       duration: 2000,
     });
-    playSound('logout');
-  }, [setUser, toast, playSound]);
+    playSound("logout");
+  }, [toast, playSound]);
 
+  // 🎓 Tutorial navigation
   const nextTutorialStep = useCallback(() => {
     if (tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1) {
       setTutorialStep((prev) => prev + 1);
@@ -151,37 +161,33 @@ useEffect(() => {
       setShowTutorial(false);
       setTutorialStep(0);
     }
-    playSound('uiClick');
+    playSound("uiClick");
   }, [tutorialStep, playSound]);
 
   const skipTutorial = useCallback(() => {
     setShowTutorial(false);
     setTutorialStep(0);
-    playSound('uiClick');
+    playSound("uiClick");
   }, [playSound]);
 
   const handleNavigation = (view) => {
     setCurrentView(view);
-    playSound('uiClick');
+    playSound("uiClick");
   };
 
   const navigationItems = [
-    { view: 'game', label: 'Juego', icon: Home },
-    { view: 'missions', label: 'Misiones', icon: ListChecks },
-    { view: 'farming_milestones', label: 'Hitos', icon: TargetIcon },
-    { view: 'cards', label: 'Cartas', icon: Layers },
-    { view: 'shop', label: 'Tienda', icon: ShoppingCart },
-    { view: 'ranking', label: 'Ranking', icon: Award },
-    { view: 'fairlaunch', label: 'Fairlaunch', icon: Rocket },
-    { view: 'whitepaper', label: 'Docs', icon: FileText },
-    { view: 'wallet', label: 'Wallet', icon: Wallet },
-    { view: 'stats', label: 'Stats', icon: BarChart3 },
-    { view: 'settings', label: 'Config', icon: Settings },
+    { view: "game", label: "Juego", icon: Home },
+    { view: "missions", label: "Misiones", icon: ListChecks },
+    { view: "farming_milestones", label: "Hitos", icon: TargetIcon },
+    { view: "cards", label: "Cartas", icon: Layers },
+    { view: "shop", label: "Tienda", icon: ShoppingCart },
+    { view: "ranking", label: "Ranking", icon: Award },
+    { view: "fairlaunch", label: "Fairlaunch", icon: Rocket },
+    { view: "whitepaper", label: "Docs", icon: FileText },
+    { view: "wallet", label: "Wallet", icon: Wallet },
+    { view: "stats", label: "Stats", icon: BarChart3 },
+    { view: "settings", label: "Config", icon: Settings },
   ];
-
-  // ✅ fallback seguro si gameState o arrays aún no se cargan
-  const safeCoins = gameState?.coins ?? 0;
-  const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -191,12 +197,13 @@ useEffect(() => {
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">
             🐊 Cocodrilo Kombat
           </h1>
+
           <div className="flex items-center space-x-0.5 md:space-x-1 overflow-x-auto scrollbar-hide">
             {navigationItems.map((item) => (
               <Button
                 key={item.view}
                 onClick={() => handleNavigation(item.view)}
-                variant={currentView === item.view ? 'default' : 'ghost'}
+                variant={currentView === item.view ? "default" : "ghost"}
                 size="sm"
                 className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
               >
@@ -208,18 +215,18 @@ useEffect(() => {
         </div>
       </nav>
 
-      {/* Contenido dinámico seguro */}
+      {/* Contenido dinámico */}
       <AnimatePresence mode="sync">
         <motion.div
           key={currentView}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
           className="pb-16 will-change-transform"
         >
           <React.Suspense fallback={<div className="text-center p-10">Cargando...</div>}>
-            {currentView === 'game' && (
+            {currentView === "game" && (
               <GameView
                 gameState={gameState}
                 upgrades={upgrades}
@@ -236,13 +243,7 @@ useEffect(() => {
               />
             )}
 
-
-
-
-
-
-
-            {currentView === 'missions' && (
+            {currentView === "missions" && (
               <MissionsView
                 missions={missions}
                 completeMission={completeMission}
@@ -254,7 +255,7 @@ useEffect(() => {
               />
             )}
 
-            {currentView === 'farming_milestones' && (
+            {currentView === "farming_milestones" && (
               <FarmingMilestonesView
                 gameState={gameState}
                 farmingMilestonesState={farmingMilestonesState}
@@ -262,9 +263,9 @@ useEffect(() => {
               />
             )}
 
-            {currentView === 'cards' && <CardsView ownedCards={ownedCards} />}
+            {currentView === "cards" && <CardsView ownedCards={ownedCards} />}
 
-            {currentView === 'shop' && (
+            {currentView === "shop" && (
               <ShopView
                 buyShopItem={buyShopItem}
                 coins={safeCoins}
@@ -273,19 +274,11 @@ useEffect(() => {
               />
             )}
 
-            {currentView === 'ranking' && (
-              <RankingView user={user} gameState={gameState} />
-            )}
-
-            {currentView === 'fairlaunch' && <FairlaunchView toast={toast} />}
-
-            {currentView === 'whitepaper' && <WhitepaperView />}
-
-            {currentView === 'wallet' && (
-              <WalletView toast={toast} playSound={playSound} />
-            )}
-
-            {currentView === 'stats' && (
+            {currentView === "ranking" && <RankingView user={user} gameState={gameState} />}
+            {currentView === "fairlaunch" && <FairlaunchView toast={toast} />}
+            {currentView === "whitepaper" && <WhitepaperView />}
+            {currentView === "wallet" && <WalletView toast={toast} playSound={playSound} />}
+            {currentView === "stats" && (
               <StatsView
                 gameState={gameState}
                 upgrades={upgrades}
@@ -297,8 +290,7 @@ useEffect(() => {
                 }
               />
             )}
-
-            {currentView === 'settings' && (
+            {currentView === "settings" && (
               <SettingsView
                 user={user}
                 logout={logout}
@@ -332,12 +324,12 @@ useEffect(() => {
         isOpen={showMilestoneModal}
         onClose={() => {
           setShowMilestoneModal(false);
-          playSound('uiClose');
+          playSound("uiClose");
         }}
         milestone={lastReachedMilestone}
       />
 
-      {/* Footer no bloqueante */}
+      {/* Footer */}
       <footer className="relative bg-card/80 backdrop-blur-md border-t border-border p-3 mt-16 z-10">
         <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
       </footer>
