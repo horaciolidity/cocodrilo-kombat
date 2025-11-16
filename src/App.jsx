@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,17 +8,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
 
-import { GameView } from "@/components/GameView";
-import { StatsView } from "@/components/StatsView";
-import { SettingsView } from "@/components/SettingsView";
-import { WalletView } from "@/components/WalletView";
-import { MissionsView } from "@/components/MissionsView";
-import { RankingView } from "@/components/RankingView";
-import { CardsView } from "@/components/CardsView";
-import { ShopView } from "@/components/ShopView";
-import { FairlaunchView } from "@/components/FairlaunchView";
-import { WhitepaperView } from "@/components/WhitepaperView";
-import { FarmingMilestonesView } from "@/components/FarmingMilestonesView";
+import {
+  GameView,
+  StatsView,
+  SettingsView,
+  WalletView,
+  MissionsView,
+  RankingView,
+  CardsView,
+  ShopView,
+  FairlaunchView,
+  WhitepaperView,
+  FarmingMilestonesView,
+} from "@/components/views";
 
 import { AuthModal } from "@/components/AuthModal";
 import { TutorialModal } from "@/components/TutorialModal";
@@ -47,18 +50,17 @@ import {
   INITIAL_MISSIONS_STATE,
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
-  FARMING_MILESTONES,
 } from "@/config/gameConfig";
 
 function App() {
   const { toast } = useToast();
   const { playSound } = useSound();
 
-  // 🔐 Sesión y usuario de Supabase
+  /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
 
-  // 🎮 Estados UI
+  /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState("game");
   const [showTutorial, setShowTutorial] = useState(false);
@@ -66,7 +68,7 @@ function App() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
-  // 🧩 Escucha sesión Supabase
+  /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -81,10 +83,17 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 🧠 Hook jugador Supabase
-  const { player, stats, setStats } = useSupabasePlayer(user);
+  /* 🧠 Hook de jugador (vincula user con Supabase player/stats) */
+  const {
+    player,
+    stats,
+    setStats,
+    loading: playerLoading,
+    error: playerError,
+    syncStatsToSupabase,
+  } = useSupabasePlayer(user);
 
-  // ⚙️ Lógica del juego local (puede sincronizarse luego con stats)
+  /* ⚙️ Lógica del juego */
   const {
     gameState,
     upgrades,
@@ -128,7 +137,29 @@ function App() {
     setLastReachedMilestone
   );
 
-  // 🎓 Tutorial primera vez
+ /* 🔄 Sincronización completa con Supabase */
+useEffect(() => {
+  if (!stats || !gameState) return;
+
+  const fieldsToSync = ["coins", "level", "croc_tokens", "clicks"];
+  let hasChanges = false;
+  const updatedStats = { ...stats };
+
+  fieldsToSync.forEach((field) => {
+    if (stats[field] !== gameState[field]) {
+      updatedStats[field] = gameState[field];
+      hasChanges = true;
+    }
+  });
+
+  if (hasChanges) {
+    setStats(updatedStats);
+    syncStatsToSupabase(updatedStats);
+  }
+}, [gameState?.coins, gameState?.level, gameState?.croc_tokens, gameState?.clicks]);
+
+
+  /* 🎓 Tutorial primera vez */
   useEffect(() => {
     const hasPlayedBefore = localStorage.getItem("cocodriloKombatPlayed");
     if (!hasPlayedBefore) {
@@ -137,30 +168,28 @@ function App() {
     }
   }, []);
 
-  // 🪙 Fallback de monedas (usa Supabase si está disponible)
+  /* 🪙 Fallbacks seguros */
   const safeCoins = stats?.coins ?? gameState?.coins ?? 0;
   const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
 
-  // 🚪 Logout real Supabase
+  /* 🚪 Logout */
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     toast({
-      title: "👋 Hasta luego",
-      description: "Sesión cerrada correctamente",
+      title: "👋 Sesión cerrada",
+      description: "Tu sesión fue cerrada correctamente",
       duration: 2000,
     });
     playSound("logout");
   }, [toast, playSound]);
 
-  // 🎓 Tutorial navigation
+  /* 🎓 Tutorial */
   const nextTutorialStep = useCallback(() => {
-    if (tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1) {
-      setTutorialStep((prev) => prev + 1);
-    } else {
-      setShowTutorial(false);
-      setTutorialStep(0);
-    }
+    setTutorialStep((prev) =>
+      prev < TUTORIAL_STEPS_CONTENT.length - 1 ? prev + 1 : 0
+    );
+    if (tutorialStep >= TUTORIAL_STEPS_CONTENT.length - 1) setShowTutorial(false);
     playSound("uiClick");
   }, [tutorialStep, playSound]);
 
@@ -170,6 +199,7 @@ function App() {
     playSound("uiClick");
   }, [playSound]);
 
+  /* 🔀 Navegación */
   const handleNavigation = (view) => {
     setCurrentView(view);
     playSound("uiClick");
@@ -189,9 +219,26 @@ function App() {
     { view: "settings", label: "Config", icon: Settings },
   ];
 
+  /* 💡 UI Loading global */
+  if (playerLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-center text-lg text-muted-foreground">
+        🐊 Cargando tu perfil de jugador...
+      </div>
+    );
+  }
+
+  if (playerError) {
+    return (
+      <div className="flex items-center justify-center h-screen text-center text-red-500">
+        ❌ Error al cargar datos del jugador: {playerError}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Barra superior */}
+      {/* 🔝 Barra superior */}
       <nav className="bg-card/50 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-40">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">
@@ -215,7 +262,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Contenido dinámico */}
+      {/* 🧩 Contenido dinámico */}
       <AnimatePresence mode="sync">
         <motion.div
           key={currentView}
@@ -223,11 +270,13 @@ function App() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="pb-16 will-change-transform"
+          className="pb-16"
         >
           <React.Suspense fallback={<div className="text-center p-10">Cargando...</div>}>
             {currentView === "game" && (
               <GameView
+                player={player}
+                stats={stats}
                 gameState={gameState}
                 upgrades={upgrades}
                 buyUpgrade={buyUpgrade}
@@ -274,7 +323,7 @@ function App() {
               />
             )}
 
-            {currentView === "ranking" && <RankingView user={user} gameState={gameState} />}
+            {currentView === "ranking" && <RankingView user={user} />}
             {currentView === "fairlaunch" && <FairlaunchView toast={toast} />}
             {currentView === "whitepaper" && <WhitepaperView />}
             {currentView === "wallet" && <WalletView toast={toast} playSound={playSound} />}
@@ -306,7 +355,7 @@ function App() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Modales */}
+      {/* 🔒 Modales */}
       <AuthModal
         showAuth={showAuth}
         setShowAuth={setShowAuth}
@@ -322,14 +371,11 @@ function App() {
       />
       <MilestoneReachedModal
         isOpen={showMilestoneModal}
-        onClose={() => {
-          setShowMilestoneModal(false);
-          playSound("uiClose");
-        }}
+        onClose={() => setShowMilestoneModal(false)}
         milestone={lastReachedMilestone}
       />
 
-      {/* Footer */}
+      {/* 🔻 Footer */}
       <footer className="relative bg-card/80 backdrop-blur-md border-t border-border p-3 mt-16 z-10">
         <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
       </footer>
