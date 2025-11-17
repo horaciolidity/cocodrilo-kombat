@@ -27,6 +27,7 @@ import { MilestoneReachedModal } from "@/components/MilestoneReachedModal";
 
 import { useGameLogic } from "@/hooks/useGameLogic";
 import { useSound } from "@/hooks/useSound";
+import { buyShopItem, equipSkin } from "@/lib/shopService";
 
 import {
   Home,
@@ -48,6 +49,7 @@ import {
   INITIAL_MISSIONS_STATE,
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
+  SHOP_ITEMS,
 } from "@/config/gameConfig";
 
 function App() {
@@ -122,7 +124,6 @@ function App() {
     completeMission,
     claimMissionReward,
     claimDailyReward,
-    buyShopItem,
     resetProgress,
     claimFarmingMilestone,
   } = useGameLogic(
@@ -135,27 +136,26 @@ function App() {
     setLastReachedMilestone
   );
 
- /* 🔄 Sincronización completa con Supabase */
-useEffect(() => {
-  if (!stats || !gameState) return;
+  /* 🔄 Sincronización completa con Supabase */
+  useEffect(() => {
+    if (!stats || !gameState) return;
 
-  const fieldsToSync = ["coins", "level", "croc_tokens", "clicks"];
-  let hasChanges = false;
-  const updatedStats = { ...stats };
+    const fieldsToSync = ["coins", "level", "croc_tokens", "clicks"];
+    let hasChanges = false;
+    const updatedStats = { ...stats };
 
-  fieldsToSync.forEach((field) => {
-    if (stats[field] !== gameState[field]) {
-      updatedStats[field] = gameState[field];
-      hasChanges = true;
+    fieldsToSync.forEach((field) => {
+      if (stats[field] !== gameState[field]) {
+        updatedStats[field] = gameState[field];
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setStats(updatedStats);
+      syncStatsToSupabase(updatedStats);
     }
-  });
-
-  if (hasChanges) {
-    setStats(updatedStats);
-    syncStatsToSupabase(updatedStats);
-  }
-}, [gameState?.coins, gameState?.level, gameState?.croc_tokens, gameState?.clicks]);
-
+  }, [gameState?.coins, gameState?.level, gameState?.croc_tokens, gameState?.clicks]);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -314,10 +314,19 @@ useEffect(() => {
 
             {currentView === "shop" && (
               <ShopView
-                buyShopItem={buyShopItem}
                 coins={safeCoins}
                 ownedItems={safeOwnedItems}
                 activeSkin={activeSkin}
+                buyShopItem={(itemId) => {
+                  const item = SHOP_ITEMS.find((i) => i.id === itemId);
+                  if (!item || !user) return;
+                  buyShopItem(user.id, item.id, item.price, item.type, toast);
+                }}
+                equipSkin={(skinId) => {
+                  if (!user) return;
+                  equipSkin(user.id, skinId, toast);
+                  setActiveSkin(skinId);
+                }}
               />
             )}
 

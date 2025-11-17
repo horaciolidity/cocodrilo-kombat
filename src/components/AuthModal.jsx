@@ -1,23 +1,24 @@
+// src/components/AuthModal.jsx
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, Mail } from "lucide-react";
+import { X, Lock, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 
 export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("login"); // "login" o "register"
+  const [mode, setMode] = useState("login"); // "login" | "register"
 
-  // ✅ Genera un username único (por ejemplo: cocodrilo123)
-  const generateUsername = (base = "player") =>
+  // Genera nombre de usuario único
+  const generateUsername = (base = "croc") =>
     `${base}${Math.floor(Math.random() * 9000 + 1000)}`;
 
-  // 🔐 Maneja login o registro
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
 
     setLoading(true);
     playSound?.("uiClick");
@@ -26,17 +27,17 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
       let data, error;
 
       if (mode === "register") {
+        // 🧾 Crear cuenta con email + password
         ({ data, error } = await supabase.auth.signUp({
           email,
-          options: { emailRedirectTo: window.location.origin },
+          password,
         }));
-
         if (error) throw error;
 
-        // 🧍 Crear entrada en 'players'
+        // Crear jugador en tabla players
         const userId = data.user?.id;
         if (userId) {
-          const username = generateUsername("croc");
+          const username = generateUsername(email.split("@")[0]);
           const { error: insertError } = await supabase.from("players").insert([
             {
               user_id: userId,
@@ -48,44 +49,39 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
         }
 
         toast({
-          title: "🐊 Cuenta creada",
-          description:
-            "Te enviamos un correo para verificar tu cuenta (opcional). ¡Ya podés jugar!",
-          duration: 5000,
-        });
-        playSound?.("reward");
-        setShowAuth(false);
-      } else {
-        ({ error } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: window.location.origin },
-        }));
-
-        if (error) throw error;
-
-        toast({
-          title: "📩 Enlace enviado",
-          description: "Revisá tu correo para acceder sin contraseña.",
+          title: "✅ Cuenta creada",
+          description: "Ya podés iniciar sesión con tu correo y contraseña.",
           duration: 4000,
         });
         playSound?.("reward");
-        setShowAuth(false);
-      }
+        setMode("login");
+      } else {
+        // 🔐 Iniciar sesión
+        ({ data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        }));
+        if (error) throw error;
 
-      // 🔁 Actualiza usuario local si ya está logueado
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.session?.user) {
-        setUser(session.session.user);
-        localStorage.setItem(
-          "cocodriloKombatUser",
-          JSON.stringify(session.session.user)
-        );
+        const user = data?.user;
+        if (user) {
+          setUser(user);
+          localStorage.setItem("cocodriloKombatUser", JSON.stringify(user));
+
+          toast({
+            title: "🎮 Bienvenido de nuevo",
+            description: "Sesión iniciada correctamente.",
+            duration: 3000,
+          });
+          playSound?.("reward");
+          setShowAuth(false);
+        }
       }
     } catch (err) {
-      console.error("Error en AuthModal:", err);
+      console.error("❌ Error en AuthModal:", err);
       toast({
         title: "⚠️ Error",
-        description: err.message,
+        description: err.message || "Error al autenticarte",
         variant: "destructive",
         duration: 4000,
       });
@@ -133,7 +129,7 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
         {/* 🔹 Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2 text-foreground">
+            <label className="block text-sm font-medium mb-1 text-foreground">
               Correo electrónico
             </label>
             <Input
@@ -142,21 +138,45 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tuemail@gmail.com"
               required
-              className="w-full p-3 rounded-lg bg-input border border-border text-foreground"
+              disabled={loading}
+              className="w-full bg-input border border-border text-foreground"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1 text-foreground">
+              Contraseña
+            </label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+              className="w-full bg-input border border-border text-foreground"
             />
           </div>
 
           <Button
             type="submit"
-            disabled={loading || !email}
+            disabled={loading}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
           >
-            <Mail className="w-4 h-4 mr-2" />
-            {loading
-              ? "Procesando..."
-              : mode === "login"
-              ? "Enviar enlace de acceso"
-              : "Registrarme"}
+            {loading ? (
+              <>
+                <Mail className="w-4 h-4 mr-2 animate-pulse" />
+                Procesando...
+              </>
+            ) : mode === "login" ? (
+              <>
+                <Lock className="w-4 h-4 mr-2" /> Iniciar Sesión
+              </>
+            ) : (
+              <>
+                <Mail className="w-4 h-4 mr-2" /> Registrarme
+              </>
+            )}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground mt-3">
