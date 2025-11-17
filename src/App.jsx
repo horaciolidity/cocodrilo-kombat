@@ -8,19 +8,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
 
-import {
-  GameView,
-  StatsView,
-  SettingsView,
-  WalletView,
-  MissionsView,
-  RankingView,
-  CardsView,
-  ShopView,
-  FairlaunchView,
-  WhitepaperView,
-  FarmingMilestonesView,
-} from "@/components/views";
+import { GameView } from "@/components/GameView";
+import { StatsView } from "@/components/StatsView";
+import { SettingsView } from "@/components/SettingsView";
+import { WalletView } from "@/components/WalletView";
+import { MissionsView } from "@/components/MissionsView";
+import { RankingView } from "@/components/RankingView";
+import { CardsView } from "@/components/CardsView";
+import { ShopView } from "@/components/ShopView";
+import { FairlaunchView } from "@/components/FairlaunchView";
+import { WhitepaperView } from "@/components/WhitepaperView";
+import { FarmingMilestonesView } from "@/components/FarmingMilestonesView";
 
 import { AuthModal } from "@/components/AuthModal";
 import { TutorialModal } from "@/components/TutorialModal";
