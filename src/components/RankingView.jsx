@@ -21,10 +21,18 @@ export function RankingView({ user }) {
   const generateAvatarUrl = (seed) =>
     `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed || "anon"}&backgroundColor=transparent`;
 
-  // 🔄 Cargar datos según la pestaña activa
+  const MOCK_NAMES = [
+    "Lucas (AR)", "Yuna (JP)", "Max (US)", "Nico (ES)", "Ravi (IN)",
+    "Lena (DE)", "Kai (BR)", "Hiro (JP)", "Maya (MX)", "Leo (CL)",
+    "Zara (UK)", "Tarek (EG)", "Sofia (IT)", "Andre (PT)", "Noah (CA)",
+    "Aria (AU)", "Liam (UY)", "Nina (PE)", "Omar (MA)", "Ivan (RU)",
+  ];
+
+  // 🔄 Consulta real a Supabase
   const fetchRanking = async (scope = "global") => {
     try {
       setLoading(true);
+
       let query = supabase
         .from("player_stats")
         .select(
@@ -33,13 +41,15 @@ export function RankingView({ user }) {
           coins,
           level,
           updated_at,
-          players (
+          players!inner (
             id,
             username,
             avatar_url
           )
         `
-        );
+        )
+        .order("coins", { ascending: false })
+        .limit(20);
 
       if (scope === "weekly") {
         const weekAgo = new Date();
@@ -47,35 +57,35 @@ export function RankingView({ user }) {
         query = query.gte("updated_at", weekAgo.toISOString());
       }
 
-      const { data, error } = await query
-        .order("coins", { ascending: false })
-        .limit(20);
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      const formatted = data.map((row) => ({
-        id: row.players?.id || row.id,
-        name: row.players?.username || "Jugador Anónimo",
-        avatar: row.players?.avatar_url || generateAvatarUrl(row.players?.username),
-        coins: row.coins ?? 0,
-        level: row.level ?? 1,
-        isCurrentUser: row.players?.id === user?.id,
+      const realPlayers = (data || []).map((row) => ({
+        id: row.players.id,
+        name: row.players.username || "Jugador Anónimo",
+        avatar: row.players.avatar_url || generateAvatarUrl(row.players.username),
+        coins: Number(row.coins) || 0,
+        level: row.level || 1,
+        isCurrentUser: user?.id && row.players.user_id === user.id,
       }));
 
-      // Simulación si no hay datos reales aún
-      if (formatted.length === 0) {
-        const mockPlayers = Array.from({ length: 10 }, (_, i) => ({
-          id: `mock-${i}`,
-          name: ["Lucas", "Yuna", "Max", "Nico", "Ravi", "Lena", "Kai", "Hiro", "Maya", "Leo"][i],
-          avatar: generateAvatarUrl(`mock-${i}`),
-          coins: Math.floor(Math.random() * 5000),
-          level: Math.floor(Math.random() * 15) + 1,
-          isCurrentUser: false,
-        }));
-        setRanking(mockPlayers);
-      } else {
-        setRanking(formatted);
-      }
+      // 🧍‍♂️ Mockear si hay menos de 20
+      const missing = 20 - realPlayers.length;
+      const mockPlayers = Array.from({ length: missing }, (_, i) => ({
+        id: `mock-${i}`,
+        name: MOCK_NAMES[i],
+        avatar: generateAvatarUrl(MOCK_NAMES[i]),
+        coins: Math.floor(Math.random() * 8000) + 100,
+        level: Math.floor(Math.random() * 25) + 1,
+        isCurrentUser: false,
+      }));
+
+      const combined = [...realPlayers, ...mockPlayers]
+        .sort((a, b) => b.coins - a.coins)
+        .slice(0, 20);
+
+      setRanking(combined);
     } catch (err) {
       console.error("❌ Error al cargar ranking:", err.message);
     } finally {
@@ -83,18 +93,20 @@ export function RankingView({ user }) {
     }
   };
 
+  // 🔁 Suscripción en tiempo real
   useEffect(() => {
     fetchRanking(activeTab);
+
     const channel = supabase
-      .channel("realtime-ranking-tabs")
-      .on("postgres_changes", { event: "*", schema: "public", table: "player_stats" }, () =>
-        fetchRanking(activeTab)
+      .channel("realtime-player-stats")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "player_stats" },
+        () => fetchRanking(activeTab)
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [activeTab]);
 
   // 🥇 Medalla animada
@@ -115,8 +127,11 @@ export function RankingView({ user }) {
     );
   };
 
+  // 🎨 Render del ranking
   const renderRanking = () => {
-    if (loading) return <p className="text-center text-muted-foreground">Cargando...</p>;
+    if (loading)
+      return <p className="text-center text-muted-foreground">Cargando...</p>;
+
     if (!ranking.length)
       return <p className="text-center text-muted-foreground">Sin jugadores aún 🐊</p>;
 
@@ -129,31 +144,22 @@ export function RankingView({ user }) {
           return (
             <motion.div
               key={p.id}
-              className={`flex items-center p-3 rounded-lg transition-all duration-300 hover:scale-[1.02] ${
+              className={`flex items-center p-3 rounded-lg transition-all duration-300 ${
                 p.isCurrentUser
                   ? "bg-primary/25 border border-primary shadow-md"
                   : "glass-effect border border-border"
               }`}
               whileHover={{ scale: 1.02 }}
             >
-              {/* 🏅 Posición */}
               <div className="flex items-center justify-center w-8 mr-3">
-                {medal ? (
-                  <Medal type={medal} />
-                ) : (
-                  <span className="text-sm text-muted-foreground">{index + 1}</span>
-                )}
+                {medal ? <Medal type={medal} /> : <span className="text-sm">{index + 1}</span>}
               </div>
-
-              {/* 🧍 Avatar */}
               <Avatar className="h-10 w-10 mr-3 border-2 border-border shadow">
                 <AvatarImage src={p.avatar} alt={p.name} />
                 <AvatarFallback>
-                  {p.name ? p.name.substring(0, 2).toUpperCase() : <UserCircle2 />}
+                  {p.name.substring(0, 2).toUpperCase() || <UserCircle2 />}
                 </AvatarFallback>
               </Avatar>
-
-              {/* 💬 Datos */}
               <div className="flex-grow">
                 <p
                   className={`font-semibold ${
@@ -163,11 +169,9 @@ export function RankingView({ user }) {
                   {p.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Nivel {p.level} • {p.coins.toLocaleString()}💰
+                  Nivel {p.level} • {p.coins.toLocaleString()} 💰
                 </p>
               </div>
-
-              {/* 👑 Glow Top 3 */}
               {medal && (
                 <motion.div
                   className="ml-auto"
