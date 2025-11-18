@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { supabase } from "@/lib/customSupabaseClient";
+
 import {
   Coins,
   TrendingUp,
@@ -55,6 +57,72 @@ export function GameView({
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
+
+  // 💾 Asegurar que el jugador exista en player_stats antes de sincronizar
+  useEffect(() => {
+    const ensurePlayerStats = async () => {
+      if (!gameState?.playerId) return;
+
+      try {
+        const { data: existing, error: selectError } = await supabase
+          .from("player_stats")
+          .select("id")
+          .eq("player_id", gameState.playerId)
+          .maybeSingle();
+
+        if (selectError) console.warn("⚠️ Error verificando stats:", selectError.message);
+
+        if (!existing) {
+          console.log("🆕 Creando registro en player_stats...");
+          const { error: insertError } = await supabase.from("player_stats").insert({
+            player_id: gameState.playerId,
+            coins: 0,
+            croc_tokens: 0,
+            level: 1,
+            clicks: 0,
+            updated_at: new Date().toISOString(),
+          });
+          if (insertError) console.error("❌ Error creando stats:", insertError.message);
+        }
+      } catch (err) {
+        console.error("❌ Error general en ensurePlayerStats:", err);
+      }
+    };
+
+    ensurePlayerStats();
+  }, [gameState?.playerId]);
+
+  // 🔄 Sincronizar progreso con Supabase cada 5 segundos
+useEffect(() => {
+  if (!gameState?.playerId) return; // el ID del jugador es obligatorio
+
+  const interval = setInterval(async () => {
+    try {
+      const { error } = await supabase
+        .from("player_stats")
+        .update({
+          coins: Math.floor(gameState.coins || 0),
+          croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+          level: gameState.level || 1,
+          clicks: gameState.totalClicks || 0,
+          last_active: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("player_id", gameState.playerId);
+
+      if (error) {
+        console.warn("⚠️ Error al actualizar Supabase:", error.message);
+      } else {
+        console.log("✅ Sincronizado con Supabase correctamente");
+      }
+    } catch (err) {
+      console.error("❌ Error sincronizando progreso:", err);
+    }
+  }, 5000); // cada 5 segundos
+
+  return () => clearInterval(interval);
+}, [gameState.playerId, gameState.coins, gameState.level]);
+
 
   // Simulación simple de precio/token
   useEffect(() => {

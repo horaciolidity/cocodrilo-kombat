@@ -28,7 +28,7 @@ export function RankingView({ user }) {
     "Aria (AU)", "Liam (UY)", "Nina (PE)", "Omar (MA)", "Ivan (RU)",
   ];
 
-  // 🔄 Consulta real a Supabase
+  // 📌 Consulta real desde Supabase
   const fetchRanking = async (scope = "global") => {
     try {
       setLoading(true);
@@ -37,16 +37,17 @@ export function RankingView({ user }) {
         .from("player_stats")
         .select(
           `
-          id,
-          coins,
-          level,
-          updated_at,
-          players!inner (
             id,
-            username,
-            avatar_url
-          )
-        `
+            player_id,
+            coins,
+            level,
+            updated_at,
+            players:player_id (
+              id,
+              username,
+              avatar_url
+            )
+          `
         )
         .order("coins", { ascending: false })
         .limit(20);
@@ -58,19 +59,18 @@ export function RankingView({ user }) {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       const realPlayers = (data || []).map((row) => ({
-        id: row.players.id,
-        name: row.players.username || "Jugador Anónimo",
-        avatar: row.players.avatar_url || generateAvatarUrl(row.players.username),
+        id: row.players?.id,
+        name: row.players?.username || "Jugador Anónimo",
+        avatar: row.players?.avatar_url || generateAvatarUrl(row.players?.username),
         coins: Number(row.coins) || 0,
         level: row.level || 1,
-        isCurrentUser: user?.id && row.players.user_id === user.id,
+        isCurrentUser: row.players?.id === user?.id,
       }));
 
-      // 🧍‍♂️ Mockear si hay menos de 20
+      // Si hay menos de 20 → llenar con mocks
       const missing = 20 - realPlayers.length;
       const mockPlayers = Array.from({ length: missing }, (_, i) => ({
         id: `mock-${i}`,
@@ -93,7 +93,7 @@ export function RankingView({ user }) {
     }
   };
 
-  // 🔁 Suscripción en tiempo real
+  // 🔁 Suscripción realtime
   useEffect(() => {
     fetchRanking(activeTab);
 
@@ -109,7 +109,7 @@ export function RankingView({ user }) {
     return () => supabase.removeChannel(channel);
   }, [activeTab]);
 
-  // 🥇 Medalla animada
+  // ⭐ Medallas animadas
   const Medal = ({ type }) => {
     const colors = {
       gold: "from-yellow-400 to-yellow-200",
@@ -154,12 +154,12 @@ export function RankingView({ user }) {
               <div className="flex items-center justify-center w-8 mr-3">
                 {medal ? <Medal type={medal} /> : <span className="text-sm">{index + 1}</span>}
               </div>
+
               <Avatar className="h-10 w-10 mr-3 border-2 border-border shadow">
                 <AvatarImage src={p.avatar} alt={p.name} />
-                <AvatarFallback>
-                  {p.name.substring(0, 2).toUpperCase() || <UserCircle2 />}
-                </AvatarFallback>
+                <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
+
               <div className="flex-grow">
                 <p
                   className={`font-semibold ${
@@ -172,6 +172,7 @@ export function RankingView({ user }) {
                   Nivel {p.level} • {p.coins.toLocaleString()} 💰
                 </p>
               </div>
+
               {medal && (
                 <motion.div
                   className="ml-auto"
@@ -212,6 +213,7 @@ export function RankingView({ user }) {
           >
             <Globe2 className="w-4 h-4" /> Global
           </Button>
+
           <Button
             variant={activeTab === "weekly" ? "default" : "outline"}
             onClick={() => setActiveTab("weekly")}
@@ -219,6 +221,7 @@ export function RankingView({ user }) {
           >
             <Calendar className="w-4 h-4" /> Semanal
           </Button>
+
           <Button
             variant={activeTab === "friends" ? "default" : "outline"}
             onClick={() => setActiveTab("friends")}
