@@ -26,7 +26,7 @@ export function RankingView({ user }) {
     try {
       setLoading(true);
       let query = supabase
-        .from("stats")
+        .from("player_stats")
         .select(
           `
           id,
@@ -87,7 +87,7 @@ export function RankingView({ user }) {
     fetchRanking(activeTab);
     const channel = supabase
       .channel("realtime-ranking-tabs")
-      .on("postgres_changes", { event: "*", schema: "public", table: "stats" }, () =>
+      .on("postgres_changes", { event: "*", schema: "public", table: "player_stats" }, () =>
         fetchRanking(activeTab)
       )
       .subscribe();
