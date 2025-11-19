@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { supabase } from "@/lib/customSupabaseClient";
+import { useSupabasePlayer } from '@/hooks/useSupabasePlayer'; // ✅ Añade esta importación
 
 import {
   Coins,
@@ -49,6 +50,7 @@ export function GameView({
   showTutorial,
   activeSkin,
   toast,
+  user, // ✅ Asegúrate de recibir el user como prop
 }) {
   const [tokenPrice, setTokenPrice] = useState(0.05);
   const [liquidity, setLiquidity] = useState(50000);
@@ -58,65 +60,28 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
 
-  // 💾 Asegurar que el jugador exista en player_stats antes de sincronizar
+  // ✅ Usa el hook useSupabasePlayer
+  const { syncStatsToSupabase, stats, loading: statsLoading } = useSupabasePlayer(user);
+
+  // 🔄 Sincronización SEGURA y SIMPLE
   useEffect(() => {
-    const ensurePlayerStats = async () => {
-      if (!gameState?.playerId) return;
+    if (!gameState?.playerId || !syncStatsToSupabase) return;
 
-      try {
-        const { data: existing, error: selectError } = await supabase
-          .from("player_stats")
-          .select("id")
-          .eq("player_id", gameState.playerId)
-          .maybeSingle();
-
-        if (selectError) console.warn("⚠️ Error verificando stats:", selectError.message);
-
-        if (!existing) {
-          console.log("🆕 Creando registro en player_stats...");
-          const { error: insertError } = await supabase.from("player_stats").insert({
-            player_id: gameState.playerId,
-            coins: 0,
-            croc_tokens: 0,
-            level: 1,
-            clicks: 0,
-            updated_at: new Date().toISOString(),
-          });
-          if (insertError) console.error("❌ Error creando stats:", insertError.message);
-        }
-      } catch (err) {
-        console.error("❌ Error general en ensurePlayerStats:", err);
-      }
+    const syncData = {
+      coins: Math.floor(gameState.coins || 0),
+      croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+      level: gameState.level || 1,
+      clicks: gameState.totalClicks || 0,
     };
 
-    ensurePlayerStats();
-  }, [gameState?.playerId]);
+    // Sincronizar cada 10 segundos (más seguro que 5)
+    const interval = setInterval(() => {
+      console.log('🔄 Sincronizando stats...', syncData);
+      syncStatsToSupabase(syncData);
+    }, 10000);
 
- // En GameView.jsx, reemplaza los useEffect de sincronización con esto:
-
-useEffect(() => {
-  if (!gameState?.playerId) return;
-
-  // Sincronizar solo cuando cambien valores importantes
-  const shouldSync = 
-    Math.floor(gameState.coins) !== Math.floor(prevCoinsRef.current) ||
-    gameState.level !== prevLevelRef.current ||
-    gameState.totalClicks !== prevClicksRef.current;
-
-  if (shouldSync) {
-    syncStatsToSupabase({
-      coins: gameState.coins,
-      croc_tokens: gameState.nativeTokenBalance,
-      level: gameState.level,
-      clicks: gameState.totalClicks,
-    });
-
-    // Actualizar referencias
-    prevCoinsRef.current = Math.floor(gameState.coins);
-    prevLevelRef.current = gameState.level;
-    prevClicksRef.current = gameState.totalClicks;
-  }
-}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.playerId, syncStatsToSupabase]);
+    return () => clearInterval(interval);
+  }, [gameState, syncStatsToSupabase]);
 
   // Simulación simple de precio/token
   useEffect(() => {
@@ -156,23 +121,19 @@ useEffect(() => {
   };
 
   // 🐊 Reproduce el video y el sonido cuando se hace clic en el cocodrilo
-const handleCrocClick = (event) => {
-  handleClick(event);
-  playSound('bite');
+  const handleCrocClick = (event) => {
+    handleClick(event);
+    playSound('bite');
 
-  if (videoRefIdle.current && videoRefBite.current) {
-    // pausa el video idle
-    videoRefIdle.current.pause();
-    // reinicia y reproduce el video de mordida
-    videoRefBite.current.currentTime = 0;
-    videoRefBite.current.play();
-  }
+    if (videoRefIdle.current && videoRefBite.current) {
+      videoRefIdle.current.pause();
+      videoRefBite.current.currentTime = 0;
+      videoRefBite.current.play();
+    }
 
-  setIsClicked(true);
-  setTimeout(() => setIsClicked(false), 300);
-};
-
-
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 300);
+  };
 
   const handleBuyToken = () => {
     toast({
@@ -219,131 +180,81 @@ const handleCrocClick = (event) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-{/* 🐊 Zona del cocodrilo */}
-<div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
-  <motion.div
-    whileHover={{ scale: 1.05 }}
-    animate={isClicked ? { scale: [1, 0.9, 1.1, 1] } : { scale: 1 }}
-    transition={{ duration: 0.25, ease: 'easeOut' }}
-    className="relative"
-  >
-    <div
-      onClick={(event) => {
-        if (gameState.energy <= 0) {
-          const el = event.currentTarget;
-          el.classList.add('shake');
-          playSound('error');
-          setTimeout(() => el.classList.remove('shake'), 500);
-          return;
-        }
+        {/* 🐊 Zona del cocodrilo */}
+        <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            animate={isClicked ? { scale: [1, 0.9, 1.1, 1] } : { scale: 1 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="relative"
+          >
+            <div
+              onClick={handleCrocClick}
+              className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
+                rounded-full select-none overflow-hidden
+                transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
+                ${
+                  activeSkin === 'skin_golden_croc'
+                    ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)]'
+                    : activeSkin === 'skin_camo_croc'
+                    ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)]'
+                    : activeSkin === 'skin_cyborg_croc'
+                    ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)]'
+                    : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
+                }`}
+            >
+              {/* 🎥 Video único (mordida) */}
+              <video
+                ref={videoRefBite}
+                src="/videos/crocodile_bite.mp4"
+                className="absolute inset-0 w-full h-full object-cover rounded-full"
+                muted
+                playsInline
+                preload="auto"
+                onLoadedData={() => {
+                  if (videoRefBite.current) videoRefBite.current.pause();
+                }}
+                onEnded={() => {
+                  if (videoRefBite.current) {
+                    videoRefBite.current.pause();
+                    videoRefBite.current.currentTime = 0;
+                  }
+                }}
+              />
 
-        handleClick(event);
-        playSound('bite');
-        setIsClicked(true);
+              {/* ✨ Efecto circular brillante */}
+              <motion.div
+                className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
+                animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+              />
 
-        // 🎥 Solo video 2 (mordida)
-        if (videoRefBite.current) {
-          videoRefBite.current.pause();
-          videoRefBite.current.currentTime = 0;
-          videoRefBite.current.play().catch(() => {});
-        }
+              {/* 🪙 Texto principal */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
+                <div className="font-bold text-2xl md:text-3xl neon-glow">
+                  {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
+                </div>
+                <div className="text-lime-200 text-lg md:text-xl mt-1">
+                  +{Math.floor(gameState.clickPower)}
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-        // 🪙 Efecto +1 — aparece donde se hace click
-        const clickEffect = document.createElement('div');
-        const rect = event.currentTarget.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
-        clickEffect.style.position = 'absolute';
-        clickEffect.style.left = `${x}px`;
-        clickEffect.style.top = `${y}px`;
-        clickEffect.style.transform = 'translate(-50%, -50%)';
-        clickEffect.style.pointerEvents = 'none';
-        clickEffect.style.fontWeight = 'bold';
-        clickEffect.style.fontSize = '30px';
-        clickEffect.style.zIndex = '50';
-        clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
-
-        const lvl = gameState.level;
-        clickEffect.style.color =
-          lvl < 5 ? '#bef264' :
-          lvl < 10 ? '#86efac' :
-          lvl < 20 ? '#4ade80' :
-          lvl < 30 ? '#22c55e' : '#16a34a';
-
-        event.currentTarget.appendChild(clickEffect);
-        setTimeout(() => clickEffect.remove(), 1200);
-
-        // 🔁 Reset efecto de clic visual
-        setTimeout(() => setIsClicked(false), 200);
-      }}
-      className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
-        rounded-full select-none overflow-hidden
-        transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
-        ${
-          activeSkin === 'skin_golden_croc'
-            ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)]'
-            : activeSkin === 'skin_camo_croc'
-            ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)]'
-            : activeSkin === 'skin_cyborg_croc'
-            ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)]'
-            : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
-        }`}
-    >
-      {/* 🎥 Video único (mordida) */}
-      <video
-        ref={videoRefBite}
-        src="/videos/crocodile_bite.mp4"
-        className="absolute inset-0 w-full h-full object-cover rounded-full"
-        muted
-        playsInline
-        preload="auto"
-        onLoadedData={() => {
-          videoRefBite.current.pause();
-        }}
-        onEnded={() => {
-          videoRefBite.current.pause();
-          videoRefBite.current.currentTime = 0;
-        }}
-      />
-
-      {/* ✨ Efecto circular brillante */}
-      <motion.div
-        className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
-        animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
-        transition={{ repeat: Infinity, duration: 1.5 }}
-      />
-
-      {/* 🪙 Texto principal */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
-        <div className="font-bold text-2xl md:text-3xl neon-glow">
-          {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
+          {/* Barra de progreso */}
+          <div className="mt-10 w-full max-w-md">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Nivel {gameState.level}</span>
+              <span>{gameState.experience % 100}/100 XP</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-3">
+              <div
+                className="progress-bar h-3 rounded-full transition-all duration-300"
+                style={{ width: `${(gameState.experience % 100)}%` }}
+              />
+            </div>
+          </div>
         </div>
-        <div className="text-lime-200 text-lg md:text-xl mt-1">
-          +{Math.floor(gameState.clickPower)}
-        </div>
-      </div>
-    </div>
-  </motion.div>
-
-  {/* Barra de progreso */}
-  <div className="mt-10 w-full max-w-md">
-    <div className="flex justify-between text-sm mb-2">
-      <span>Nivel {gameState.level}</span>
-      <span>{gameState.experience % 100}/100 XP</span>
-    </div>
-    <div className="w-full bg-gray-700 rounded-full h-3">
-      <div
-        className="progress-bar h-3 rounded-full transition-all duration-300"
-        style={{ width: `${(gameState.experience % 100)}%` }}
-      />
-    </div>
-  </div>
-</div>
-
-
-
 
         {/* 📊 Panel lateral */}
         <div className="w-full space-y-4">
@@ -352,6 +263,7 @@ const handleCrocClick = (event) => {
             liquidity={liquidity}
             priceData={priceData}
             onBuyToken={handleBuyToken}
+            gameState={gameState}
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
@@ -371,12 +283,8 @@ const handleCrocClick = (event) => {
 
 /* ===================== Subcomponentes ===================== */
 
-function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
-  // ⚙️ Acceso a sonido y toast desde el hook global
+function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState }) {
   const { playSound } = useSound();
-
-  const gameState = window?.gameState || {}; // opcional, si no lo recibís por props
-  const toast = window?.toast || (() => {});
 
   return (
     <div className="stats-card rounded-xl p-4 relative overflow-visible">
@@ -488,7 +396,7 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken }) {
   );
 }
 
-
+// ... (los componentes StatCard, EnergyStatCard, UpgradePanel, DailyRewardPanel permanecen igual)
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
@@ -543,7 +451,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
               key={upgrade.id}
               className="glass-effect rounded-lg overflow-hidden hover-lift transition-all duration-200"
             >
-              {/* 🖼️ Imagen de portada */}
               {upgrade.image && (
                 <div className="relative w-full h-28 md:h-32 overflow-hidden">
                   <img
@@ -559,7 +466,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                 </div>
               )}
 
-              {/* 🧩 Contenido */}
               <div className="p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -576,7 +482,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                   )}
                 </div>
 
-                {/* 💰 Precio y botón */}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-yellow-400 font-bold text-sm">
                     {price.toLocaleString()} 💰
@@ -602,7 +507,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
     </div>
   );
 }
-
 
 function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
   return (
