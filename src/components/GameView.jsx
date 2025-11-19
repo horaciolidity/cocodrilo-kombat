@@ -92,37 +92,31 @@ export function GameView({
     ensurePlayerStats();
   }, [gameState?.playerId]);
 
-  // 🔄 Sincronizar progreso con Supabase cada 5 segundos
+ // En GameView.jsx, reemplaza los useEffect de sincronización con esto:
+
 useEffect(() => {
-  if (!gameState?.playerId) return; // el ID del jugador es obligatorio
+  if (!gameState?.playerId) return;
 
-  const interval = setInterval(async () => {
-    try {
-      const { error } = await supabase
-        .from("player_stats")
-        .update({
-          coins: Math.floor(gameState.coins || 0),
-          croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-          level: gameState.level || 1,
-          clicks: gameState.totalClicks || 0,
-          last_active: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("player_id", gameState.playerId);
+  // Sincronizar solo cuando cambien valores importantes
+  const shouldSync = 
+    Math.floor(gameState.coins) !== Math.floor(prevCoinsRef.current) ||
+    gameState.level !== prevLevelRef.current ||
+    gameState.totalClicks !== prevClicksRef.current;
 
-      if (error) {
-        console.warn("⚠️ Error al actualizar Supabase:", error.message);
-      } else {
-        console.log("✅ Sincronizado con Supabase correctamente");
-      }
-    } catch (err) {
-      console.error("❌ Error sincronizando progreso:", err);
-    }
-  }, 5000); // cada 5 segundos
+  if (shouldSync) {
+    syncStatsToSupabase({
+      coins: gameState.coins,
+      croc_tokens: gameState.nativeTokenBalance,
+      level: gameState.level,
+      clicks: gameState.totalClicks,
+    });
 
-  return () => clearInterval(interval);
-}, [gameState.playerId, gameState.coins, gameState.level]);
-
+    // Actualizar referencias
+    prevCoinsRef.current = Math.floor(gameState.coins);
+    prevLevelRef.current = gameState.level;
+    prevClicksRef.current = gameState.totalClicks;
+  }
+}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.playerId, syncStatsToSupabase]);
 
   // Simulación simple de precio/token
   useEffect(() => {
