@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { supabase } from "@/lib/customSupabaseClient";
-import { useSupabasePlayer } from '@/hooks/useSupabasePlayer'; // ✅ Añade esta importación
+import { useSupabasePlayer } from '@/hooks/useSupabasePlayer';
 
 import {
   Coins,
@@ -50,7 +50,7 @@ export function GameView({
   showTutorial,
   activeSkin,
   toast,
-  user, // ✅ Asegúrate de recibir el user como prop
+  user,
 }) {
   const [tokenPrice, setTokenPrice] = useState(0.05);
   const [liquidity, setLiquidity] = useState(50000);
@@ -59,29 +59,35 @@ export function GameView({
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
+  
+  // ✅ Hook de sincronización
+  const { syncStatsToSupabase } = useSupabasePlayer(user);
+  const prevCoinsRef = useRef(0);
+  const prevLevelRef = useRef(1);
+  const prevClicksRef = useRef(0);
 
-  // ✅ Usa el hook useSupabasePlayer
-  const { syncStatsToSupabase, stats, loading: statsLoading } = useSupabasePlayer(user);
-
-  // 🔄 Sincronización SEGURA y SIMPLE
+  // 🔄 Sincronización optimizada
   useEffect(() => {
     if (!gameState?.playerId || !syncStatsToSupabase) return;
 
-    const syncData = {
-      coins: Math.floor(gameState.coins || 0),
-      croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-      level: gameState.level || 1,
-      clicks: gameState.totalClicks || 0,
-    };
+    const shouldSync = 
+      Math.floor(gameState.coins) !== Math.floor(prevCoinsRef.current) ||
+      gameState.level !== prevLevelRef.current ||
+      gameState.totalClicks !== prevClicksRef.current;
 
-    // Sincronizar cada 10 segundos (más seguro que 5)
-    const interval = setInterval(() => {
-      console.log('🔄 Sincronizando stats...', syncData);
-      syncStatsToSupabase(syncData);
-    }, 10000);
+    if (shouldSync) {
+      syncStatsToSupabase({
+        coins: gameState.coins,
+        croc_tokens: gameState.nativeTokenBalance,
+        level: gameState.level,
+        clicks: gameState.totalClicks,
+      });
 
-    return () => clearInterval(interval);
-  }, [gameState, syncStatsToSupabase]);
+      prevCoinsRef.current = Math.floor(gameState.coins);
+      prevLevelRef.current = gameState.level;
+      prevClicksRef.current = gameState.totalClicks;
+    }
+  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.playerId, syncStatsToSupabase]);
 
   // Simulación simple de precio/token
   useEffect(() => {
@@ -122,11 +128,21 @@ export function GameView({
 
   // 🐊 Reproduce el video y el sonido cuando se hace clic en el cocodrilo
   const handleCrocClick = (event) => {
+    if (gameState.energy <= 0) {
+      const el = event.currentTarget;
+      el.classList.add('shake');
+      playSound('error');
+      setTimeout(() => el.classList.remove('shake'), 500);
+      return;
+    }
+
     handleClick(event);
     playSound('bite');
 
     if (videoRefIdle.current && videoRefBite.current) {
+      // pausa el video idle
       videoRefIdle.current.pause();
+      // reinicia y reproduce el video de mordida
       videoRefBite.current.currentTime = 0;
       videoRefBite.current.play();
     }
@@ -180,7 +196,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo */}
+        {/* 🐊 Zona del cocodrilo - VERSIÓN ORIGINAL RESTAURADA */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -189,7 +205,56 @@ export function GameView({
             className="relative"
           >
             <div
-              onClick={handleCrocClick}
+              onClick={(event) => {
+                if (gameState.energy <= 0) {
+                  const el = event.currentTarget;
+                  el.classList.add('shake');
+                  playSound('error');
+                  setTimeout(() => el.classList.remove('shake'), 500);
+                  return;
+                }
+
+                handleClick(event);
+                playSound('bite');
+                setIsClicked(true);
+
+                // 🎥 Manejo de videos
+                if (videoRefIdle.current && videoRefBite.current) {
+                  videoRefIdle.current.pause();
+                  videoRefBite.current.currentTime = 0;
+                  videoRefBite.current.play().catch(() => {});
+                }
+
+                // 🪙 Efecto +1 — aparece donde se hace click
+                const clickEffect = document.createElement('div');
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
+                clickEffect.style.position = 'absolute';
+                clickEffect.style.left = `${x}px`;
+                clickEffect.style.top = `${y}px`;
+                clickEffect.style.transform = 'translate(-50%, -50%)';
+                clickEffect.style.pointerEvents = 'none';
+                clickEffect.style.fontWeight = 'bold';
+                clickEffect.style.fontSize = '30px';
+                clickEffect.style.zIndex = '50';
+                clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
+
+                const lvl = gameState.level;
+                clickEffect.style.color =
+                  lvl < 5 ? '#bef264' :
+                  lvl < 10 ? '#86efac' :
+                  lvl < 20 ? '#4ade80' :
+                  lvl < 30 ? '#22c55e' : '#16a34a';
+
+                event.currentTarget.appendChild(clickEffect);
+                setTimeout(() => clickEffect.remove(), 1200);
+
+                // 🔁 Reset efecto de clic visual
+                setTimeout(() => setIsClicked(false), 200);
+              }}
               className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
                 rounded-full select-none overflow-hidden
                 transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
@@ -203,7 +268,18 @@ export function GameView({
                     : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
                 }`}
             >
-              {/* 🎥 Video único (mordida) */}
+              {/* 🎥 Video idle (estado normal) */}
+              <video
+                ref={videoRefIdle}
+                src="/videos/crocodile_idle.mp4"
+                className="absolute inset-0 w-full h-full object-cover rounded-full"
+                muted
+                playsInline
+                loop
+                preload="auto"
+              />
+
+              {/* 🎥 Video de mordida */}
               <video
                 ref={videoRefBite}
                 src="/videos/crocodile_bite.mp4"
@@ -215,9 +291,10 @@ export function GameView({
                   if (videoRefBite.current) videoRefBite.current.pause();
                 }}
                 onEnded={() => {
-                  if (videoRefBite.current) {
+                  if (videoRefBite.current && videoRefIdle.current) {
                     videoRefBite.current.pause();
                     videoRefBite.current.currentTime = 0;
+                    videoRefIdle.current.play();
                   }
                 }}
               />
@@ -264,6 +341,7 @@ export function GameView({
             priceData={priceData}
             onBuyToken={handleBuyToken}
             gameState={gameState}
+            toast={toast}
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
@@ -283,7 +361,7 @@ export function GameView({
 
 /* ===================== Subcomponentes ===================== */
 
-function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState }) {
+function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState, toast }) {
   const { playSound } = useSound();
 
   return (
@@ -396,7 +474,6 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameStat
   );
 }
 
-// ... (los componentes StatCard, EnergyStatCard, UpgradePanel, DailyRewardPanel permanecen igual)
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
@@ -451,6 +528,7 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
               key={upgrade.id}
               className="glass-effect rounded-lg overflow-hidden hover-lift transition-all duration-200"
             >
+              {/* 🖼️ Imagen de portada */}
               {upgrade.image && (
                 <div className="relative w-full h-28 md:h-32 overflow-hidden">
                   <img
@@ -466,6 +544,7 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                 </div>
               )}
 
+              {/* 🧩 Contenido */}
               <div className="p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -482,6 +561,7 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                   )}
                 </div>
 
+                {/* 💰 Precio y botón */}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-yellow-400 font-bold text-sm">
                     {price.toLocaleString()} 💰
