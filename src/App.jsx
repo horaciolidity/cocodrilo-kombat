@@ -6,8 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
-
+import { useSupabasePlayer } from "@/hooks/useSupabasePlayer"; // ✅ IMPORTACIÓN AGREGADA
 import { GameView } from "@/components/GameView";
 import { StatsView } from "@/components/StatsView";
 import { SettingsView } from "@/components/SettingsView";
@@ -136,26 +135,53 @@ function App() {
     setLastReachedMilestone
   );
 
-  /* 🔄 Sincronización completa con Supabase */
+  /* 🔄 Sincronización CORREGIDA con Supabase */
   useEffect(() => {
-    if (!stats || !gameState) return;
+    if (!stats || !gameState || !setStats || !syncStatsToSupabase) return;
 
-    const fieldsToSync = ["coins", "level", "croc_tokens", "clicks"];
-    let hasChanges = false;
-    const updatedStats = { ...stats };
-
-    fieldsToSync.forEach((field) => {
-      if (stats[field] !== gameState[field]) {
-        updatedStats[field] = gameState[field];
-        hasChanges = true;
-      }
+    console.log("🔄 Verificando sincronización...", {
+      statsCoins: stats.coins,
+      gameStateCoins: gameState.coins,
+      statsLevel: stats.level,
+      gameStateLevel: gameState.level
     });
 
-    if (hasChanges) {
+    // Solo sincronizar si hay diferencias significativas
+    const coinsDiff = Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins));
+    const levelDiff = Math.abs(stats.level - gameState.level);
+    
+    // Umbrales para evitar sincronizaciones innecesarias
+    if (coinsDiff > 10 || levelDiff > 0 || stats.clicks !== gameState.totalClicks) {
+      console.log("🔄 Sincronizando cambios a Supabase...");
+      
+      const updatedStats = {
+        coins: Math.floor(gameState.coins),
+        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+        level: gameState.level,
+        clicks: gameState.totalClicks,
+      };
+
       setStats(updatedStats);
       syncStatsToSupabase(updatedStats);
     }
-  }, [gameState?.coins, gameState?.level, gameState?.croc_tokens, gameState?.clicks]);
+  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
+
+  /* 🔄 Cargar datos de Supabase al iniciar */
+  useEffect(() => {
+    if (stats && gameState && setGameState) {
+      // Si las stats de Supabase tienen más monedas, usarlas
+      if (stats.coins > gameState.coins) {
+        console.log("📥 Cargando datos desde Supabase...");
+        setGameState(prev => ({
+          ...prev,
+          coins: Number(stats.coins),
+          level: stats.level,
+          nativeTokenBalance: Number(stats.croc_tokens),
+          totalClicks: stats.clicks,
+        }));
+      }
+    }
+  }, [stats?.coins, stats?.level, stats?.croc_tokens, stats?.clicks, gameState, setGameState]);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -256,6 +282,44 @@ function App() {
                 <span className="hidden sm:inline">{item.label}</span>
               </Button>
             ))}
+            
+            {/* 🐛 Botón de Debug temporal */}
+            <Button
+              onClick={() => {
+                console.log("🐛 DEBUG INFO:", {
+                  user: user?.id,
+                  player: player?.id,
+                  stats: stats,
+                  gameState: {
+                    coins: gameState.coins,
+                    level: gameState.level,
+                    clicks: gameState.totalClicks
+                  }
+                });
+                
+                // Forzar sincronización
+                if (stats && syncStatsToSupabase) {
+                  const updatedStats = {
+                    coins: Math.floor(gameState.coins),
+                    croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+                    level: gameState.level,
+                    clicks: gameState.totalClicks,
+                  };
+                  setStats(updatedStats);
+                  syncStatsToSupabase(updatedStats);
+                  toast({
+                    title: "🔄 Sincronización forzada",
+                    description: "Datos enviados a Supabase",
+                    duration: 2000,
+                  });
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
+            >
+              🐛 Debug
+            </Button>
           </div>
         </div>
       </nav>
@@ -287,6 +351,7 @@ function App() {
                 showTutorial={showTutorial}
                 activeSkin={activeSkin}
                 toast={toast}
+                user={user}
               />
             )}
 
@@ -330,7 +395,7 @@ function App() {
               />
             )}
 
-            {currentView === "ranking" && <RankingView user={user} />}
+            {currentView === "ranking" && <RankingView user={user} stats={stats} />}
             {currentView === "fairlaunch" && <FairlaunchView toast={toast} />}
             {currentView === "whitepaper" && <WhitepaperView />}
             {currentView === "wallet" && <WalletView toast={toast} playSound={playSound} />}

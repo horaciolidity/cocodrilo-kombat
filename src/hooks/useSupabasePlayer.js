@@ -13,6 +13,7 @@ export function useSupabasePlayer(user) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const updateTimeout = useRef(null);
   const lastSyncRef = useRef(null);
   const isMounted = useRef(true);
@@ -23,13 +24,13 @@ export function useSupabasePlayer(user) {
     return `${base}${suffix}`;
   }, []);
 
-  /* 🧹 FUNCIÓN PARA LIMPIAR DUPLICADOS - SEGURA */
+  /* 🧹 FUNCIÓN PARA LIMPIAR DUPLICADOS EN STATS */
   const cleanDuplicateStats = useCallback(async (playerId) => {
     if (!playerId) return null;
-    
+
     try {
       console.log("🧹 Buscando duplicados para player:", playerId);
-      
+
       const { data: duplicates, error: dupError } = await supabase
         .from("player_stats")
         .select("*")
@@ -46,16 +47,15 @@ export function useSupabasePlayer(user) {
         return null;
       }
 
-      // Si hay solo un registro, devolverlo
       if (duplicates.length === 1) {
         console.log("✅ Stats únicas encontradas");
         return duplicates[0];
       }
 
-      // Si hay múltiples, mantener el más reciente
       console.log(`⚠️ Encontrados ${duplicates.length} registros, limpiando...`);
+
       const latestStats = duplicates[0];
-      const idsToDelete = duplicates.slice(1).map(d => d.id);
+      const idsToDelete = duplicates.slice(1).map((d) => d.id);
 
       const { error: deleteError } = await supabase
         .from("player_stats")
@@ -64,13 +64,11 @@ export function useSupabasePlayer(user) {
 
       if (deleteError) {
         console.warn("⚠️ No se pudieron eliminar duplicados:", deleteError);
-        // Aún así devolver el más reciente
         return latestStats;
       }
 
       console.log(`✅ ${idsToDelete.length} duplicados eliminados`);
       return latestStats;
-
     } catch (err) {
       console.error("❌ Error en cleanDuplicateStats:", err);
       return null;
@@ -108,25 +106,27 @@ export function useSupabasePlayer(user) {
 
         const { data: newPlayer, error: insertError } = await supabase
           .from("players")
-          .insert([{ 
-            user_id: user.id, 
-            username, 
-            avatar_url: avatarUrl 
-          }])
+          .insert([
+            {
+              user_id: user.id,
+              username,
+              avatar_url: avatarUrl,
+            },
+          ])
           .select()
           .single();
 
         if (insertError) {
-          // Si falla, intentar recuperar
+          // Intentar recuperar
           const { data: recovered } = await supabase
             .from("players")
             .select("*")
             .eq("user_id", user.id)
             .single();
-          
+
           if (recovered) {
             playerRecord = recovered;
-            console.log("✅ Jugador recuperado después de error:", recovered.username);
+            console.log("✅ Jugador recuperado:", recovered.username);
           } else {
             throw insertError;
           }
@@ -140,51 +140,50 @@ export function useSupabasePlayer(user) {
 
       setPlayer(playerRecord);
 
-      /* 🪙 GESTIÓN DE STATS - CON CONTROL DE ERRORES RLS */
+      /* 🪙 Cargar o crear stats */
       if (playerRecord?.id) {
-        // Primero intentar limpiar y cargar stats existentes
         const cleanStats = await cleanDuplicateStats(playerRecord.id);
-        
+
         if (cleanStats) {
           console.log("📥 Stats limpias cargadas:", cleanStats);
           setStats(cleanStats);
         } else {
-          // Si no hay stats, crear nuevas
           console.log("🆕 Creando stats iniciales...");
+
           const { data: newStats, error: insertStatsError } = await supabase
             .from("player_stats")
-            .insert([{
-              player_id: playerRecord.id,
-              coins: 0,
-              croc_tokens: 0,
-              level: 1,
-              clicks: 0,
-            }])
+            .insert([
+              {
+                player_id: playerRecord.id,
+                coins: 0,
+                croc_tokens: 0,
+                level: 1,
+                clicks: 0,
+              },
+            ])
             .select()
             .single();
 
           if (insertStatsError) {
             console.error("❌ Error creando stats:", insertStatsError);
-            
-            // Si falla por RLS, intentar cargar cualquier stat existente
+
             const { data: existingStats } = await supabase
               .from("player_stats")
               .select("*")
               .eq("player_id", playerRecord.id)
               .single();
-              
+
             if (existingStats) {
               console.log("📥 Stats existentes recuperadas:", existingStats);
               setStats(existingStats);
             } else {
-              // Crear stats locales como fallback
               const fallbackStats = {
                 player_id: playerRecord.id,
                 coins: 0,
                 croc_tokens: 0,
                 level: 1,
                 clicks: 0,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
               };
               console.log("🔄 Usando stats locales de fallback");
               setStats(fallbackStats);
@@ -195,24 +194,21 @@ export function useSupabasePlayer(user) {
           }
         }
       }
-
     } catch (err) {
       console.error("❌ Error en loadPlayerData:", err);
       setError(err.message || "Error al cargar datos del jugador");
     } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+      if (isMounted.current) setLoading(false);
     }
   }, [user, generateUsername, cleanDuplicateStats]);
 
-  /* 🔄 Sincronizar stats - SIN RECURSIÓN */
+  /* 🔄 Sincronizar stats con debounce y sin recursión */
   const syncStatsToSupabase = useCallback(
     async (newStats) => {
       if (!player?.id || !newStats) return;
-      
-      // Evitar sincronización demasiado frecuente
+
       const now = Date.now();
+
       if (lastSyncRef.current && now - lastSyncRef.current < 2000) {
         return;
       }
@@ -233,43 +229,39 @@ export function useSupabasePlayer(user) {
 
           console.log("🔄 Intentando sincronizar stats:", payload);
 
-          // Usar upsert en lugar de update/insert para evitar errores
           const { error: upsertError } = await supabase
             .from("player_stats")
-            .upsert({
-              player_id: player.id,
-              ...payload
-            }, {
-              onConflict: 'player_id'
-            });
+            .upsert(
+              {
+                player_id: player.id,
+                ...payload,
+              },
+              {
+                onConflict: "player_id",
+              }
+            );
 
           if (upsertError) {
-            // Si falla el upsert, intentar update
             const { error: updateError } = await supabase
               .from("player_stats")
               .update(payload)
               .eq("player_id", player.id);
 
             if (updateError) {
-              // Si falla update, intentar insert
               const { error: insertError } = await supabase
                 .from("player_stats")
                 .insert([{ player_id: player.id, ...payload }]);
 
-              if (insertError) {
-                throw insertError;
-              }
+              if (insertError) throw insertError;
             }
           }
 
           lastSyncRef.current = Date.now();
           console.log("✅ Stats sincronizadas correctamente");
-
         } catch (err) {
-          console.warn("⚠️ Error en sincronización (no crítico):", err.message);
-          // No propagar el error para no interrumpir el juego
+          console.warn("⚠️ Error en sincronización:", err.message);
         }
-      }, 3000); // 3 segundos de debounce
+      }, 3000);
     },
     [player?.id]
   );
@@ -281,9 +273,7 @@ export function useSupabasePlayer(user) {
 
     return () => {
       isMounted.current = false;
-      if (updateTimeout.current) {
-        clearTimeout(updateTimeout.current);
-      }
+      if (updateTimeout.current) clearTimeout(updateTimeout.current);
     };
   }, [loadPlayerData]);
 
@@ -292,15 +282,15 @@ export function useSupabasePlayer(user) {
     player,
     stats,
     setStats: (newStats) => {
-      if (isMounted.current) {
-        setStats(newStats);
-        syncStatsToSupabase(newStats);
-      }
+      if (!isMounted.current) return;
+      setStats(newStats);
+      syncStatsToSupabase(newStats);
     },
     loading,
     error,
     refresh: loadPlayerData,
     syncStatsToSupabase,
-    cleanDuplicateStats: () => player?.id ? cleanDuplicateStats(player.id) : Promise.resolve(),
+    cleanDuplicateStats: () =>
+      player?.id ? cleanDuplicateStats(player.id) : Promise.resolve(),
   };
 }

@@ -56,6 +56,7 @@ export function GameView({
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
@@ -88,6 +89,49 @@ export function GameView({
       prevClicksRef.current = gameState.totalClicks;
     }
   }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.playerId, syncStatsToSupabase]);
+
+  // 🎥 Manejo de videos - CORREGIDO
+  useEffect(() => {
+    const initializeVideos = async () => {
+      if (videoRefIdle.current && videoRefBite.current) {
+        try {
+          // Precargar videos
+          videoRefIdle.current.load();
+          videoRefBite.current.load();
+          
+          // Esperar a que estén listos
+          await Promise.all([
+            new Promise(resolve => {
+              if (videoRefIdle.current.readyState >= 3) resolve();
+              else videoRefIdle.current.addEventListener('loadeddata', resolve, { once: true });
+            }),
+            new Promise(resolve => {
+              if (videoRefBite.current.readyState >= 3) resolve();
+              else videoRefBite.current.addEventListener('loadeddata', resolve, { once: true });
+            })
+          ]);
+
+          // Configurar videos
+          videoRefIdle.current.loop = true;
+          videoRefBite.current.loop = false;
+          
+          // Intentar reproducir idle (puede fallar por políticas de autoplay)
+          try {
+            await videoRefIdle.current.play();
+          } catch (err) {
+            console.log("Autoplay bloqueado, esperando interacción del usuario");
+            // El usuario tendrá que hacer clic para activar los videos
+          }
+          
+          setVideoLoaded(true);
+        } catch (error) {
+          console.error("Error inicializando videos:", error);
+        }
+      }
+    };
+
+    initializeVideos();
+  }, []);
 
   // Simulación simple de precio/token
   useEffect(() => {
@@ -126,7 +170,7 @@ export function GameView({
     return '🐊';
   };
 
-  // 🐊 Reproduce el video y el sonido cuando se hace clic en el cocodrilo
+  // 🐊 Manejo de clic CORREGIDO para videos
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -136,19 +180,65 @@ export function GameView({
       return;
     }
 
+    // Activar sonido y efecto visual
     handleClick(event);
     playSound('bite');
+    setIsClicked(true);
 
+    // 🎥 Manejo de videos MEJORADO
     if (videoRefIdle.current && videoRefBite.current) {
-      // pausa el video idle
+      // Pausar idle y reproducir bite
       videoRefIdle.current.pause();
-      // reinicia y reproduce el video de mordida
       videoRefBite.current.currentTime = 0;
-      videoRefBite.current.play();
+      
+      // Intentar reproducir bite
+      videoRefBite.current.play().catch(err => {
+        console.log("Error reproduciendo video de mordida:", err);
+      });
+
+      // Cuando termine bite, volver a idle
+      const onBiteEnd = () => {
+        videoRefBite.current.pause();
+        videoRefBite.current.currentTime = 0;
+        videoRefIdle.current.play().catch(() => {
+          // Si falla, al menos mostrar el frame inicial
+          videoRefIdle.current.currentTime = 0;
+        });
+        videoRefBite.current.removeEventListener('ended', onBiteEnd);
+      };
+      
+      videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
     }
 
-    setIsClicked(true);
-    setTimeout(() => setIsClicked(false), 300);
+    // 🪙 Efecto +1 — aparece donde se hace click
+    const clickEffect = document.createElement('div');
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
+    clickEffect.style.position = 'absolute';
+    clickEffect.style.left = `${x}px`;
+    clickEffect.style.top = `${y}px`;
+    clickEffect.style.transform = 'translate(-50%, -50%)';
+    clickEffect.style.pointerEvents = 'none';
+    clickEffect.style.fontWeight = 'bold';
+    clickEffect.style.fontSize = '30px';
+    clickEffect.style.zIndex = '50';
+    clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
+
+    const lvl = gameState.level;
+    clickEffect.style.color =
+      lvl < 5 ? '#bef264' :
+      lvl < 10 ? '#86efac' :
+      lvl < 20 ? '#4ade80' :
+      lvl < 30 ? '#22c55e' : '#16a34a';
+
+    event.currentTarget.appendChild(clickEffect);
+    setTimeout(() => clickEffect.remove(), 1200);
+
+    // 🔁 Reset efecto de clic visual
+    setTimeout(() => setIsClicked(false), 200);
   };
 
   const handleBuyToken = () => {
@@ -196,7 +286,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo - VERSIÓN ORIGINAL RESTAURADA */}
+        {/* 🐊 Zona del cocodrilo - CORREGIDO */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -205,56 +295,7 @@ export function GameView({
             className="relative"
           >
             <div
-              onClick={(event) => {
-                if (gameState.energy <= 0) {
-                  const el = event.currentTarget;
-                  el.classList.add('shake');
-                  playSound('error');
-                  setTimeout(() => el.classList.remove('shake'), 500);
-                  return;
-                }
-
-                handleClick(event);
-                playSound('bite');
-                setIsClicked(true);
-
-                // 🎥 Manejo de videos
-                if (videoRefIdle.current && videoRefBite.current) {
-                  videoRefIdle.current.pause();
-                  videoRefBite.current.currentTime = 0;
-                  videoRefBite.current.play().catch(() => {});
-                }
-
-                // 🪙 Efecto +1 — aparece donde se hace click
-                const clickEffect = document.createElement('div');
-                const rect = event.currentTarget.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-
-                clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
-                clickEffect.style.position = 'absolute';
-                clickEffect.style.left = `${x}px`;
-                clickEffect.style.top = `${y}px`;
-                clickEffect.style.transform = 'translate(-50%, -50%)';
-                clickEffect.style.pointerEvents = 'none';
-                clickEffect.style.fontWeight = 'bold';
-                clickEffect.style.fontSize = '30px';
-                clickEffect.style.zIndex = '50';
-                clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
-
-                const lvl = gameState.level;
-                clickEffect.style.color =
-                  lvl < 5 ? '#bef264' :
-                  lvl < 10 ? '#86efac' :
-                  lvl < 20 ? '#4ade80' :
-                  lvl < 30 ? '#22c55e' : '#16a34a';
-
-                event.currentTarget.appendChild(clickEffect);
-                setTimeout(() => clickEffect.remove(), 1200);
-
-                // 🔁 Reset efecto de clic visual
-                setTimeout(() => setIsClicked(false), 200);
-              }}
+              onClick={handleCrocClick}
               className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
                 rounded-full select-none overflow-hidden
                 transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
@@ -277,6 +318,7 @@ export function GameView({
                 playsInline
                 loop
                 preload="auto"
+                poster="/images/crocodile-poster.jpg" // Imagen de respaldo
               />
 
               {/* 🎥 Video de mordida */}
@@ -287,16 +329,6 @@ export function GameView({
                 muted
                 playsInline
                 preload="auto"
-                onLoadedData={() => {
-                  if (videoRefBite.current) videoRefBite.current.pause();
-                }}
-                onEnded={() => {
-                  if (videoRefBite.current && videoRefIdle.current) {
-                    videoRefBite.current.pause();
-                    videoRefBite.current.currentTime = 0;
-                    videoRefIdle.current.play();
-                  }
-                }}
               />
 
               {/* ✨ Efecto circular brillante */}
@@ -305,6 +337,15 @@ export function GameView({
                 animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
               />
+
+              {/* Mensaje si videos no cargan */}
+              {!videoLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full z-20">
+                  <p className="text-white text-center text-sm p-4">
+                    Haz clic para activar los videos
+                  </p>
+                </div>
+              )}
 
               {/* 🪙 Texto principal */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">

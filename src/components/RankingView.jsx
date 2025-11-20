@@ -8,12 +8,12 @@ import {
   Globe2,
   Sparkles,
 } from "lucide-react";
-import { supabase } from "@/lib/customSupabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
-export function RankingView({ user }) {
+export function RankingView({ user, stats }) { // ✅ Añade stats como prop
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
   const [loading, setLoading] = useState(true);
@@ -21,10 +21,11 @@ export function RankingView({ user }) {
   const generateAvatarUrl = (seed) =>
     `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed || "anon"}&backgroundColor=transparent`;
 
-  // 📌 Consulta OPTIMIZADA desde Supabase - SOLO jugadores reales
+  // 📌 Consulta MEJORADA con más información de depuración
   const fetchRanking = async (scope = "global") => {
     try {
       setLoading(true);
+      console.log("🔍 Iniciando carga de ranking para user:", user?.id);
 
       let query = supabase
         .from("player_stats")
@@ -33,20 +34,21 @@ export function RankingView({ user }) {
             player_id,
             coins,
             level,
+            clicks,
             updated_at,
             players!inner(
               id,
+              user_id,  // ✅ Asegurar que tenemos user_id
               username,
               avatar_url,
               created_at
             )
           `
         )
-        .not('player_id', 'is', null) // Solo jugadores con ID válido
+        .not('player_id', 'is', null)
         .order("coins", { ascending: false })
         .limit(50);
 
-      // 🔍 Filtros por scope
       if (scope === "weekly") {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
@@ -61,24 +63,40 @@ export function RankingView({ user }) {
         return;
       }
 
-      // 🎯 PROCESAMIENTO AVANZADO - Eliminar duplicados y validar datos
+      console.log("📊 Datos crudos obtenidos:", data?.length, "registros");
+      
+      if (data && data.length > 0) {
+        console.log("💰 Ejemplo de datos - Primer jugador:", {
+          name: data[0].players?.username,
+          coins: data[0].coins,
+          player_id: data[0].player_id,
+          user_id: data[0].players?.user_id
+        });
+      }
+
+      // 🎯 PROCESAMIENTO MEJORADO
       const uniquePlayers = processPlayerData(data || [], user?.id);
+      console.log("🏆 Ranking procesado:", uniquePlayers.length, "jugadores");
+      
       setRanking(uniquePlayers);
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking:", err.message);
+      console.error("❌ Error al cargar ranking:", err);
       setRanking([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🧹 Función para procesar y limpiar datos de jugadores
+  // 🧹 Función para procesar y limpiar datos de jugadores - CORREGIDA
   const processPlayerData = (rawData, currentUserId) => {
     const playerMap = new Map();
 
     rawData.forEach(row => {
-      if (!row.players || !row.player_id) return;
+      if (!row.players || !row.player_id) {
+        console.warn("⚠️ Fila sin datos completos:", row);
+        return;
+      }
 
       const playerId = row.player_id;
       
@@ -88,26 +106,50 @@ export function RankingView({ user }) {
         return;
       }
 
-      // 🔄 Mantener solo el registro con más monedas si hay duplicados
+      const coinsValue = Number(row.coins) || 0;
+      console.log(`💰 Procesando: ${row.players.username} - Coins: ${coinsValue}, UserID: ${row.players.user_id}, CurrentUserID: ${currentUserId}`);
+
+      // 🔄 Mantener solo el registro con más monedas
       const existingPlayer = playerMap.get(playerId);
-      if (!existingPlayer || row.coins > existingPlayer.coins) {
+      
+      // ✅ CORRECCIÓN IMPORTANTE: Comparar user_id en lugar de player_id
+      const isCurrentUser = row.players.user_id === currentUserId;
+      
+      if (!existingPlayer || coinsValue > existingPlayer.coins) {
         playerMap.set(playerId, {
           id: playerId,
           name: row.players.username.trim(),
           avatar: row.players.avatar_url || generateAvatarUrl(row.players.username),
-          coins: Number(row.coins) || 0,
+          coins: coinsValue,
           level: row.level || 1,
-          isCurrentUser: playerId === currentUserId,
+          isCurrentUser: isCurrentUser, // ✅ Usar la comparación correcta
           lastActive: row.updated_at,
-          createdAt: row.players.created_at
+          user_id: row.players.user_id // ✅ Guardar user_id para referencia
         });
+
+        if (isCurrentUser) {
+          console.log("🎯 JUGADOR ACTUAL IDENTIFICADO:", {
+            name: row.players.username,
+            coins: coinsValue,
+            player_id: playerId,
+            user_id: row.players.user_id
+          });
+        }
       }
     });
 
     // 📊 Ordenar por monedas (descendente) y limitar a 20
-    return Array.from(playerMap.values())
+    const sortedPlayers = Array.from(playerMap.values())
       .sort((a, b) => b.coins - a.coins)
       .slice(0, 20);
+
+    console.log("📈 Ranking final ordenado:", sortedPlayers.map(p => ({
+      name: p.name,
+      coins: p.coins,
+      isCurrentUser: p.isCurrentUser
+    })));
+
+    return sortedPlayers;
   };
 
   // 🔁 Suscripción realtime MEJORADA
@@ -119,28 +161,30 @@ export function RankingView({ user }) {
       .on(
         "postgres_changes",
         { 
-          event: "UPDATE", 
+          event: "*",  // ✅ Escuchar todos los eventos, no solo UPDATE
           schema: "public", 
-          table: "player_stats",
-          filter: `coins=gt.0` // Solo escuchar cambios con monedas > 0
+          table: "player_stats"
         },
         (payload) => {
-          console.log("🔄 Actualización en tiempo real recibida:", payload);
+          console.log("🔄 Cambio en tiempo real detectado:", payload);
           fetchRanking(activeTab);
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('🎯 Suscrito a cambios del ranking');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en suscripción realtime');
         }
       });
 
     return () => {
+      console.log('🧹 Limpiando suscripción realtime');
       supabase.removeChannel(channel);
     };
   }, [activeTab]);
 
-  // ⭐ Medallas animadas (sin cambios)
+  // ⭐ Medallas animadas
   const Medal = ({ type }) => {
     const colors = {
       gold: "from-yellow-400 to-yellow-200",
@@ -158,7 +202,7 @@ export function RankingView({ user }) {
     );
   };
 
-  // 🎨 Render del ranking MEJORADO
+  // 🎨 Render del ranking MEJORADO con más información
   const renderRanking = () => {
     if (loading) {
       return (
@@ -177,6 +221,15 @@ export function RankingView({ user }) {
           <p className="text-sm text-muted-foreground mt-2">
             ¡Sé el primero en aparecer aquí!
           </p>
+          
+          {/* 🔍 Información de depuración */}
+          <div className="mt-4 p-3 bg-gray-800 rounded text-xs text-left max-w-md mx-auto">
+            <h4 className="font-bold mb-2">Información de Depuración:</h4>
+            <p><strong>Usuario:</strong> {user ? "Conectado" : "No conectado"}</p>
+            <p><strong>User ID:</strong> {user?.id || "N/A"}</p>
+            <p><strong>Stats Coins:</strong> {stats?.coins || "N/A"}</p>
+            <p><strong>Tabla activa:</strong> {activeTab}</p>
+          </div>
         </div>
       );
     }
@@ -192,7 +245,7 @@ export function RankingView({ user }) {
               key={player.id}
               className={`flex items-center p-3 rounded-lg transition-all duration-300 ${
                 player.isCurrentUser
-                  ? "bg-primary/25 border border-primary shadow-md"
+                  ? "bg-primary/25 border-2 border-primary shadow-lg"
                   : "glass-effect border border-border"
               }`}
               whileHover={{ scale: 1.02 }}
@@ -204,7 +257,9 @@ export function RankingView({ user }) {
                 {medal ? (
                   <Medal type={medal} />
                 ) : (
-                  <span className="text-sm font-semibold text-muted-foreground">
+                  <span className={`text-sm font-semibold ${
+                    player.isCurrentUser ? "text-primary" : "text-muted-foreground"
+                  }`}>
                     {index + 1}
                   </span>
                 )}
@@ -220,14 +275,15 @@ export function RankingView({ user }) {
               <div className="flex-grow min-w-0">
                 <p
                   className={`font-semibold truncate ${
-                    player.isCurrentUser ? "text-primary" : "text-white"
+                    player.isCurrentUser ? "text-primary font-bold" : "text-white"
                   }`}
                   title={player.name}
                 >
-                  {player.name}
+                  {player.name} {player.isCurrentUser && " (Tú)"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Nivel {player.level} • {player.coins.toLocaleString()} 💰
+                  {player.isCurrentUser && " • ¡Eres tú!"}
                 </p>
               </div>
 
@@ -258,10 +314,19 @@ export function RankingView({ user }) {
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding fade-in">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center gradient-text flex items-center justify-center">
+        <h1 className="text-3xl font-bold mb-6 text-center gradient-text flex items-center justify-center">
           <Award className="w-8 h-8 mr-3 text-yellow-400" /> 
           Ranking de Jugadores
         </h1>
+
+        {/* Información del estado actual */}
+        <div className="mb-4 p-3 bg-blue-900/30 rounded-lg text-center">
+          <p className="text-sm">
+            <strong>Usuario:</strong> {user ? user.email : "No conectado"} | 
+            <strong> Tus monedas:</strong> {stats?.coins?.toLocaleString() || "0"} | 
+            <strong> Jugadores en ranking:</strong> {ranking.length}
+          </p>
+        </div>
 
         {/* Tabs */}
         <div className="flex justify-center gap-2 mb-6">
