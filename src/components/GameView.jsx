@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { supabase } from "@/lib/customSupabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { useSupabasePlayer } from '@/hooks/useSupabasePlayer';
 
 import {
