@@ -37,11 +37,11 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
             clicks,
             updated_at,
             players!inner(
-              id,
-              user_id,  // ✅ Asegurar que tenemos user_id
-              username,
-              avatar_url,
-              created_at
+            id,
+            user_id,
+            username,
+            avatar_url,
+            created_at
             )
           `
         )

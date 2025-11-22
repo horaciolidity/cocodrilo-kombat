@@ -135,38 +135,39 @@ function App() {
     setLastReachedMilestone
   );
 
-  /* 🔄 Sincronización CORREGIDA con Supabase */
-  useEffect(() => {
-    if (!stats || !gameState || !setStats || !syncStatsToSupabase) return;
+  // ✅ REEMPLAZA EL USEEFFECT DE SINCRONIZACIÓN
+useEffect(() => {
+  if (!stats || !gameState || !setStats || !syncStatsToSupabase) return;
 
-    console.log("🔄 Verificando sincronización...", {
-      statsCoins: stats.coins,
-      gameStateCoins: gameState.coins,
-      statsLevel: stats.level,
-      gameStateLevel: gameState.level
+  // Umbrales más sensibles para sincronización
+  const coinsDiff = Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins));
+  const levelDiff = Math.abs(stats.level - gameState.level);
+  const clicksDiff = Math.abs(stats.clicks - gameState.totalClicks);
+  
+  // Sincronizar si hay diferencias significativas
+  if (coinsDiff > 5 || levelDiff > 0 || clicksDiff > 0) {
+    console.log("🔄 Sincronizando cambios a Supabase...", {
+      coinsDiff,
+      levelDiff,
+      clicksDiff
     });
-
-    // Solo sincronizar si hay diferencias significativas
-    const coinsDiff = Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins));
-    const levelDiff = Math.abs(stats.level - gameState.level);
     
-    // Umbrales para evitar sincronizaciones innecesarias
-    if (coinsDiff > 10 || levelDiff > 0 || stats.clicks !== gameState.totalClicks) {
-      console.log("🔄 Sincronizando cambios a Supabase...");
-      
-      const updatedStats = {
-        coins: Math.floor(gameState.coins),
-        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-        level: gameState.level,
-        clicks: gameState.totalClicks,
-      };
+    const updatedStats = {
+      coins: Math.floor(gameState.coins),
+      croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+      level: gameState.level,
+      clicks: gameState.totalClicks,
+    };
 
-      setStats(updatedStats);
-      syncStatsToSupabase(updatedStats);
-    }
-  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
+    setStats(updatedStats);
+    syncStatsToSupabase(updatedStats);
+  }
+}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
+ 
 
-  /* 🔄 Cargar datos de Supabase al iniciar */
+
+
+/* 🔄 Cargar datos de Supabase al iniciar */
   useEffect(() => {
     if (stats && gameState && setGameState) {
       // Si las stats de Supabase tienen más monedas, usarlas

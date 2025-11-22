@@ -202,69 +202,64 @@ export function useSupabasePlayer(user) {
     }
   }, [user, generateUsername, cleanDuplicateStats]);
 
-  /* 🔄 Sincronizar stats con debounce y sin recursión */
+
+
   const syncStatsToSupabase = useCallback(
-    async (newStats) => {
-      if (!player?.id || !newStats) return;
+  async (newStats) => {
+    if (!player?.id || !newStats) return;
 
-      const now = Date.now();
+    const now = Date.now();
+    if (lastSyncRef.current && now - lastSyncRef.current < 2000) {
+      return;
+    }
 
-      if (lastSyncRef.current && now - lastSyncRef.current < 2000) {
-        return;
-      }
+    if (updateTimeout.current) clearTimeout(updateTimeout.current);
 
-      if (updateTimeout.current) clearTimeout(updateTimeout.current);
+    updateTimeout.current = setTimeout(async () => {
+      if (!isMounted.current) return;
 
-      updateTimeout.current = setTimeout(async () => {
-        if (!isMounted.current) return;
+      try {
+        const payload = {
+          coins: Math.floor(newStats.coins || 0),
+          croc_tokens: newStats.croc_tokens || 0,
+          level: newStats.level || 1,
+          clicks: newStats.clicks || 0,
+          updated_at: new Date().toISOString(),
+        };
 
-        try {
-          const payload = {
-            coins: Math.floor(newStats.coins || 0),
-            croc_tokens: newStats.croc_tokens || 0,
-            level: newStats.level || 1,
-            clicks: newStats.clicks || 0,
-            updated_at: new Date().toISOString(),
-          };
+        console.log("🔄 Sincronizando stats:", payload);
 
-          console.log("🔄 Intentando sincronizar stats:", payload);
+        // ✅ PRIMERO INTENTAR UPDATE
+        const { error: updateError } = await supabase
+          .from("player_stats")
+          .update(payload)
+          .eq("player_id", player.id);
 
-          const { error: upsertError } = await supabase
+        if (updateError) {
+          console.log("⚠️ Update falló, intentando insert...");
+          
+          // ✅ LUEGO INSERT SI NO EXISTE
+          const { error: insertError } = await supabase
             .from("player_stats")
-            .upsert(
-              {
-                player_id: player.id,
-                ...payload,
-              },
-              {
-                onConflict: "player_id",
-              }
-            );
+            .insert([{ player_id: player.id, ...payload }]);
 
-          if (upsertError) {
-            const { error: updateError } = await supabase
-              .from("player_stats")
-              .update(payload)
-              .eq("player_id", player.id);
-
-            if (updateError) {
-              const { error: insertError } = await supabase
-                .from("player_stats")
-                .insert([{ player_id: player.id, ...payload }]);
-
-              if (insertError) throw insertError;
-            }
+          if (insertError) {
+            console.error("❌ Error insertando stats:", insertError);
+          } else {
+            console.log("✅ Stats insertadas correctamente");
           }
-
-          lastSyncRef.current = Date.now();
-          console.log("✅ Stats sincronizadas correctamente");
-        } catch (err) {
-          console.warn("⚠️ Error en sincronización:", err.message);
+        } else {
+          console.log("✅ Stats actualizadas correctamente");
         }
-      }, 3000);
-    },
-    [player?.id]
-  );
+
+        lastSyncRef.current = Date.now();
+      } catch (err) {
+        console.warn("⚠️ Error en sincronización:", err.message);
+      }
+    }, 2000); // Reducido a 2 segundos
+  },
+  [player?.id]
+);
 
   /* 🧩 Carga inicial */
   useEffect(() => {
