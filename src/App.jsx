@@ -135,35 +135,27 @@ function App() {
     setLastReachedMilestone
   );
 
-  // ✅ REEMPLAZA EL USEEFFECT DE SINCRONIZACIÓN
+// ✅ SINCRONIZACIÓN MÁS SIMPLE
 useEffect(() => {
-  if (!stats || !gameState || !setStats || !syncStatsToSupabase) return;
+  if (!stats || !gameState || !syncStatsToSupabase) return;
 
-  // Umbrales más sensibles para sincronización
-  const coinsDiff = Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins));
-  const levelDiff = Math.abs(stats.level - gameState.level);
-  const clicksDiff = Math.abs(stats.clicks - gameState.totalClicks);
-  
-  // Sincronizar si hay diferencias significativas
-  if (coinsDiff > 5 || levelDiff > 0 || clicksDiff > 0) {
-    console.log("🔄 Sincronizando cambios a Supabase...", {
-      coinsDiff,
-      levelDiff,
-      clicksDiff
-    });
-    
+  // Sincronizar solo cuando hay cambios significativos
+  const shouldSync = 
+    Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins)) > 100 ||
+    stats.level !== gameState.level ||
+    stats.clicks !== gameState.totalClicks;
+
+  if (shouldSync) {
     const updatedStats = {
       coins: Math.floor(gameState.coins),
       croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
       level: gameState.level,
       clicks: gameState.totalClicks,
     };
-
-    setStats(updatedStats);
+    
     syncStatsToSupabase(updatedStats);
   }
-}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
- 
+}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, syncStatsToSupabase]);
 
 
 

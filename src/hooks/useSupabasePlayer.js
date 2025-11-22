@@ -204,13 +204,13 @@ export function useSupabasePlayer(user) {
 
 
 
-  const syncStatsToSupabase = useCallback(
+const syncStatsToSupabase = useCallback(
   async (newStats) => {
     if (!player?.id || !newStats) return;
 
     const now = Date.now();
-    if (lastSyncRef.current && now - lastSyncRef.current < 2000) {
-      return;
+    if (lastSyncRef.current && now - lastSyncRef.current < 5000) {
+      return; // Evitar sincronizaciones muy seguidas
     }
 
     if (updateTimeout.current) clearTimeout(updateTimeout.current);
@@ -220,6 +220,7 @@ export function useSupabasePlayer(user) {
 
       try {
         const payload = {
+          player_id: player.id,
           coins: Math.floor(newStats.coins || 0),
           croc_tokens: newStats.croc_tokens || 0,
           level: newStats.level || 1,
@@ -229,24 +230,26 @@ export function useSupabasePlayer(user) {
 
         console.log("🔄 Sincronizando stats:", payload);
 
-        // ✅ PRIMERO INTENTAR UPDATE
+        // ✅ INTENTAR UPDATE PRIMERO (más eficiente)
         const { error: updateError } = await supabase
           .from("player_stats")
           .update(payload)
-          .eq("player_id", player.id);
+          .eq('player_id', player.id);
 
         if (updateError) {
-          console.log("⚠️ Update falló, intentando insert...");
+          console.log("⚠️ Update falló, intentando upsert...");
           
-          // ✅ LUEGO INSERT SI NO EXISTE
-          const { error: insertError } = await supabase
+          // ✅ UPSERT COMO FALLBACK
+          const { error: upsertError } = await supabase
             .from("player_stats")
-            .insert([{ player_id: player.id, ...payload }]);
+            .upsert(payload, {
+              onConflict: 'player_id'
+            });
 
-          if (insertError) {
-            console.error("❌ Error insertando stats:", insertError);
+          if (upsertError) {
+            console.error("❌ Error en upsert:", upsertError);
           } else {
-            console.log("✅ Stats insertadas correctamente");
+            console.log("✅ Stats sincronizadas (upsert)");
           }
         } else {
           console.log("✅ Stats actualizadas correctamente");
@@ -256,10 +259,11 @@ export function useSupabasePlayer(user) {
       } catch (err) {
         console.warn("⚠️ Error en sincronización:", err.message);
       }
-    }, 2000); // Reducido a 2 segundos
+    }, 3000);
   },
   [player?.id]
 );
+
 
   /* 🧩 Carga inicial */
   useEffect(() => {
