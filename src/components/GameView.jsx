@@ -61,72 +61,73 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
   
-  // ✅ Hook de sincronización
-  const { syncStatsToSupabase } = useSupabasePlayer(user);
-  const prevCoinsRef = useRef(0);
-  const prevLevelRef = useRef(1);
-  const prevClicksRef = useRef(0);
+  // ✅ Hook de sincronización - CORREGIDO
+  const { stats, setStats } = useSupabasePlayer(user);
 
-  // 🔄 Sincronización optimizada
+  // 🔄 SINCRONIZACIÓN AUTOMÁTICA MEJORADA
   useEffect(() => {
-    if (!gameState?.playerId || !syncStatsToSupabase) return;
+    if (!gameState || !setStats) return;
 
+    // Sincronizar gameState con stats cuando hay cambios significativos
     const shouldSync = 
-      Math.floor(gameState.coins) !== Math.floor(prevCoinsRef.current) ||
-      gameState.level !== prevLevelRef.current ||
-      gameState.totalClicks !== prevClicksRef.current;
+      Math.floor(gameState.coins) !== Math.floor(stats?.coins || 0) ||
+      gameState.level !== (stats?.level || 1) ||
+      gameState.totalClicks !== (stats?.clicks || 0);
 
     if (shouldSync) {
-      syncStatsToSupabase({
+      console.log("🔄 Sincronizando gameState con stats...");
+      setStats({
         coins: gameState.coins,
         croc_tokens: gameState.nativeTokenBalance,
         level: gameState.level,
         clicks: gameState.totalClicks,
       });
-
-      prevCoinsRef.current = Math.floor(gameState.coins);
-      prevLevelRef.current = gameState.level;
-      prevClicksRef.current = gameState.totalClicks;
     }
-  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.playerId, syncStatsToSupabase]);
+  }, [gameState.coins, gameState.level, gameState.totalClicks, setStats, stats]);
 
-  // 🎥 Manejo de videos - CORREGIDO
+  // 🎥 Manejo de videos - MEJORADO con fallbacks robustos
   useEffect(() => {
     const initializeVideos = async () => {
-      if (videoRefIdle.current && videoRefBite.current) {
-        try {
-          // Precargar videos
-          videoRefIdle.current.load();
-          videoRefBite.current.load();
-          
-          // Esperar a que estén listos
-          await Promise.all([
-            new Promise(resolve => {
-              if (videoRefIdle.current.readyState >= 3) resolve();
-              else videoRefIdle.current.addEventListener('loadeddata', resolve, { once: true });
-            }),
-            new Promise(resolve => {
-              if (videoRefBite.current.readyState >= 3) resolve();
-              else videoRefBite.current.addEventListener('loadeddata', resolve, { once: true });
-            })
-          ]);
+      if (!videoRefIdle.current || !videoRefBite.current) return;
 
-          // Configurar videos
-          videoRefIdle.current.loop = true;
-          videoRefBite.current.loop = false;
-          
-          // Intentar reproducir idle (puede fallar por políticas de autoplay)
+      try {
+        // Configurar videos con manejo de errores
+        videoRefIdle.current.loop = true;
+        videoRefBite.current.loop = false;
+        
+        // Precargar y manejar errores de carga
+        const loadVideo = (videoElement, src) => {
+          return new Promise((resolve) => {
+            videoElement.src = src;
+            videoElement.onloadeddata = () => resolve(true);
+            videoElement.onerror = () => {
+              console.warn(`❌ No se pudo cargar el video: ${src}`);
+              resolve(false);
+            };
+            
+            // Timeout de seguridad
+            setTimeout(() => resolve(false), 3000);
+          });
+        };
+
+        const [idleLoaded, biteLoaded] = await Promise.all([
+          loadVideo(videoRefIdle.current, '/videos/crocodile_idle.mp4'),
+          loadVideo(videoRefBite.current, '/videos/crocodile_bite.mp4')
+        ]);
+
+        if (idleLoaded) {
           try {
             await videoRefIdle.current.play();
           } catch (err) {
-            console.log("Autoplay bloqueado, esperando interacción del usuario");
-            // El usuario tendrá que hacer clic para activar los videos
+            console.log("🔇 Autoplay bloqueado - esperando interacción del usuario");
           }
-          
-          setVideoLoaded(true);
-        } catch (error) {
-          console.error("Error inicializando videos:", error);
         }
+
+        setVideoLoaded(idleLoaded || biteLoaded);
+        
+      } catch (error) {
+        console.error("🎥 Error inicializando videos:", error);
+        setVideoLoaded(false);
       }
     };
 
@@ -170,7 +171,7 @@ export function GameView({
     return '🐊';
   };
 
-  // 🐊 Manejo de clic CORREGIDO para videos
+  // 🐊 Manejo de clic MEJORADO con sincronización
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -180,37 +181,37 @@ export function GameView({
       return;
     }
 
-    // Activar sonido y efecto visual
+    // Ejecutar la lógica de clic original
     handleClick(event);
     playSound('bite');
     setIsClicked(true);
 
-    // 🎥 Manejo de videos MEJORADO
+    // 🎥 Manejo de videos con fallbacks
     if (videoRefIdle.current && videoRefBite.current) {
-      // Pausar idle y reproducir bite
-      videoRefIdle.current.pause();
-      videoRefBite.current.currentTime = 0;
-      
-      // Intentar reproducir bite
-      videoRefBite.current.play().catch(err => {
-        console.log("Error reproduciendo video de mordida:", err);
-      });
-
-      // Cuando termine bite, volver a idle
-      const onBiteEnd = () => {
-        videoRefBite.current.pause();
+      try {
+        videoRefIdle.current.pause();
         videoRefBite.current.currentTime = 0;
-        videoRefIdle.current.play().catch(() => {
-          // Si falla, al menos mostrar el frame inicial
-          videoRefIdle.current.currentTime = 0;
+        
+        videoRefBite.current.play().catch(err => {
+          console.log("🔇 Video de mordida no pudo reproducirse:", err);
         });
-        videoRefBite.current.removeEventListener('ended', onBiteEnd);
-      };
-      
-      videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
+
+        const onBiteEnd = () => {
+          videoRefBite.current.pause();
+          videoRefBite.current.currentTime = 0;
+          videoRefIdle.current.play().catch(() => {
+            // Fallback: mostrar frame inicial
+            videoRefIdle.current.currentTime = 0;
+          });
+        };
+        
+        videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
+      } catch (error) {
+        console.log("🎥 Error en animación de video, usando fallback visual");
+      }
     }
 
-    // 🪙 Efecto +1 — aparece donde se hace click
+    // 🪙 Efecto visual de +1
     const clickEffect = document.createElement('div');
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -286,7 +287,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo - CORREGIDO */}
+        {/* 🐊 Zona del cocodrilo - MEJORADO */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -309,7 +310,7 @@ export function GameView({
                     : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
                 }`}
             >
-              {/* 🎥 Video idle (estado normal) */}
+              {/* 🎥 Video idle con fallback */}
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
@@ -318,7 +319,7 @@ export function GameView({
                 playsInline
                 loop
                 preload="auto"
-                poster="/images/crocodile-poster.jpg" // Imagen de respaldo
+                poster="/images/crocodile-poster.jpg"
               />
 
               {/* 🎥 Video de mordida */}
@@ -331,21 +332,22 @@ export function GameView({
                 preload="auto"
               />
 
+              {/* 🖼️ Fallback de imagen si videos no cargan */}
+              {!videoLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-800 rounded-full">
+                  <div className="text-center text-white">
+                    <div className="text-6xl mb-4">{getCrocodileCharacter()}</div>
+                    <p className="text-lg font-bold">¡Haz clic para ganar!</p>
+                  </div>
+                </div>
+              )}
+
               {/* ✨ Efecto circular brillante */}
               <motion.div
                 className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
                 animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
               />
-
-              {/* Mensaje si videos no cargan */}
-              {!videoLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full z-20">
-                  <p className="text-white text-center text-sm p-4">
-                    Haz clic para activar los videos
-                  </p>
-                </div>
-              )}
 
               {/* 🪙 Texto principal */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
