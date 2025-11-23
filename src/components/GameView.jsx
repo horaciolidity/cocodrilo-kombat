@@ -14,6 +14,8 @@ import {
   DollarSign,
   BarChart2,
   ExternalLink,
+  Users,
+  Copy,
 } from 'lucide-react';
 import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
 import {
@@ -251,6 +253,18 @@ export function GameView({
     });
   };
 
+  // 📋 Función para copiar enlace de referidos
+  const copyReferralLink = () => {
+    const referralLink = `${window.location.origin}?ref=${gameState?.playerId || 'anon'}`;
+    navigator.clipboard.writeText(referralLink);
+    toast({
+      title: '📋 Enlace copiado',
+      description: '¡Compartí tu link y ganá recompensas!',
+      duration: 2000,
+    });
+    playSound('uiClick');
+  };
+
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
       {/* Stats */}
@@ -282,6 +296,14 @@ export function GameView({
           value={`${gameState.nativeTokenBalance?.toLocaleString() || 0}`}
           label="CROC Tokens"
           color="text-emerald-400"
+        />
+      </div>
+
+      {/* 🎯 Widget de Referidos Móvil - Solo se muestra en móviles */}
+      <div className="block md:hidden mb-4">
+        <ReferralsWidget 
+          gameState={gameState} 
+          onCopyLink={copyReferralLink}
         />
       </div>
 
@@ -384,7 +406,7 @@ export function GameView({
             priceData={priceData}
             onBuyToken={handleBuyToken}
             gameState={gameState}
-            toast={toast}
+            onCopyReferralLink={copyReferralLink}
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
@@ -404,53 +426,83 @@ export function GameView({
 
 /* ===================== Subcomponentes ===================== */
 
-function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState, toast }) {
-  const { playSound } = useSound();
-
+// 🆕 Componente separado para Widget de Referidos
+function ReferralsWidget({ gameState, onCopyLink }) {
   return (
-    <div className="stats-card rounded-xl p-4 relative overflow-visible">
-      {/* Encabezado con Referidos integrado */}
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="text-xl font-bold flex items-center">
-          <DollarSign className="w-6 h-6 mr-2 text-primary" /> Token CROC 🐊
+    <div className="bg-green-950/80 border border-green-600 rounded-xl p-4 backdrop-blur-md">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-bold flex items-center text-green-300">
+          <Users className="w-5 h-5 mr-2" />
+          🐊 Referidos
         </h3>
+        <Button
+          onClick={onCopyLink}
+          size="sm"
+          className="bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-md"
+        >
+          <Copy className="w-3 h-3 mr-1" />
+          Copiar
+        </Button>
+      </div>
 
-        {/* 🧩 Widget de Referidos embebido */}
-        <div className="bg-green-950/60 border border-green-700/70 rounded-lg px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-60">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
-              🐊 Referidos
-            </span>
-            <Button
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`);
-                toast({
-                  title: '📋 Enlace copiado',
-                  description: '¡Compartí tu link y ganá recompensas!',
-                  duration: 2000,
-                });
-                playSound('uiClick');
-              }}
-              size="sm"
-              className="bg-green-700 hover:bg-green-600 text-white text-[11px] px-2 py-1 rounded-md"
-            >
-              Copiar
-            </Button>
-          </div>
+      <div className="grid grid-cols-3 gap-2 text-center mb-3">
+        <div className="bg-green-900/50 rounded-lg p-2">
+          <div className="text-green-300 text-sm">👥 Referidos</div>
+          <div className="text-white font-bold text-lg">{gameState?.referralsCount || 0}</div>
+        </div>
+        <div className="bg-green-900/50 rounded-lg p-2">
+          <div className="text-green-300 text-sm">💰 CROC</div>
+          <div className="text-white font-bold text-lg">{gameState?.crocFromRefs || 0}</div>
+        </div>
+        <div className="bg-green-900/50 rounded-lg p-2">
+          <div className="text-green-300 text-sm">🪙 Monedas</div>
+          <div className="text-white font-bold text-lg">{gameState?.coinsFromRefs || 0}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          <input
-            type="text"
-            readOnly
-            value={`${window.location.origin}?ref=${gameState?.playerId || 'anon'}`}
-            className="w-full bg-green-900/30 border border-green-700/50 rounded-md px-2 py-1 text-green-100 text-[11px] mb-2 text-center select-all"
-          />
-
-          <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
-            <div className="flex items-center justify-center gap-1">
-              👥 <b>{gameState?.referralsCount || 0}</b>
+function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState, onCopyReferralLink }) {
+  return (
+    <div className="stats-card rounded-xl p-4">
+      {/* Encabezado */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold flex items-center">
+          <DollarSign className="w-6 h-6 mr-2 text-primary" /> 
+          Token CROC 🐊
+        </h3>
+        
+        {/* 🧩 Widget de Referidos para Desktop - Oculto en móviles */}
+        <div className="hidden md:block">
+          <div className="bg-green-950/60 border border-green-700/70 rounded-lg px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-48">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
+                🐊 Referidos
+              </span>
+              <Button
+                onClick={onCopyReferralLink}
+                size="sm"
+                className="bg-green-700 hover:bg-green-600 text-white text-[11px] px-2 py-1 rounded-md"
+              >
+                Copiar
+              </Button>
             </div>
-            <span>💰 <b>{gameState?.crocFromRefs || 0}</b> CROC</span>
-            <span>🪙 <b>{gameState?.coinsFromRefs || 0}</b></span>
+
+            <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
+              <div className="flex flex-col items-center">
+                <span>👥</span>
+                <b>{gameState?.referralsCount || 0}</b>
+              </div>
+              <div className="flex flex-col items-center">
+                <span>💰</span>
+                <b>{gameState?.crocFromRefs || 0}</b>
+              </div>
+              <div className="flex flex-col items-center">
+                <span>🪙</span>
+                <b>{gameState?.coinsFromRefs || 0}</b>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -517,6 +569,7 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameStat
   );
 }
 
+// ... (los demás componentes StatCard, EnergyStatCard, UpgradePanel, DailyRewardPanel se mantienen igual)
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
