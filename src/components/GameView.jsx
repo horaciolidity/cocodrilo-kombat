@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Users,
   Copy,
+  Sparkles,
 } from 'lucide-react';
 import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
 import {
@@ -63,8 +64,8 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
   
-  // ✅ Hook de sincronización - CORREGIDO
-  const { stats, setStats } = useSupabasePlayer(user);
+  // ✅ Hook de sincronización - CORREGIDO con referidos
+  const { stats, setStats, referralStats, refreshReferralStats, getReferralLink } = useSupabasePlayer(user);
 
   // 🔄 SINCRONIZACIÓN AUTOMÁTICA MEJORADA
   useEffect(() => {
@@ -86,6 +87,17 @@ export function GameView({
       });
     }
   }, [gameState.coins, gameState.level, gameState.totalClicks, setStats, stats]);
+
+  // 🔄 ACTUALIZAR REFERIDOS AL CARGAR
+  useEffect(() => {
+    if (user) {
+      // Actualizar stats de referidos después de 2 segundos para asegurar que el player esté cargado
+      const timer = setTimeout(() => {
+        refreshReferralStats();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, refreshReferralStats]);
 
   // 🎥 Manejo de videos - MEJORADO con fallbacks robustos
   useEffect(() => {
@@ -253,13 +265,13 @@ export function GameView({
     });
   };
 
-  // 📋 Función para copiar enlace de referidos
+  // 📋 Función para copiar enlace de referidos SEGURO
   const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}?ref=${gameState?.playerId || 'anon'}`;
+    const referralLink = getReferralLink();
     navigator.clipboard.writeText(referralLink);
     toast({
       title: '📋 Enlace copiado',
-      description: '¡Compartí tu link y ganá recompensas!',
+      description: '¡Compartí tu link seguro y ganá recompensas!',
       duration: 2000,
     });
     playSound('uiClick');
@@ -302,7 +314,7 @@ export function GameView({
       {/* 🎯 Widget de Referidos Móvil - Solo se muestra en móviles */}
       <div className="block md:hidden mb-4">
         <ReferralsWidget 
-          gameState={gameState} 
+          referralStats={referralStats} 
           onCopyLink={copyReferralLink}
         />
       </div>
@@ -405,7 +417,7 @@ export function GameView({
             liquidity={liquidity}
             priceData={priceData}
             onBuyToken={handleBuyToken}
-            gameState={gameState}
+            referralStats={referralStats}
             onCopyReferralLink={copyReferralLink}
           />
           <UpgradePanel
@@ -427,43 +439,79 @@ export function GameView({
 /* ===================== Subcomponentes ===================== */
 
 // 🆕 Componente separado para Widget de Referidos
-function ReferralsWidget({ gameState, onCopyLink }) {
+function ReferralsWidget({ referralStats, onCopyLink }) {
+  const hasReferrals = referralStats.referralsCount > 0;
+  
   return (
-    <div className="bg-green-950/80 border border-green-600 rounded-xl p-4 backdrop-blur-md">
+    <motion.div 
+      className="bg-gradient-to-br from-green-900/90 to-emerald-800/90 border border-green-500/50 rounded-xl p-4 backdrop-blur-md shadow-lg"
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ delay: 0.1 }}
+    >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-bold flex items-center text-green-300">
-          <Users className="w-5 h-5 mr-2" />
-          🐊 Referidos
-        </h3>
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-green-300" />
+          <h3 className="text-lg font-bold text-green-100">
+            🐊 Referidos
+          </h3>
+          {hasReferrals && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Activo</span>
+            </motion.div>
+          )}
+        </div>
         <Button
           onClick={onCopyLink}
           size="sm"
-          className="bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-md"
+          className="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg transition-all duration-200 shadow-md"
         >
-          <Copy className="w-3 h-3 mr-1" />
+          <Copy className="w-3 h-3 mr-1.5" />
           Copiar
         </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center mb-3">
-        <div className="bg-green-900/50 rounded-lg p-2">
-          <div className="text-green-300 text-sm">👥 Referidos</div>
-          <div className="text-white font-bold text-lg">{gameState?.referralsCount || 0}</div>
+        <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
+          <div className="text-green-300 text-sm mb-1">👥 Referidos</div>
+          <div className="text-white font-bold text-xl">{referralStats.referralsCount}</div>
         </div>
-        <div className="bg-green-900/50 rounded-lg p-2">
-          <div className="text-green-300 text-sm">💰 CROC</div>
-          <div className="text-white font-bold text-lg">{gameState?.crocFromRefs || 0}</div>
+        <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
+          <div className="text-green-300 text-sm mb-1">💰 CROC</div>
+          <div className="text-white font-bold text-xl">{referralStats.crocFromRefs}</div>
         </div>
-        <div className="bg-green-900/50 rounded-lg p-2">
-          <div className="text-green-300 text-sm">🪙 Monedas</div>
-          <div className="text-white font-bold text-lg">{gameState?.coinsFromRefs || 0}</div>
+        <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
+          <div className="text-green-300 text-sm mb-1">🪙 Monedas</div>
+          <div className="text-white font-bold text-xl">{referralStats.coinsFromRefs.toLocaleString()}</div>
         </div>
       </div>
-    </div>
+
+      {/* Mensaje de bonificación */}
+      {hasReferrals && (
+        <motion.div 
+          className="bg-green-700/30 border border-green-500/30 rounded-lg p-2 text-center"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <p className="text-xs text-green-200 flex items-center justify-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            <span>¡Ganando recompensas por tus referidos!</span>
+          </p>
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 
-function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameState, onCopyReferralLink }) {
+function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, referralStats, onCopyReferralLink }) {
+  const hasReferrals = referralStats.referralsCount > 0;
+
   return (
     <div className="stats-card rounded-xl p-4">
       {/* Encabezado */}
@@ -475,35 +523,57 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, gameStat
         
         {/* 🧩 Widget de Referidos para Desktop - Oculto en móviles */}
         <div className="hidden md:block">
-          <div className="bg-green-950/60 border border-green-700/70 rounded-lg px-3 py-2 shadow-md text-green-100 backdrop-blur-md w-48">
-            <div className="flex justify-between items-center mb-1">
+          <motion.div 
+            className="bg-gradient-to-br from-green-900/80 to-emerald-800/80 border border-green-600/50 rounded-lg px-3 py-2 shadow-lg text-green-100 backdrop-blur-md w-48"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex justify-between items-center mb-2">
               <span className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
+                <Users className="w-3 h-3" />
                 🐊 Referidos
               </span>
               <Button
                 onClick={onCopyReferralLink}
                 size="sm"
-                className="bg-green-700 hover:bg-green-600 text-white text-[11px] px-2 py-1 rounded-md"
+                className="bg-green-600 hover:bg-green-500 text-white text-[11px] px-2 py-1 rounded-md transition-all duration-200"
               >
+                <Copy className="w-3 h-3 mr-1" />
                 Copiar
               </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
-              <div className="flex flex-col items-center">
-                <span>👥</span>
-                <b>{gameState?.referralsCount || 0}</b>
+              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
+                <span className="text-[10px] text-green-300">👥</span>
+                <b className="text-white">{referralStats.referralsCount}</b>
               </div>
-              <div className="flex flex-col items-center">
-                <span>💰</span>
-                <b>{gameState?.crocFromRefs || 0}</b>
+              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
+                <span className="text-[10px] text-green-300">💰</span>
+                <b className="text-white">{referralStats.crocFromRefs}</b>
               </div>
-              <div className="flex flex-col items-center">
-                <span>🪙</span>
-                <b>{gameState?.coinsFromRefs || 0}</b>
+              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
+                <span className="text-[10px] text-green-300">🪙</span>
+                <b className="text-white">{referralStats.coinsFromRefs}</b>
               </div>
             </div>
-          </div>
+
+            {/* Indicador de bonificación activa */}
+            {hasReferrals && (
+              <motion.div 
+                className="mt-2 pt-2 border-t border-green-600/30"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <p className="text-[10px] text-green-300 text-center flex items-center justify-center gap-1">
+                  <Sparkles className="w-2 h-2" />
+                  <span>Recompensas activas</span>
+                </p>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       </div>
 
