@@ -17,6 +17,8 @@ import {
   Users,
   Copy,
   Sparkles,
+  Target,
+  Award,
 } from 'lucide-react';
 import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
 import {
@@ -54,8 +56,11 @@ export function GameView({
   activeSkin,
   toast,
   user,
+  tokenPrice = 0.05, // ✅ PRECIO DEL TOKEN PARA VALOR PROYECTADO
+  referralStats = {}, // ✅ STATS DE REFERIDOS
+  refreshReferralStats, // ✅ FUNCIÓN PARA ACTUALIZAR REFERIDOS
 }) {
-  const [tokenPrice, setTokenPrice] = useState(0.05);
+  const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
@@ -64,38 +69,57 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
   
-  // ✅ Hook de sincronización - CORREGIDO con referidos
-  const { stats, setStats, referralStats, refreshReferralStats, getReferralLink } = useSupabasePlayer(user);
+  // ✅ Hook de sincronización - MEJORADO
+  const { stats, setStats, getReferralLink, syncStatsToSupabase } = useSupabasePlayer(user);
 
-  // 🔄 SINCRONIZACIÓN AUTOMÁTICA MEJORADA
+  // 🔄 SINCRONIZACIÓN AUTOMÁTICA MEJORADA - CORREGIDA
   useEffect(() => {
-    if (!gameState || !setStats) return;
+    if (!gameState || !setStats || !stats) return;
 
-    // Sincronizar gameState con stats cuando hay cambios significativos
-    const shouldSync = 
-      Math.floor(gameState.coins) !== Math.floor(stats?.coins || 0) ||
-      gameState.level !== (stats?.level || 1) ||
-      gameState.totalClicks !== (stats?.clicks || 0);
-
-    if (shouldSync) {
-      console.log("🔄 Sincronizando gameState con stats...");
-      setStats({
-        coins: gameState.coins,
-        croc_tokens: gameState.nativeTokenBalance,
+    const syncTimeout = setTimeout(() => {
+      const updatedStats = {
+        coins: Math.floor(gameState.coins),
+        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
         level: gameState.level,
         clicks: gameState.totalClicks,
-      });
-    }
-  }, [gameState.coins, gameState.level, gameState.totalClicks, setStats, stats]);
+      };
+      
+      // Solo sincronizar si hay cambios reales
+      const hasChanges = 
+        Math.floor(stats.coins) !== updatedStats.coins ||
+        stats.level !== updatedStats.level ||
+        stats.clicks !== updatedStats.clicks ||
+        Math.floor(stats.croc_tokens) !== updatedStats.croc_tokens;
+      
+      if (hasChanges) {
+        console.log("🔄 Sincronizando gameState con stats...", updatedStats);
+        setStats(updatedStats);
+        if (syncStatsToSupabase) {
+          syncStatsToSupabase(updatedStats);
+        }
+      }
+    }, 2000);
 
-  // 🔄 ACTUALIZAR REFERIDOS AL CARGAR
+    return () => clearTimeout(syncTimeout);
+  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
+
+  // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
-    if (user) {
-      // Actualizar stats de referidos después de 2 segundos para asegurar que el player esté cargado
+    if (user && refreshReferralStats) {
+      // Actualizar stats de referidos después de 3 segundos para asegurar que el player esté cargado
       const timer = setTimeout(() => {
         refreshReferralStats();
-      }, 2000);
-      return () => clearTimeout(timer);
+      }, 3000);
+      
+      // Actualizar cada 30 segundos
+      const interval = setInterval(() => {
+        refreshReferralStats();
+      }, 30000);
+      
+      return () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+      };
     }
   }, [user, refreshReferralStats]);
 
@@ -148,10 +172,10 @@ export function GameView({
     initializeVideos();
   }, []);
 
-  // Simulación simple de precio/token
+  // Simulación simple de precio/token - MEJORADA
   useEffect(() => {
     const interval = setInterval(() => {
-      setTokenPrice(prev =>
+      setLocalTokenPrice(prev =>
         parseFloat(
           Math.max(0.01, prev + (Math.random() - 0.5) * 0.005).toFixed(4),
         ),
@@ -163,7 +187,7 @@ export function GameView({
         const newPrice = parseFloat(
           Math.max(
             0.01,
-            tokenPrice + (Math.random() - 0.5) * 0.005,
+            localTokenPrice + (Math.random() - 0.5) * 0.005,
           ).toFixed(4),
         );
         return [
@@ -173,7 +197,7 @@ export function GameView({
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [tokenPrice]);
+  }, [localTokenPrice]);
 
   const getCrocodileCharacter = () => {
     if (activeSkin) {
@@ -267,7 +291,7 @@ export function GameView({
 
   // 📋 Función para copiar enlace de referidos SEGURO
   const copyReferralLink = () => {
-    const referralLink = getReferralLink();
+    const referralLink = getReferralLink ? getReferralLink() : `${window.location.origin}?ref=${user?.id}`;
     navigator.clipboard.writeText(referralLink);
     toast({
       title: '📋 Enlace copiado',
@@ -276,6 +300,10 @@ export function GameView({
     });
     playSound('uiClick');
   };
+
+  // ✅ CALCULAR VALOR PROYECTADO
+  const projectedCrocValue = (gameState.nativeTokenBalance || 0) * localTokenPrice;
+  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001); // Valor aproximado de monedas
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
@@ -316,6 +344,15 @@ export function GameView({
         <ReferralsWidget 
           referralStats={referralStats} 
           onCopyLink={copyReferralLink}
+        />
+      </div>
+
+      {/* ✅ VALOR PROYECTADO MÓVIL */}
+      <div className="block md:hidden mb-4">
+        <ProjectedValueMobile 
+          projectedValue={totalProjectedValue}
+          tokenBalance={gameState.nativeTokenBalance || 0}
+          tokenPrice={localTokenPrice}
         />
       </div>
 
@@ -413,12 +450,14 @@ export function GameView({
         {/* 📊 Panel lateral */}
         <div className="w-full space-y-4">
           <TokenInfoPanel
-            tokenPrice={tokenPrice}
+            tokenPrice={localTokenPrice}
             liquidity={liquidity}
             priceData={priceData}
             onBuyToken={handleBuyToken}
             referralStats={referralStats}
             onCopyReferralLink={copyReferralLink}
+            nativeTokenBalance={gameState.nativeTokenBalance || 0} // ✅ PASAR BALANCE DE TOKENS
+            projectedValue={projectedCrocValue} // ✅ PASAR VALOR PROYECTADO
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
@@ -438,9 +477,54 @@ export function GameView({
 
 /* ===================== Subcomponentes ===================== */
 
+// ✅ NUEVO: Componente para Valor Proyectado Móvil
+function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
+  return (
+    <motion.div 
+      className="bg-gradient-to-br from-yellow-900/90 to-amber-800/90 border border-yellow-500/50 rounded-xl p-4 backdrop-blur-md shadow-lg"
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ delay: 0.1 }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Award className="w-5 h-5 text-yellow-300" />
+          <h3 className="text-lg font-bold text-yellow-100">
+            💰 Valor Proyectado
+          </h3>
+        </div>
+        <div className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+          <Sparkles className="w-3 h-3" />
+          <span>Live</span>
+        </div>
+      </div>
+
+      <div className="text-center mb-3">
+        <div className="text-2xl font-bold text-yellow-400 mb-1">
+          ${projectedValue.toFixed(2)}
+        </div>
+        <div className="text-sm text-yellow-200">
+          {tokenBalance.toLocaleString()} CROC @ ${tokenPrice}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-center">
+        <div className="bg-yellow-800/40 rounded-lg p-2 border border-yellow-600/30">
+          <div className="text-yellow-300 text-xs mb-1">💰 Tokens</div>
+          <div className="text-white font-bold text-sm">{tokenBalance.toLocaleString()}</div>
+        </div>
+        <div className="bg-yellow-800/40 rounded-lg p-2 border border-yellow-600/30">
+          <div className="text-yellow-300 text-xs mb-1">📈 Precio</div>
+          <div className="text-white font-bold text-sm">${tokenPrice}</div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // 🆕 Componente separado para Widget de Referidos
 function ReferralsWidget({ referralStats, onCopyLink }) {
-  const hasReferrals = referralStats.referralsCount > 0;
+  const hasReferrals = referralStats?.referralsCount > 0;
   
   return (
     <motion.div 
@@ -479,15 +563,15 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
       <div className="grid grid-cols-3 gap-2 text-center mb-3">
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
           <div className="text-green-300 text-sm mb-1">👥 Referidos</div>
-          <div className="text-white font-bold text-xl">{referralStats.referralsCount}</div>
+          <div className="text-white font-bold text-xl">{referralStats?.referralsCount || 0}</div>
         </div>
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
           <div className="text-green-300 text-sm mb-1">💰 CROC</div>
-          <div className="text-white font-bold text-xl">{referralStats.crocFromRefs}</div>
+          <div className="text-white font-bold text-xl">{referralStats?.crocFromRefs || 0}</div>
         </div>
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
           <div className="text-green-300 text-sm mb-1">🪙 Monedas</div>
-          <div className="text-white font-bold text-xl">{referralStats.coinsFromRefs.toLocaleString()}</div>
+          <div className="text-white font-bold text-xl">{(referralStats?.coinsFromRefs || 0).toLocaleString()}</div>
         </div>
       </div>
 
@@ -509,8 +593,17 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
   );
 }
 
-function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, referralStats, onCopyReferralLink }) {
-  const hasReferrals = referralStats.referralsCount > 0;
+function TokenInfoPanel({ 
+  tokenPrice, 
+  liquidity, 
+  priceData, 
+  onBuyToken, 
+  referralStats, 
+  onCopyReferralLink,
+  nativeTokenBalance, // ✅ NUEVO: Balance de tokens
+  projectedValue // ✅ NUEVO: Valor proyectado
+}) {
+  const hasReferrals = referralStats?.referralsCount > 0;
 
   return (
     <div className="stats-card rounded-xl p-4">
@@ -547,15 +640,15 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, referral
             <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
               <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
                 <span className="text-[10px] text-green-300">👥</span>
-                <b className="text-white">{referralStats.referralsCount}</b>
+                <b className="text-white">{referralStats?.referralsCount || 0}</b>
               </div>
               <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
                 <span className="text-[10px] text-green-300">💰</span>
-                <b className="text-white">{referralStats.crocFromRefs}</b>
+                <b className="text-white">{referralStats?.crocFromRefs || 0}</b>
               </div>
               <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
                 <span className="text-[10px] text-green-300">🪙</span>
-                <b className="text-white">{referralStats.coinsFromRefs}</b>
+                <b className="text-white">{referralStats?.coinsFromRefs || 0}</b>
               </div>
             </div>
 
@@ -577,6 +670,23 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, referral
         </div>
       </div>
 
+      {/* ✅ NUEVO: Valor Proyectado */}
+      <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-sm text-yellow-300 flex items-center gap-1">
+            <Target className="w-4 h-4" />
+            Valor Proyectado:
+          </span>
+          <span className="font-bold text-lg text-yellow-400">
+            ${projectedValue.toFixed(2)}
+          </span>
+        </div>
+        <div className="text-xs text-yellow-200 flex justify-between">
+          <span>{nativeTokenBalance.toLocaleString()} CROC</span>
+          <span>@ ${tokenPrice}</span>
+        </div>
+      </div>
+
       {/* Datos del token */}
       <div className="space-y-2 text-sm mb-3">
         <div className="flex justify-between">
@@ -589,6 +699,12 @@ function TokenInfoPanel({ tokenPrice, liquidity, priceData, onBuyToken, referral
           <span>Liquidez Total:</span>
           <span className="font-semibold text-primary">
             ${liquidity.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Tus Tokens:</span>
+          <span className="font-semibold text-emerald-400">
+            {nativeTokenBalance.toLocaleString()} CROC
           </span>
         </div>
       </div>

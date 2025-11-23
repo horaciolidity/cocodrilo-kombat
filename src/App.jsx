@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useSupabasePlayer } from "@/hooks/useSupabasePlayer"; // ✅ IMPORTACIÓN AGREGADA
+import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
 import { GameView } from "@/components/GameView";
 import { StatsView } from "@/components/StatsView";
 import { SettingsView } from "@/components/SettingsView";
@@ -58,6 +58,7 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const [tokenPrice, setTokenPrice] = useState(0.05); // ✅ PRECIO DEL TOKEN PARA VALOR PROYECTADO
 
   /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
@@ -87,9 +88,11 @@ function App() {
     player,
     stats,
     setStats,
+    referralStats,
     loading: playerLoading,
     error: playerError,
     syncStatsToSupabase,
+    refreshReferralStats,
   } = useSupabasePlayer(user);
 
   /* ⚙️ Lógica del juego */
@@ -135,46 +138,82 @@ function App() {
     setLastReachedMilestone
   );
 
-// ✅ SINCRONIZACIÓN MÁS SIMPLE
-useEffect(() => {
-  if (!stats || !gameState || !syncStatsToSupabase) return;
+  // ✅ SINCRONIZACIÓN MEJORADA - CORREGIDA
+  useEffect(() => {
+    if (!stats || !gameState || !syncStatsToSupabase) return;
 
-  // Sincronizar solo cuando hay cambios significativos
-  const shouldSync = 
-    Math.abs(Math.floor(stats.coins) - Math.floor(gameState.coins)) > 100 ||
-    stats.level !== gameState.level ||
-    stats.clicks !== gameState.totalClicks;
+    const syncTimeout = setTimeout(() => {
+      const updatedStats = {
+        coins: Math.floor(gameState.coins),
+        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+        level: gameState.level,
+        clicks: gameState.totalClicks,
+      };
+      
+      // Solo sincronizar si hay cambios reales
+      const hasChanges = 
+        Math.floor(stats.coins) !== updatedStats.coins ||
+        stats.level !== updatedStats.level ||
+        stats.clicks !== updatedStats.clicks ||
+        Math.floor(stats.croc_tokens) !== updatedStats.croc_tokens;
+      
+      if (hasChanges) {
+        console.log("🔄 Sincronizando con Supabase...", updatedStats);
+        setStats(updatedStats);
+        syncStatsToSupabase(updatedStats);
+      }
+    }, 2000); // 2 segundos de delay para evitar sobrecarga
 
-  if (shouldSync) {
-    const updatedStats = {
-      coins: Math.floor(gameState.coins),
-      croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-      level: gameState.level,
-      clicks: gameState.totalClicks,
-    };
+    return () => clearTimeout(syncTimeout);
+  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
+
+  // ✅ SINCRONIZACIÓN FORZADA EN EVENTOS IMPORTANTES
+  useEffect(() => {
+    if (!stats || !setStats || !syncStatsToSupabase) return;
     
-    syncStatsToSupabase(updatedStats);
-  }
-}, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, syncStatsToSupabase]);
+    const interval = setInterval(() => {
+      const updatedStats = {
+        coins: Math.floor(gameState.coins),
+        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+        level: gameState.level,
+        clicks: gameState.totalClicks,
+      };
+      
+      // Actualizar stats locales periódicamente
+      setStats(updatedStats);
+    }, 10000); // Sincronizar cada 10 segundos
 
+    return () => clearInterval(interval);
+  }, [gameState, stats, setStats, syncStatsToSupabase]);
 
-
-/* 🔄 Cargar datos de Supabase al iniciar */
+  /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO */
   useEffect(() => {
     if (stats && gameState && setGameState) {
-      // Si las stats de Supabase tienen más monedas, usarlas
-      if (stats.coins > gameState.coins) {
+      // Solo cargar desde Supabase si el juego está recién iniciado
+      if (gameState.coins === 0 && gameState.totalClicks === 0) {
         console.log("📥 Cargando datos desde Supabase...");
         setGameState(prev => ({
           ...prev,
-          coins: Number(stats.coins),
-          level: stats.level,
-          nativeTokenBalance: Number(stats.croc_tokens),
-          totalClicks: stats.clicks,
+          coins: Number(stats.coins) || 0,
+          totalCoins: Number(stats.coins) || 0,
+          level: stats.level || 1,
+          nativeTokenBalance: Number(stats.croc_tokens) || 0,
+          totalClicks: stats.clicks || 0,
         }));
       }
     }
   }, [stats?.coins, stats?.level, stats?.croc_tokens, stats?.clicks, gameState, setGameState]);
+
+  // ✅ ACTUALIZAR REFERIDOS PERIÓDICAMENTE
+  useEffect(() => {
+    if (user && refreshReferralStats) {
+      const interval = setInterval(() => {
+        refreshReferralStats();
+      }, 30000); // Actualizar cada 30 segundos
+      
+      return () => clearInterval(interval);
+    }
+  }, [user, refreshReferralStats]);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -188,6 +227,18 @@ useEffect(() => {
   /* 🪙 Fallbacks seguros */
   const safeCoins = stats?.coins ?? gameState?.coins ?? 0;
   const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
+
+  // ✅ ACTUALIZAR REFERIDOS EN GAME STATE
+  useEffect(() => {
+    if (referralStats && setGameState) {
+      setGameState(prev => ({
+        ...prev,
+        referralsCount: referralStats.referralsCount || 0,
+        crocFromRefs: referralStats.crocFromRefs || 0,
+        coinsFromRefs: referralStats.coinsFromRefs || 0,
+      }));
+    }
+  }, [referralStats, setGameState]);
 
   /* 🚪 Logout */
   const logout = useCallback(async () => {
@@ -283,10 +334,12 @@ useEffect(() => {
                   user: user?.id,
                   player: player?.id,
                   stats: stats,
+                  referralStats: referralStats,
                   gameState: {
                     coins: gameState.coins,
                     level: gameState.level,
-                    clicks: gameState.totalClicks
+                    clicks: gameState.totalClicks,
+                    nativeTokenBalance: gameState.nativeTokenBalance
                   }
                 });
                 
@@ -345,6 +398,9 @@ useEffect(() => {
                 activeSkin={activeSkin}
                 toast={toast}
                 user={user}
+                tokenPrice={tokenPrice} // ✅ PASAR PRECIO DEL TOKEN
+                referralStats={referralStats} // ✅ PASAR STATS DE REFERIDOS
+                refreshReferralStats={refreshReferralStats} // ✅ PASAR FUNCIÓN DE ACTUALIZACIÓN
               />
             )}
 
@@ -402,6 +458,8 @@ useEffect(() => {
                 farmingMilestonesCount={
                   Object.values(farmingMilestonesState).filter((m) => m.claimed).length
                 }
+                referralStats={referralStats} // ✅ PASAR STATS DE REFERIDOS
+                tokenPrice={tokenPrice} // ✅ PASAR PRECIO DEL TOKEN
               />
             )}
             {currentView === "settings" && (
