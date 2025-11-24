@@ -211,7 +211,7 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  /* 🎯 FUNCIÓN DE SINCRONIZACIÓN MEJORADA */
+  /* 🎯 FUNCIÓN DE SINCRONIZACIÓN MEJORADA - ACTUALIZADA CON NUEVAS COLUMNAS */
   const syncStatsToSupabase = useCallback(async (newStats = null) => {
     // Si no hay player, salir
     if (!player?.id) {
@@ -241,12 +241,21 @@ export function useSupabasePlayer(user) {
     }
 
     try {
+      // ✅ PAYLOAD ACTUALIZADO CON TODAS LAS NUEVAS COLUMNAS
       const payload = {
         player_id: player.id,
         coins: Math.floor(statsToSync.coins || 0),
-        croc_tokens: statsToSync.croc_tokens || 0,
+        croc_tokens: statsToSync.croc_tokens || statsToSync.nativeTokenBalance || 0,
         level: statsToSync.level || 1,
-        clicks: statsToSync.clicks || 0,
+        clicks: statsToSync.clicks || statsToSync.totalClicks || 0,
+        // ✅ NUEVAS COLUMNAS CRÍTICAS
+        energy: statsToSync.energy || 100,
+        max_energy: statsToSync.max_energy || statsToSync.maxEnergy || 100,
+        click_power: statsToSync.click_power || statsToSync.clickPower || 1,
+        coins_per_second: statsToSync.coins_per_second || statsToSync.coinsPerSecond || 0,
+        experience: statsToSync.experience || 0,
+        total_coins: statsToSync.total_coins || statsToSync.totalCoins || 0,
+        native_token_balance: statsToSync.native_token_balance || statsToSync.nativeTokenBalance || 0,
         last_active: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -287,15 +296,33 @@ export function useSupabasePlayer(user) {
     }
   }, [player?.id, stats]);
 
-  /* 🆕 ACTUALIZACIÓN UNIFICADA DE STATS */
+  /* 🆕 ACTUALIZACIÓN UNIFICADA DE STATS - MEJORADA */
   const updateStats = useCallback((newStats) => {
     if (!isMounted.current) return;
     
     console.log("📝 Actualizando stats locales:", newStats);
-    setStats(newStats);
+    
+    // Convertir nombres de useGameLogic a nombres de base de datos si es necesario
+    const convertedStats = {
+      ...newStats,
+      // Si vienen de useGameLogic, mapear los nombres
+      coins: newStats.coins,
+      level: newStats.level,
+      clicks: newStats.totalClicks,
+      energy: newStats.energy,
+      max_energy: newStats.maxEnergy,
+      click_power: newStats.clickPower,
+      coins_per_second: newStats.coinsPerSecond,
+      experience: newStats.experience,
+      total_coins: newStats.totalCoins,
+      native_token_balance: newStats.nativeTokenBalance,
+      croc_tokens: newStats.nativeTokenBalance || newStats.croc_tokens
+    };
+    
+    setStats(convertedStats);
     
     // Sincronizar inmediatamente pero con debounce
-    pendingSyncRef.current = newStats;
+    pendingSyncRef.current = convertedStats;
     
     if (syncTimeout.current) clearTimeout(syncTimeout.current);
     syncTimeout.current = setTimeout(() => {
@@ -303,7 +330,7 @@ export function useSupabasePlayer(user) {
     }, 1000);
   }, [syncStatsToSupabase]);
 
-  /* 📦 Cargar o crear jugador + estadísticas + referidos */
+  /* 📦 Cargar o crear jugador + estadísticas + referidos - ACTUALIZADO */
   const loadPlayerData = useCallback(async () => {
     if (!user) {
       setPlayer(null);
@@ -414,7 +441,7 @@ export function useSupabasePlayer(user) {
 
       setPlayer(playerRecord);
 
-      /* 🪙 Cargar o crear stats */
+      /* 🪙 Cargar o crear stats - ACTUALIZADO CON NUEVAS COLUMNAS */
       if (playerRecord?.id) {
         const cleanStats = await cleanDuplicateStats(playerRecord.id);
 
@@ -424,23 +451,32 @@ export function useSupabasePlayer(user) {
         } else {
           console.log("🆕 Creando stats iniciales...");
 
+          // ✅ STATS INICIALES CON TODAS LAS COLUMNAS NUEVAS
+          const initialStats = {
+            player_id: playerRecord.id,
+            coins: 0,
+            croc_tokens: 0,
+            level: 1,
+            clicks: 0,
+            energy: 100,
+            max_energy: 100,
+            click_power: 1,
+            coins_per_second: 0,
+            experience: 0,
+            total_coins: 0,
+            native_token_balance: 0
+          };
+
           const { data: newStats, error: insertStatsError } = await supabase
             .from("player_stats")
-            .insert([
-              {
-                player_id: playerRecord.id,
-                coins: 0,
-                croc_tokens: 0,
-                level: 1,
-                clicks: 0,
-              },
-            ])
+            .insert([initialStats])
             .select()
             .single();
 
           if (insertStatsError) {
             console.error("❌ Error creando stats:", insertStatsError);
 
+            // Intentar recuperar stats existentes
             const { data: existingStats } = await supabase
               .from("player_stats")
               .select("*")
@@ -451,16 +487,8 @@ export function useSupabasePlayer(user) {
               console.log("📥 Stats existentes recuperadas:", existingStats);
               setStats(existingStats);
             } else {
-              const fallbackStats = {
-                player_id: playerRecord.id,
-                coins: 0,
-                croc_tokens: 0,
-                level: 1,
-                clicks: 0,
-                updated_at: new Date().toISOString(),
-              };
               console.log("🔄 Usando stats locales de fallback");
-              setStats(fallbackStats);
+              setStats(initialStats);
             }
           } else {
             console.log("✅ Stats iniciales creadas:", newStats);
@@ -549,5 +577,23 @@ export function useSupabasePlayer(user) {
     // Utilidades
     cleanDuplicateStats: () =>
       player?.id ? cleanDuplicateStats(player.id) : Promise.resolve(),
+
+    // 🔄 Métodos específicos para useGameLogic
+    updateGameStats: (gameState) => {
+      const supabaseStats = {
+        coins: gameState.coins,
+        level: gameState.level,
+        clicks: gameState.totalClicks,
+        energy: gameState.energy,
+        max_energy: gameState.maxEnergy,
+        click_power: gameState.clickPower,
+        coins_per_second: gameState.coinsPerSecond,
+        experience: gameState.experience,
+        total_coins: gameState.totalCoins,
+        native_token_balance: gameState.nativeTokenBalance,
+        croc_tokens: gameState.nativeTokenBalance
+      };
+      updateStats(supabaseStats);
+    }
   };
 }
