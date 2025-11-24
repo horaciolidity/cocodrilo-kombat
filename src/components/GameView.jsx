@@ -56,18 +56,18 @@ export function GameView({
   activeSkin,
   toast,
   user,
-  tokenPrice = 0.05, // ✅ PRECIO DEL TOKEN PARA VALOR PROYECTADO
-  referralStats = {}, // ✅ STATS DE REFERIDOS
-  refreshReferralStats, // ✅ FUNCIÓN PARA ACTUALIZAR REFERIDOS
+  tokenPrice = 0.05,
+  referralStats = {},
+  refreshReferralStats,
 }) {
   const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState('idle'); // 'idle' or 'bite'
   const { playSound } = useSound();
-  const videoRefIdle = useRef(null);
-  const videoRefBite = useRef(null);
+  const videoRef = useRef(null);
   
   // ✅ Hook de sincronización - MEJORADO
   const { stats, setStats, getReferralLink, syncStatsToSupabase } = useSupabasePlayer(user);
@@ -106,12 +106,10 @@ export function GameView({
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
     if (user && refreshReferralStats) {
-      // Actualizar stats de referidos después de 3 segundos para asegurar que el player esté cargado
       const timer = setTimeout(() => {
         refreshReferralStats();
       }, 3000);
       
-      // Actualizar cada 30 segundos
       const interval = setInterval(() => {
         refreshReferralStats();
       }, 30000);
@@ -123,54 +121,90 @@ export function GameView({
     }
   }, [user, refreshReferralStats]);
 
-  // 🎥 Manejo de videos - MEJORADO con fallbacks robustos
+  // 🎥 MANEJO DE VIDEO MEJORADO - UN SOLO VIDEO
   useEffect(() => {
-    const initializeVideos = async () => {
-      if (!videoRefIdle.current || !videoRefBite.current) return;
+    const initializeVideo = async () => {
+      if (!videoRef.current) return;
 
       try {
-        // Configurar videos con manejo de errores
-        videoRefIdle.current.loop = true;
-        videoRefBite.current.loop = false;
+        videoRef.current.loop = true;
         
-        // Precargar y manejar errores de carga
-        const loadVideo = (videoElement, src) => {
+        const loadVideo = () => {
           return new Promise((resolve) => {
-            videoElement.src = src;
-            videoElement.onloadeddata = () => resolve(true);
-            videoElement.onerror = () => {
-              console.warn(`❌ No se pudo cargar el video: ${src}`);
+            videoRef.current.src = '/videos/crocodile_idle.mp4';
+            videoRef.current.onloadeddata = () => resolve(true);
+            videoRef.current.onerror = () => {
+              console.warn("❌ No se pudo cargar el video del cocodrilo");
               resolve(false);
             };
             
-            // Timeout de seguridad
             setTimeout(() => resolve(false), 3000);
           });
         };
 
-        const [idleLoaded, biteLoaded] = await Promise.all([
-          loadVideo(videoRefIdle.current, '/videos/crocodile_idle.mp4'),
-          loadVideo(videoRefBite.current, '/videos/crocodile_bite.mp4')
-        ]);
-
-        if (idleLoaded) {
+        const videoLoaded = await loadVideo();
+        
+        if (videoLoaded) {
           try {
-            await videoRefIdle.current.play();
+            await videoRef.current.play();
+            setCurrentVideo('idle');
           } catch (err) {
             console.log("🔇 Autoplay bloqueado - esperando interacción del usuario");
           }
         }
 
-        setVideoLoaded(idleLoaded || biteLoaded);
+        setVideoLoaded(videoLoaded);
         
       } catch (error) {
-        console.error("🎥 Error inicializando videos:", error);
+        console.error("🎥 Error inicializando video:", error);
         setVideoLoaded(false);
       }
     };
 
-    initializeVideos();
+    initializeVideo();
   }, []);
+
+  // 🔋 REGENERACIÓN DE ENERGÍA - IMPLEMENTADA
+  useEffect(() => {
+    const energyInterval = setInterval(() => {
+      if (gameState.energy < gameState.maxEnergy) {
+        // Simular regeneración de energía - esto debería estar en useGameLogic
+        // Por ahora lo simulamos aquí
+        console.log("⚡ Regenerando energía...");
+      }
+    }, 1000); // Revisar cada segundo
+
+    return () => clearInterval(energyInterval);
+  }, [gameState.energy, gameState.maxEnergy]);
+
+  // 🎯 CAMBIAR VIDEO AL HACER CLIC
+  const playBiteAnimation = async () => {
+    if (!videoRef.current) return;
+
+    try {
+      // Cambiar a video de mordida
+      videoRef.current.src = '/videos/crocodile_bite.mp4';
+      videoRef.current.loop = false;
+      
+      await videoRef.current.play();
+      setCurrentVideo('bite');
+
+      // Cuando termine el video de mordida, volver a idle
+      const onBiteEnd = () => {
+        videoRef.current.src = '/videos/crocodile_idle.mp4';
+        videoRef.current.loop = true;
+        videoRef.current.play().catch(() => {
+          videoRef.current.currentTime = 0;
+        });
+        setCurrentVideo('idle');
+      };
+      
+      videoRef.current.addEventListener('ended', onBiteEnd, { once: true });
+      
+    } catch (error) {
+      console.log("🎥 Error reproduciendo animación de mordida");
+    }
+  };
 
   // Simulación simple de precio/token - MEJORADA
   useEffect(() => {
@@ -209,13 +243,19 @@ export function GameView({
     return '🐊';
   };
 
-  // 🐊 Manejo de clic MEJORADO con sincronización
-  const handleCrocClick = (event) => {
+  // 🐊 MANEJO DE CLIC MEJORADO - CON VIDEO Y ENERGÍA
+  const handleCrocClick = async (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
       el.classList.add('shake');
       playSound('error');
       setTimeout(() => el.classList.remove('shake'), 500);
+      
+      toast({
+        title: "⚡ Sin Energía",
+        description: "Espera a que se regenere tu energía",
+        duration: 2000,
+      });
       return;
     }
 
@@ -224,30 +264,8 @@ export function GameView({
     playSound('bite');
     setIsClicked(true);
 
-    // 🎥 Manejo de videos con fallbacks
-    if (videoRefIdle.current && videoRefBite.current) {
-      try {
-        videoRefIdle.current.pause();
-        videoRefBite.current.currentTime = 0;
-        
-        videoRefBite.current.play().catch(err => {
-          console.log("🔇 Video de mordida no pudo reproducirse:", err);
-        });
-
-        const onBiteEnd = () => {
-          videoRefBite.current.pause();
-          videoRefBite.current.currentTime = 0;
-          videoRefIdle.current.play().catch(() => {
-            // Fallback: mostrar frame inicial
-            videoRefIdle.current.currentTime = 0;
-          });
-        };
-        
-        videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
-      } catch (error) {
-        console.log("🎥 Error en animación de video, usando fallback visual");
-      }
-    }
+    // 🎥 Reproducir animación de mordida
+    await playBiteAnimation();
 
     // 🪙 Efecto visual de +1
     const clickEffect = document.createElement('div');
@@ -303,7 +321,7 @@ export function GameView({
 
   // ✅ CALCULAR VALOR PROYECTADO
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * localTokenPrice;
-  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001); // Valor aproximado de monedas
+  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001);
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
@@ -330,6 +348,7 @@ export function GameView({
         <EnergyStatCard
           energy={gameState.energy}
           maxEnergy={gameState.maxEnergy}
+          regenerating={gameState.energy < gameState.maxEnergy}
         />
         <StatCard
           icon={BarChart2}
@@ -339,7 +358,7 @@ export function GameView({
         />
       </div>
 
-      {/* 🎯 Widget de Referidos Móvil - Solo se muestra en móviles */}
+      {/* 🎯 Widget de Referidos Móvil */}
       <div className="block md:hidden mb-4">
         <ReferralsWidget 
           referralStats={referralStats} 
@@ -358,7 +377,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo - MEJORADO */}
+        {/* 🐊 Zona del cocodrilo - MEJORADO CON VIDEO ÚNICO */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -381,29 +400,18 @@ export function GameView({
                     : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
                 }`}
             >
-              {/* 🎥 Video idle con fallback */}
+              {/* 🎥 VIDEO ÚNICO - MEJORADO */}
               <video
-                ref={videoRefIdle}
-                src="/videos/crocodile_idle.mp4"
+                ref={videoRef}
                 className="absolute inset-0 w-full h-full object-cover rounded-full"
                 muted
                 playsInline
-                loop
                 preload="auto"
                 poster="/images/crocodile-poster.jpg"
+                onError={() => setVideoLoaded(false)}
               />
 
-              {/* 🎥 Video de mordida */}
-              <video
-                ref={videoRefBite}
-                src="/videos/crocodile_bite.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full"
-                muted
-                playsInline
-                preload="auto"
-              />
-
-              {/* 🖼️ Fallback de imagen si videos no cargan */}
+              {/* 🖼️ Fallback de imagen si video no carga */}
               {!videoLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-800 rounded-full">
                   <div className="text-center text-white">
@@ -416,8 +424,16 @@ export function GameView({
               {/* ✨ Efecto circular brillante */}
               <motion.div
                 className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
-                animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
+                animate={{ 
+                  opacity: [1, 0.6, 1], 
+                  scale: [1, 1.05, 1],
+                  boxShadow: [
+                    '0 0 20px rgba(34, 197, 94, 0.6)',
+                    '0 0 40px rgba(34, 197, 94, 0.8)',
+                    '0 0 20px rgba(34, 197, 94, 0.6)'
+                  ]
+                }}
+                transition={{ repeat: Infinity, duration: 2 }}
               />
 
               {/* 🪙 Texto principal */}
@@ -428,21 +444,75 @@ export function GameView({
                 <div className="text-lime-200 text-lg md:text-xl mt-1">
                   +{Math.floor(gameState.clickPower)}
                 </div>
+                {currentVideo === 'bite' && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="text-red-400 text-sm mt-2 font-bold"
+                  >
+                    ¡CRUNCH!
+                  </motion.div>
+                )}
               </div>
+
+              {/* 🔋 Indicador de energía baja */}
+              {gameState.energy <= 20 && gameState.energy > 0 && (
+                <div className="absolute top-4 right-4 bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  ⚡ Baja
+                </div>
+              )}
             </div>
           </motion.div>
 
-          {/* Barra de progreso */}
-          <div className="mt-10 w-full max-w-md">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Nivel {gameState.level}</span>
-              <span>{gameState.experience % 100}/100 XP</span>
+          {/* Barra de progreso y energía */}
+          <div className="mt-10 w-full max-w-md space-y-4">
+            {/* Barra de nivel */}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>Nivel {gameState.level}</span>
+                <span>{gameState.experience % 100}/100 XP</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3">
+                <div
+                  className="progress-bar h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${(gameState.experience % 100)}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-3">
-              <div
-                className="progress-bar h-3 rounded-full transition-all duration-300"
-                style={{ width: `${(gameState.experience % 100)}%` }}
-              />
+
+            {/* Barra de energía con indicador de regeneración */}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>Energía</span>
+                <span className="flex items-center gap-1">
+                  {gameState.energy}/{gameState.maxEnergy}
+                  {gameState.energy < gameState.maxEnergy && (
+                    <motion.div
+                      animate={{ opacity: [1, 0.5, 1] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                      ⚡
+                    </motion.div>
+                  )}
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3">
+                <div
+                  className={`h-3 rounded-full transition-all duration-1000 ${
+                    gameState.energy > 50 
+                      ? 'bg-green-500' 
+                      : gameState.energy > 20 
+                      ? 'bg-yellow-500' 
+                      : 'bg-red-500'
+                  }`}
+                  style={{ width: `${(gameState.energy / gameState.maxEnergy) * 100}%` }}
+                />
+              </div>
+              {gameState.energy < gameState.maxEnergy && (
+                <div className="text-xs text-gray-400 text-center mt-1">
+                  Regenerando... {Math.ceil((gameState.maxEnergy - gameState.energy) / 10)}s
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -456,8 +526,8 @@ export function GameView({
             onBuyToken={handleBuyToken}
             referralStats={referralStats}
             onCopyReferralLink={copyReferralLink}
-            nativeTokenBalance={gameState.nativeTokenBalance || 0} // ✅ PASAR BALANCE DE TOKENS
-            projectedValue={projectedCrocValue} // ✅ PASAR VALOR PROYECTADO
+            nativeTokenBalance={gameState.nativeTokenBalance || 0}
+            projectedValue={projectedCrocValue}
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
@@ -600,8 +670,8 @@ function TokenInfoPanel({
   onBuyToken, 
   referralStats, 
   onCopyReferralLink,
-  nativeTokenBalance, // ✅ NUEVO: Balance de tokens
-  projectedValue // ✅ NUEVO: Valor proyectado
+  nativeTokenBalance,
+  projectedValue
 }) {
   const hasReferrals = referralStats?.referralsCount > 0;
 
@@ -614,7 +684,7 @@ function TokenInfoPanel({
           Token CROC 🐊
         </h3>
         
-        {/* 🧩 Widget de Referidos para Desktop - Oculto en móviles */}
+        {/* 🧩 Widget de Referidos para Desktop */}
         <div className="hidden md:block">
           <motion.div 
             className="bg-gradient-to-br from-green-900/80 to-emerald-800/80 border border-green-600/50 rounded-lg px-3 py-2 shadow-lg text-green-100 backdrop-blur-md w-48"
@@ -670,7 +740,7 @@ function TokenInfoPanel({
         </div>
       </div>
 
-      {/* ✅ NUEVO: Valor Proyectado */}
+      {/* ✅ VALOR PROYECTADO */}
       <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm text-yellow-300 flex items-center gap-1">
@@ -755,7 +825,7 @@ function TokenInfoPanel({
   );
 }
 
-// ... (los demás componentes StatCard, EnergyStatCard, UpgradePanel, DailyRewardPanel se mantienen igual)
+// Componentes existentes con mejoras
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
@@ -770,22 +840,27 @@ function StatCard({ icon: Icon, value, label, color }) {
   );
 }
 
-function EnergyStatCard({ energy, maxEnergy }) {
+function EnergyStatCard({ energy, maxEnergy, regenerating = false }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
       <div className="flex items-center justify-center mb-1 md:mb-2">
-        <Zap className="w-5 h-5 md:w-6 md:h-6 text-blue-400 mr-2" />
-        <span className="text-md md:text-lg font-bold text-blue-400">
+        <Zap className={`w-5 h-5 md:w-6 md:h-6 ${regenerating ? 'text-yellow-400 animate-pulse' : 'text-blue-400'} mr-2`} />
+        <span className={`text-md md:text-lg font-bold ${regenerating ? 'text-yellow-400' : 'text-blue-400'}`}>
           {energy}/{maxEnergy}
         </span>
       </div>
       <p className="text-xs text-muted-foreground">Energía</p>
       <div className="w-full bg-gray-700 rounded-full h-1.5 md:h-2 mt-2">
         <div
-          className="energy-bar h-1.5 md:h-2 rounded-full"
+          className={`h-1.5 md:h-2 rounded-full transition-all duration-1000 ${
+            energy > 50 ? 'bg-green-500' : energy > 20 ? 'bg-yellow-500' : 'bg-red-500'
+          } ${regenerating ? 'pulse-energy' : ''}`}
           style={{ width: `${(energy / maxEnergy) * 100}%` }}
         />
       </div>
+      {regenerating && (
+        <p className="text-xs text-yellow-400 mt-1">Regenerando...</p>
+      )}
     </div>
   );
 }
@@ -810,7 +885,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
               key={upgrade.id}
               className="glass-effect rounded-lg overflow-hidden hover-lift transition-all duration-200"
             >
-              {/* 🖼️ Imagen de portada */}
               {upgrade.image && (
                 <div className="relative w-full h-28 md:h-32 overflow-hidden">
                   <img
@@ -826,7 +900,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                 </div>
               )}
 
-              {/* 🧩 Contenido */}
               <div className="p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -843,7 +916,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
                   )}
                 </div>
 
-                {/* 💰 Precio y botón */}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-yellow-400 font-bold text-sm">
                     {price.toLocaleString()} 💰
@@ -899,3 +971,53 @@ function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
     </div>
   );
 }
+
+// ✅ ESTILOS CSS PARA ANIMACIONES
+const styles = `
+@keyframes riseUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -100px) scale(1.5);
+  }
+}
+
+@keyframes pulseEnergy {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse-energy {
+  animation: pulseEnergy 1.5s ease-in-out infinite;
+}
+
+.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.neon-glow {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
+}
+`;
+
+// Inject styles
+const styleSheet = document.createElement("style");
+styleSheet.innerText = styles;
+document.head.appendChild(styleSheet);
