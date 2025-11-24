@@ -339,7 +339,9 @@ function App() {
                     coins: gameState.coins,
                     level: gameState.level,
                     clicks: gameState.totalClicks,
-                    nativeTokenBalance: gameState.nativeTokenBalance
+                    nativeTokenBalance: gameState.nativeTokenBalance,
+                    energy: gameState.energy,
+                    coinsPerSecond: gameState.coinsPerSecond
                   }
                 });
                 
@@ -401,6 +403,7 @@ function App() {
                 tokenPrice={tokenPrice} // ✅ PASAR PRECIO DEL TOKEN
                 referralStats={referralStats} // ✅ PASAR STATS DE REFERIDOS
                 refreshReferralStats={refreshReferralStats} // ✅ PASAR FUNCIÓN DE ACTUALIZACIÓN
+                setGameState={setGameState} // 🔥🔥🔥 CRÍTICO: PASAR setGameState PARA REGENERACIÓN Y FARMEO
               />
             )}
 
