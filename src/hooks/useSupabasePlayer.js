@@ -1,15 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-/**
- * 🧩 Hook de sincronización avanzada con Supabase 
- * - Control de duplicados integrado
- * - Sin recursión (stack depth) 
- * - Manejo robusto de errores RLS
- * - Sincronización optimizada (2-3 segundos)
- * - Sistema de referidos seguro con códigos encriptados
- */
-
 export function useSupabasePlayer(user) {
   const [player, setPlayer] = useState(null);
   const [stats, setStats] = useState(null);
@@ -26,15 +17,14 @@ export function useSupabasePlayer(user) {
   const pendingSyncRef = useRef(null);
   const isMounted = useRef(true);
 
-  /* 🧠 Generador de nombre aleatorio */
+  // Generador de nombre aleatorio
   const generateUsername = useCallback((base = "croc") => {
     const suffix = Math.floor(Math.random() * 9000 + 1000);
     return `${base}${suffix}`;
   }, []);
 
-  /* 🔐 GENERADOR DE CÓDIGO DE REFERIDO SEGURO */
+  // Generador de código de referido seguro
   const generateSecureReferralCode = useCallback(() => {
-    // Generar código de 8 caracteres alfanuméricos en minúscula
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 8; i++) {
@@ -43,12 +33,11 @@ export function useSupabasePlayer(user) {
     return result;
   }, []);
 
-  /* 🎯 CAPTURAR REFERIDO CON CÓDIGO SEGURO */
+  // Capturar referido con código seguro
   const captureReferral = useCallback(async (playerId) => {
     if (!playerId) return null;
     
     try {
-      // Obtener el código de referido de la URL
       const urlParams = new URLSearchParams(window.location.search);
       const referralCode = urlParams.get('ref');
       
@@ -59,14 +48,12 @@ export function useSupabasePlayer(user) {
 
       console.log("🎯 Código de referido detectado:", referralCode);
 
-      // Validar formato del código (8 caracteres alfanuméricos)
       const codeRegex = /^[a-z0-9]{8}$/;
       if (!codeRegex.test(referralCode)) {
         console.error("❌ Formato de código de referido inválido");
         return null;
       }
 
-      // Buscar el jugador referidor por código seguro
       const { data: referrer, error: referrerError } = await supabase
         .from('players')
         .select('id, username, referral_code')
@@ -78,7 +65,6 @@ export function useSupabasePlayer(user) {
         return null;
       }
 
-      // Verificar que no sea autoreferencia
       if (referrer.id === playerId) {
         console.warn("⚠️ No puedes autoreferenciarte");
         return null;
@@ -86,7 +72,6 @@ export function useSupabasePlayer(user) {
 
       console.log("✅ Referido válido encontrado:", referrer.username);
 
-      // Actualizar el jugador actual con el referido
       const { error: updateError } = await supabase
         .from('players')
         .update({ referred_by: referrer.id })
@@ -106,12 +91,11 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  /* 📊 OBTENER ESTADÍSTICAS DE REFERIDOS */
+  // Obtener estadísticas de referidos
   const getReferralStats = useCallback(async (playerId) => {
     if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
 
     try {
-      // Contar referidos directos
       const { data: referrals, error: refError } = await supabase
         .from('players')
         .select('id, created_at')
@@ -124,11 +108,10 @@ export function useSupabasePlayer(user) {
 
       const referralsCount = referrals?.length || 0;
       
-      // Calcular recompensas (10 CROC y 1000 monedas por referido activo)
       const activeReferrals = referrals?.filter(ref => {
         const refDate = new Date(ref.created_at);
         const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysSinceRef <= 30; // Referidos activos en los últimos 30 días
+        return daysSinceRef <= 30;
       }).length || 0;
 
       const crocFromRefs = activeReferrals * 10;
@@ -148,7 +131,7 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  /* 🔄 ACTUALIZAR ESTADÍSTICAS DE REFERIDOS */
+  // Actualizar estadísticas de referidos
   const refreshReferralStats = useCallback(async () => {
     if (!player?.id) return;
     
@@ -160,7 +143,7 @@ export function useSupabasePlayer(user) {
     }
   }, [player?.id, getReferralStats]);
 
-  /* 🧹 FUNCIÓN PARA LIMPIAR DUPLICADOS EN STATS */
+  // Función para limpiar duplicados en stats
   const cleanDuplicateStats = useCallback(async (playerId) => {
     if (!playerId) return null;
 
@@ -211,15 +194,13 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  /* 🎯 FUNCIÓN DE SINCRONIZACIÓN MEJORADA - ACTUALIZADA CON NUEVAS COLUMNAS */
+  // Función de sincronización mejorada
   const syncStatsToSupabase = useCallback(async (newStats = null) => {
-    // Si no hay player, salir
     if (!player?.id) {
       console.log("⏸️ Sync pausado: no hay player.id");
       return;
     }
 
-    // Usar stats pendientes o las proporcionadas
     const statsToSync = newStats || pendingSyncRef.current || stats;
     if (!statsToSync) {
       console.log("⏸️ Sync pausado: no hay stats para sincronizar");
@@ -228,7 +209,6 @@ export function useSupabasePlayer(user) {
 
     const now = Date.now();
     
-    // 🔥 CRÍTICO: Solo 2 segundos entre syncs (no 5+3)
     if (now - lastSyncRef.current < 2000) {
       console.log("⏸️ Sync muy rápido, agendando...");
       pendingSyncRef.current = statsToSync;
@@ -241,14 +221,12 @@ export function useSupabasePlayer(user) {
     }
 
     try {
-      // ✅ PAYLOAD ACTUALIZADO CON TODAS LAS NUEVAS COLUMNAS
       const payload = {
         player_id: player.id,
         coins: Math.floor(statsToSync.coins || 0),
         croc_tokens: statsToSync.croc_tokens || statsToSync.nativeTokenBalance || 0,
         level: statsToSync.level || 1,
         clicks: statsToSync.clicks || statsToSync.totalClicks || 0,
-        // ✅ NUEVAS COLUMNAS CRÍTICAS
         energy: statsToSync.energy || 100,
         max_energy: statsToSync.max_energy || statsToSync.maxEnergy || 100,
         click_power: statsToSync.click_power || statsToSync.clickPower || 1,
@@ -262,7 +240,6 @@ export function useSupabasePlayer(user) {
 
       console.log("🔄 Sincronizando stats a Supabase:", payload);
 
-      // ✅ UPDATE DIRECTO (más eficiente que upsert)
       const { error: updateError } = await supabase
         .from("player_stats")
         .update(payload)
@@ -271,7 +248,6 @@ export function useSupabasePlayer(user) {
       if (updateError) {
         console.error("❌ Error en update:", updateError);
         
-        // ✅ FALLBACK: Upsert solo si es necesario
         const { error: upsertError } = await supabase
           .from("player_stats")
           .upsert(payload, { onConflict: 'player_id' });
@@ -291,21 +267,18 @@ export function useSupabasePlayer(user) {
       
     } catch (err) {
       console.error("🚨 Error en syncStatsToSupabase:", err);
-      // Reintentar en 5 segundos si falla
       setTimeout(() => syncStatsToSupabase(statsToSync), 5000);
     }
   }, [player?.id, stats]);
 
-  /* 🆕 ACTUALIZACIÓN UNIFICADA DE STATS - MEJORADA */
+  // Actualización unificada de stats
   const updateStats = useCallback((newStats) => {
     if (!isMounted.current) return;
     
     console.log("📝 Actualizando stats locales:", newStats);
     
-    // Convertir nombres de useGameLogic a nombres de base de datos si es necesario
     const convertedStats = {
       ...newStats,
-      // Si vienen de useGameLogic, mapear los nombres
       coins: newStats.coins,
       level: newStats.level,
       clicks: newStats.totalClicks,
@@ -321,7 +294,6 @@ export function useSupabasePlayer(user) {
     
     setStats(convertedStats);
     
-    // Sincronizar inmediatamente pero con debounce
     pendingSyncRef.current = convertedStats;
     
     if (syncTimeout.current) clearTimeout(syncTimeout.current);
@@ -330,7 +302,7 @@ export function useSupabasePlayer(user) {
     }, 1000);
   }, [syncStatsToSupabase]);
 
-  /* 📦 Cargar o crear jugador + estadísticas + referidos - ACTUALIZADO */
+  // Cargar o crear jugador + estadísticas + referidos
   const loadPlayerData = useCallback(async () => {
     if (!user) {
       setPlayer(null);
@@ -344,7 +316,6 @@ export function useSupabasePlayer(user) {
     setError(null);
 
     try {
-      /* 🧍 Buscar jugador existente */
       const { data: existingPlayers, error: playersError } = await supabase
         .from("players")
         .select("*, referred_by(*)")
@@ -355,7 +326,6 @@ export function useSupabasePlayer(user) {
       let playerRecord = existingPlayers?.[0];
       let isNewPlayer = false;
 
-      /* Crear jugador si no existe */
       if (!playerRecord) {
         const baseName = user.email?.split("@")[0]?.slice(0, 12) || "croc";
         const username = generateUsername(baseName);
@@ -370,14 +340,12 @@ export function useSupabasePlayer(user) {
               username,
               avatar_url: avatarUrl,
               referral_code: referralCode,
-              // referred_by se asignará después si hay código de referido
             },
           ])
           .select("*, referred_by(*)")
           .single();
 
         if (insertError) {
-          // Intentar recuperar
           const { data: recovered } = await supabase
             .from("players")
             .select("*, referred_by(*)")
@@ -395,13 +363,11 @@ export function useSupabasePlayer(user) {
           isNewPlayer = true;
           console.log("✅ Jugador creado:", newPlayer.username, "Código:", referralCode);
           
-          // 🎯 CAPTURAR REFERIDO SI ES NUEVO JUGADOR
           if (isNewPlayer) {
             const referrer = await captureReferral(playerRecord.id);
             if (referrer) {
               console.log(`🎉 ${playerRecord.username} fue referido por ${referrer.username}`);
               
-              // Recargar player con datos actualizados del referido
               const { data: updatedPlayer } = await supabase
                 .from("players")
                 .select("*, referred_by(*)")
@@ -417,7 +383,6 @@ export function useSupabasePlayer(user) {
       } else {
         console.log("✅ Jugador existente:", playerRecord.username);
         
-        // 🔐 Generar código de referido si no existe
         if (!playerRecord.referral_code) {
           const newReferralCode = generateSecureReferralCode();
           console.log("🆕 Generando código de referido para jugador existente:", newReferralCode);
@@ -433,7 +398,6 @@ export function useSupabasePlayer(user) {
           }
         }
         
-        // Mostrar info del referido si existe
         if (playerRecord.referred_by) {
           console.log(`📎 Este jugador fue referido por: ${playerRecord.referred_by.username}`);
         }
@@ -441,7 +405,6 @@ export function useSupabasePlayer(user) {
 
       setPlayer(playerRecord);
 
-      /* 🪙 Cargar o crear stats - ACTUALIZADO CON NUEVAS COLUMNAS */
       if (playerRecord?.id) {
         const cleanStats = await cleanDuplicateStats(playerRecord.id);
 
@@ -451,7 +414,6 @@ export function useSupabasePlayer(user) {
         } else {
           console.log("🆕 Creando stats iniciales...");
 
-          // ✅ STATS INICIALES CON TODAS LAS COLUMNAS NUEVAS
           const initialStats = {
             player_id: playerRecord.id,
             coins: 0,
@@ -476,7 +438,6 @@ export function useSupabasePlayer(user) {
           if (insertStatsError) {
             console.error("❌ Error creando stats:", insertStatsError);
 
-            // Intentar recuperar stats existentes
             const { data: existingStats } = await supabase
               .from("player_stats")
               .select("*")
@@ -496,7 +457,6 @@ export function useSupabasePlayer(user) {
           }
         }
 
-        // 📊 Cargar estadísticas de referidos
         const refStats = await getReferralStats(playerRecord.id);
         setReferralStats(refStats);
       }
@@ -508,11 +468,10 @@ export function useSupabasePlayer(user) {
     }
   }, [user, generateUsername, cleanDuplicateStats, captureReferral, getReferralStats, generateSecureReferralCode]);
 
-  /* 🆕 SINCRONIZAR AUTOMÁTICAMENTE CUANDO CARGAN STATS */
+  // Sincronizar automáticamente cuando cargan stats
   useEffect(() => {
     if (stats && player?.id) {
       console.log("🎯 Stats cargadas, sincronizando inicial...");
-      // Sincronizar después de 1seg para evitar race conditions
       const initialSync = setTimeout(() => {
         syncStatsToSupabase();
       }, 1000);
@@ -521,11 +480,10 @@ export function useSupabasePlayer(user) {
     }
   }, [stats, player?.id, syncStatsToSupabase]);
 
-  /* 🔄 ACTUALIZAR STATS DE REFERIDOS PERIÓDICAMENTE */
+  // Actualizar stats de referidos periódicamente
   useEffect(() => {
     if (!player?.id) return;
 
-    // Actualizar stats de referidos cada 30 segundos
     const interval = setInterval(() => {
       refreshReferralStats();
     }, 30000);
@@ -533,7 +491,7 @@ export function useSupabasePlayer(user) {
     return () => clearInterval(interval);
   }, [player?.id, refreshReferralStats]);
 
-  /* 🧩 Carga inicial */
+  // Carga inicial
   useEffect(() => {
     isMounted.current = true;
     loadPlayerData();
@@ -542,7 +500,6 @@ export function useSupabasePlayer(user) {
       isMounted.current = false;
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);
-        // Última sincronización antes de desmontar
         if (pendingSyncRef.current) {
           syncStatsToSupabase(pendingSyncRef.current);
         }
@@ -550,20 +507,14 @@ export function useSupabasePlayer(user) {
     };
   }, [loadPlayerData]);
 
-  /* 📤 API pública COMPLETA Y SEGURA */
   return {
-    // Datos del jugador
     player,
     stats,
     setStats: updateStats,
     loading,
     error,
-    
-    // Sincronización
     refresh: loadPlayerData,
     syncStatsToSupabase,
-    
-    // Referidos seguros
     referralStats,
     refreshReferralStats,
     getReferralLink: () => {
@@ -573,12 +524,8 @@ export function useSupabasePlayer(user) {
       }
       return `${window.location.origin}?ref=${player.referral_code}`;
     },
-    
-    // Utilidades
     cleanDuplicateStats: () =>
       player?.id ? cleanDuplicateStats(player.id) : Promise.resolve(),
-
-    // 🔄 Métodos específicos para useGameLogic
     updateGameStats: (gameState) => {
       const supabaseStats = {
         coins: gameState.coins,

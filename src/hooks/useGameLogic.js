@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { UPGRADES, ACHIEVEMENTS, MISSIONS, CARDS_DATA, SHOP_ITEMS, FARMING_MILESTONES, INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE as DEFAULT_INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE as DEFAULT_INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE } from '@/config/gameConfig';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useSupabasePlayer } from './useSupabasePlayer';
 
 export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides, initialMissionsOverrides, toast, playSound, setShowMilestoneModal, setLastReachedMilestone, user) {
@@ -8,83 +7,69 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
   const INITIAL_MISSIONS_STATE = { ...DEFAULT_INITIAL_MISSIONS_STATE, ...initialMissionsOverrides };
 
-  // 🔄 Integración con Supabase
+  // 🔄 Integración con Supabase - SIN LOCALSTORAGE
   const { 
     stats: supabaseStats, 
     updateGameStats, 
     loading: supabaseLoading,
-    player: supabasePlayer
+    player: supabasePlayer,
+    updateStats
   } = useSupabasePlayer(user);
 
-  const [gameState, setGameState, loadGameState] = useLocalStorage('cocodriloKombatGameState', INITIAL_GAME_STATE);
-  const [upgrades, setUpgrades, loadUpgrades] = useLocalStorage('cocodriloKombatUpgrades', INITIAL_UPGRADES_STATE);
-  const [missions, setMissions, loadMissions] = useLocalStorage('cocodriloKombatMissions', INITIAL_MISSIONS_STATE);
-  const [ownedCards, setOwnedCards, loadOwnedCards] = useLocalStorage('cocodriloKombatOwnedCards', []);
-  const [ownedItems, setOwnedItems, loadOwnedItems] = useLocalStorage('cocodriloKombatOwnedItems', []);
-  const [activeSkin, setActiveSkin, loadActiveSkin] = useLocalStorage('cocodriloKombatActiveSkin', null);
-  const [achievementsUnlocked, setAchievementsUnlocked, loadAchievementsUnlocked] = useLocalStorage('cocodriloKombatAchievements', []);
-  const [dailyRewards, setDailyRewards, loadDailyRewards] = useLocalStorage('cocodriloKombatDailyRewards', { lastClaim: null, streak: 0, available: true });
-  const [soundEnabled, setSoundEnabled, loadSoundEnabled] = useLocalStorage('cocodriloKombatSoundEnabled', true);
-  const [farmingMilestonesState, setFarmingMilestonesState, loadFarmingMilestonesState] = useLocalStorage('cocodriloKombatFarmingMilestones', INITIAL_FARMING_MILESTONES_STATE);
+  // 🎯 ESTADOS LOCALES SOLO - SIN LOCALSTORAGE
+  const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
+  const [upgrades, setUpgrades] = useState(INITIAL_UPGRADES_STATE);
+  const [missions, setMissions] = useState(INITIAL_MISSIONS_STATE);
+  const [ownedCards, setOwnedCards] = useState([]);
+  const [ownedItems, setOwnedItems] = useState([]);
+  const [activeSkin, setActiveSkin] = useState(null);
+  const [achievementsUnlocked, setAchievementsUnlocked] = useState([]);
+  const [dailyRewards, setDailyRewards] = useState({ lastClaim: null, streak: 0, available: true });
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [farmingMilestonesState, setFarmingMilestonesState] = useState(INITIAL_FARMING_MILESTONES_STATE);
   
   const [floatingNumbers, setFloatingNumbers] = useState([]);
   const [clickEffect, setClickEffect] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // 🚀 Carga inicial agrupada
-  useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        await Promise.allSettled([
-          loadGameState(),
-          loadUpgrades(),
-          loadMissions(),
-          loadOwnedCards(),
-          loadOwnedItems(),
-          loadActiveSkin(),
-          loadAchievementsUnlocked(),
-          loadDailyRewards(),
-          loadSoundEnabled(),
-          loadFarmingMilestonesState(),
-        ]);
-      } catch (error) {
-        console.error("Error loading game data:", error);
-      }
-    };
-    loadAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 🔥 REFS PARA INTERVALOS ESTABLES
+  const energyIntervalRef = useRef(null);
+  const coinsIntervalRef = useRef(null);
+  const gameStateRef = useRef(gameState);
 
-  // 📥 Cargar datos de Supabase al inicializar - CORREGIDO
+  // 🔄 Actualizar ref cuando gameState cambie
   useEffect(() => {
-    if (supabaseStats && !supabaseLoading && isInitialLoad) {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  // 📥 CARGAR DATOS DE SUPABASE AL INICIALIZAR - SIMPLIFICADO
+  useEffect(() => {
+    if (supabaseStats && !supabaseLoading) {
       console.log("🔄 Cargando datos de Supabase:", supabaseStats);
       
-      // ✅ VERIFICAR Y CORREGIR ENERGÍA SI ES NECESARIO
-      const currentEnergy = Number(supabaseStats.energy);
-      const maxEnergy = Number(supabaseStats.max_energy) || DEFAULT_INITIAL_GAME_STATE.maxEnergy;
+      // ✅ FORZAR ENERGÍA SIEMPRE A UN VALOR VÁLIDO
+      const currentEnergy = Number(supabaseStats.energy) || 100;
+      const maxEnergy = Number(supabaseStats.max_energy) || 100;
       
-      setGameState(prev => ({
-        ...prev,
-        coins: Number(supabaseStats.coins) || prev.coins,
-        level: Number(supabaseStats.level) || prev.level,
-        totalClicks: Number(supabaseStats.clicks) || prev.totalClicks,
-        energy: currentEnergy > 0 ? currentEnergy : maxEnergy, // ✅ Si energía es 0, llenarla
+      setGameState({
+        coins: Number(supabaseStats.coins) || 0,
+        totalCoins: Number(supabaseStats.total_coins) || 0,
+        level: Number(supabaseStats.level) || 1,
+        totalClicks: Number(supabaseStats.clicks) || 0,
+        energy: currentEnergy > 0 ? currentEnergy : 100, // ✅ SIEMPRE tener energía
         maxEnergy: maxEnergy,
-        clickPower: Number(supabaseStats.click_power) || prev.clickPower,
-        coinsPerSecond: Number(supabaseStats.coins_per_second) || prev.coinsPerSecond,
-        experience: Number(supabaseStats.experience) || prev.experience,
-        totalCoins: Number(supabaseStats.total_coins) || prev.totalCoins,
-        nativeTokenBalance: Number(supabaseStats.native_token_balance) || prev.nativeTokenBalance
-      }));
-      
-      setIsInitialLoad(false);
-    }
-  }, [supabaseStats, supabaseLoading, isInitialLoad, setGameState]);
+        clickPower: Number(supabaseStats.click_power) || 1,
+        coinsPerSecond: Number(supabaseStats.coins_per_second) || 0,
+        experience: Number(supabaseStats.experience) || 0,
+        nativeTokenBalance: Number(supabaseStats.native_token_balance) || 0
+      });
 
-  // 📤 Sincronizar con Supabase cuando cambie el gameState
+      console.log("✅ GameState cargado desde Supabase");
+    }
+  }, [supabaseStats, supabaseLoading]);
+
+  // 📤 SINCRONIZAR CON SUPABASE CUANDO CAMBIE EL GAMESTATE
   useEffect(() => {
-    if (!isInitialLoad && !supabaseLoading && user) {
+    if (!supabaseLoading && user && supabaseStats) {
       const syncTimeout = setTimeout(() => {
         console.log("📤 Sincronizando con Supabase:", gameState);
         updateGameStats(gameState);
@@ -92,13 +77,18 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       
       return () => clearTimeout(syncTimeout);
     }
-  }, [gameState, user, supabaseLoading, isInitialLoad, updateGameStats]);
+  }, [gameState, user, supabaseLoading, updateGameStats, supabaseStats]);
 
-  // ⚡ REGENERACIÓN DE ENERGÍA CORREGIDA - CON LOGS PARA DEBUG
+  // ⚡ REGENERACIÓN DE ENERGÍA - SOLUCIÓN DEFINITIVA
   useEffect(() => {
     console.log("⚡ Iniciando regeneración de energía...");
     
-    const energyInterval = setInterval(() => {
+    // Limpiar intervalo anterior si existe
+    if (energyIntervalRef.current) {
+      clearInterval(energyIntervalRef.current);
+    }
+
+    energyIntervalRef.current = setInterval(() => {
       setGameState(prev => {
         // Solo regenerar si la energía no está al máximo
         if (prev.energy < prev.maxEnergy) {
@@ -111,17 +101,27 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         }
         return prev;
       });
-    }, 3000); // Regenera 1 de energía cada 3 segundos
+    }, 3000);
 
     return () => {
       console.log("⚡ Limpiando intervalo de energía");
-      clearInterval(energyInterval);
+      if (energyIntervalRef.current) {
+        clearInterval(energyIntervalRef.current);
+        energyIntervalRef.current = null;
+      }
     };
-  }, [setGameState]);
+  }, []); // ✅ Array de dependencias VACÍO
 
-  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - Intervalo separado para coinsPerSecond
+  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - SOLUCIÓN DEFINITIVA
   useEffect(() => {
-    const coinsInterval = setInterval(() => {
+    console.log("💰 Iniciando generación de monedas...");
+    
+    // Limpiar intervalo anterior si existe
+    if (coinsIntervalRef.current) {
+      clearInterval(coinsIntervalRef.current);
+    }
+
+    coinsIntervalRef.current = setInterval(() => {
       setGameState(prev => {
         let effectiveCPS = prev.coinsPerSecond;
         
@@ -142,7 +142,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         });
 
         if (effectiveCPS > 0) {
-          const increment = effectiveCPS * (1); // Cada segundo
+          const increment = effectiveCPS;
           return {
             ...prev,
             coins: prev.coins + increment,
@@ -151,10 +151,16 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         }
         return prev;
       });
-    }, 1000); // Genera coins cada segundo
+    }, 1000);
 
-    return () => clearInterval(coinsInterval);
-  }, [ownedItems, ownedCards, setGameState]);
+    return () => {
+      console.log("💰 Limpiando intervalo de monedas");
+      if (coinsIntervalRef.current) {
+        clearInterval(coinsIntervalRef.current);
+        coinsIntervalRef.current = null;
+      }
+    };
+  }, [ownedItems, ownedCards]);
 
   // 🏆 Sistema de logros
   useEffect(() => {
@@ -181,16 +187,19 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         }
       }
     });
-  }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound, setAchievementsUnlocked]);
+  }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound]);
 
-  // 👆 FUNCIÓN DE TAP CORREGIDA - CON MEJOR MANEJO DE ENERGÍA
+  // 👆 FUNCIÓN DE TAP - CON ENERGÍA GARANTIZADA
   const handleClick = useCallback((event) => {
-    console.log(`⚡ Energía actual: ${gameState.energy}, Máxima: ${gameState.maxEnergy}`);
+    const currentEnergy = gameStateRef.current.energy;
+    const maxEnergy = gameStateRef.current.maxEnergy;
     
-    if (gameState.energy <= 0) {
+    console.log(`⚡ Energía actual: ${currentEnergy}, Máxima: ${maxEnergy}`);
+    
+    if (currentEnergy <= 0) {
       toast({ 
         title: "⚡ Sin Energía", 
-        description: `Espera a que se recargue tu energía (${gameState.energy}/${gameState.maxEnergy})`, 
+        description: `Espera a que se recargue tu energía (${currentEnergy}/${maxEnergy})`, 
         duration: 2000 
       });
       playSound('error');
@@ -200,7 +209,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     playSound('click');
 
     // Calcular poder de click con todos los boosts
-    let currentClickPower = gameState.clickPower;
+    let currentClickPower = gameStateRef.current.clickPower;
     
     // Boosts de items
     ownedItems.forEach(itemId => {
@@ -253,8 +262,8 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     }
 
     // Sistema de niveles
-    const newLevel = Math.floor((gameState.experience + 1) / 100) + 1;
-    if (newLevel > gameState.level) {
+    const newLevel = Math.floor((gameStateRef.current.experience + 1) / 100) + 1;
+    if (newLevel > gameStateRef.current.level) {
       setGameState(prev => ({ ...prev, level: newLevel }));
       toast({ 
         title: "🎉 ¡Nivel Subido!", 
@@ -263,7 +272,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       });
       playSound('levelUp');
     }
-  }, [gameState, ownedItems, ownedCards, toast, playSound, setGameState]);
+  }, [ownedItems, ownedCards, toast, playSound]);
 
   // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA
   const buyUpgrade = useCallback((upgradeId) => {
@@ -326,7 +335,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       });
       playSound('error');
     }
-  }, [gameState.coins, upgrades, toast, playSound, setGameState, setUpgrades]);
+  }, [gameState.coins, upgrades, toast, playSound]);
 
   // 🎯 Misiones
   const completeMission = useCallback((missionId, isSocial = false) => {
@@ -385,7 +394,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       });
       playSound('uiClick');
     }
-  }, [gameState, missions, upgrades, toast, playSound, setMissions]);
+  }, [gameState, missions, upgrades, toast, playSound]);
 
   // 🎁 Reclamar recompensa de misión
   const claimMissionReward = useCallback((missionId) => {
@@ -425,7 +434,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       duration: 3000 
     });
     playSound('reward');
-  }, [missions, ownedCards, toast, playSound, setGameState, setOwnedCards, setMissions]);
+  }, [missions, ownedCards, toast, playSound]);
 
   // 📅 Recompensa diaria
   const claimDailyReward = useCallback(() => {
@@ -471,7 +480,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
        });
        playSound('uiClick');
     }
-  }, [dailyRewards, toast, playSound, setGameState, setDailyRewards]);
+  }, [dailyRewards, toast, playSound]);
 
   // 🔄 Verificar disponibilidad de recompensa diaria
   useEffect(() => {
@@ -482,7 +491,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     } else {
       setDailyRewards(prev => ({ ...prev, available: false }));
     }
-  }, [dailyRewards.lastClaim, setDailyRewards]);
+  }, [dailyRewards.lastClaim]);
 
   // 🛍️ Tienda
   const buyShopItem = useCallback((itemId) => {
@@ -586,7 +595,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         });
         playSound('error');
     }
-  }, [gameState.coins, ownedItems, activeSkin, toast, playSound, setGameState, setActiveSkin, setOwnedItems]);
+  }, [gameState.coins, ownedItems, activeSkin, toast, playSound]);
 
   // 🏆 Hitos de farmeo
   const claimFarmingMilestone = useCallback((milestoneId) => {
@@ -618,7 +627,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       });
       playSound('uiClick');
     }
-  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound, setGameState, setFarmingMilestonesState, setShowMilestoneModal, setLastReachedMilestone]);
+  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound, setShowMilestoneModal, setLastReachedMilestone]);
 
   // 🔔 Notificaciones de hitos disponibles
   useEffect(() => {
@@ -638,7 +647,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         }));
       }
     });
-  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound, setFarmingMilestonesState]);
+  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound]);
 
   // 🔄 Reiniciar progreso
   const resetProgress = useCallback(() => {
@@ -651,14 +660,13 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     setAchievementsUnlocked([]);
     setDailyRewards({ lastClaim: null, streak: 0, available: true });
     setFarmingMilestonesState(INITIAL_FARMING_MILESTONES_STATE);
-    setIsInitialLoad(true);
     
     toast({ 
       title: "🔄 Progreso Reiniciado", 
       description: "¡Comienza una nueva aventura!", 
       duration: 3000 
     });
-  }, [toast, setGameState, setUpgrades, setMissions, setOwnedCards, setOwnedItems, setActiveSkin, setAchievementsUnlocked, setDailyRewards, setFarmingMilestonesState, INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE]);
+  }, [toast, INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE]);
 
   return {
     gameState,
