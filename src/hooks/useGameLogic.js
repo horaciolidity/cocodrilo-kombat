@@ -55,18 +55,22 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 📥 Cargar datos de Supabase al inicializar
+  // 📥 Cargar datos de Supabase al inicializar - CORREGIDO
   useEffect(() => {
     if (supabaseStats && !supabaseLoading && isInitialLoad) {
       console.log("🔄 Cargando datos de Supabase:", supabaseStats);
+      
+      // ✅ VERIFICAR Y CORREGIR ENERGÍA SI ES NECESARIO
+      const currentEnergy = Number(supabaseStats.energy);
+      const maxEnergy = Number(supabaseStats.max_energy) || DEFAULT_INITIAL_GAME_STATE.maxEnergy;
       
       setGameState(prev => ({
         ...prev,
         coins: Number(supabaseStats.coins) || prev.coins,
         level: Number(supabaseStats.level) || prev.level,
         totalClicks: Number(supabaseStats.clicks) || prev.totalClicks,
-        energy: Number(supabaseStats.energy) || prev.energy,
-        maxEnergy: Number(supabaseStats.max_energy) || prev.maxEnergy,
+        energy: currentEnergy > 0 ? currentEnergy : maxEnergy, // ✅ Si energía es 0, llenarla
+        maxEnergy: maxEnergy,
         clickPower: Number(supabaseStats.click_power) || prev.clickPower,
         coinsPerSecond: Number(supabaseStats.coins_per_second) || prev.coinsPerSecond,
         experience: Number(supabaseStats.experience) || prev.experience,
@@ -90,22 +94,29 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     }
   }, [gameState, user, supabaseLoading, isInitialLoad, updateGameStats]);
 
-  // ⚡ REGENERACIÓN DE ENERGÍA CORREGIDA - Intervalo separado para energía
+  // ⚡ REGENERACIÓN DE ENERGÍA CORREGIDA - CON LOGS PARA DEBUG
   useEffect(() => {
+    console.log("⚡ Iniciando regeneración de energía...");
+    
     const energyInterval = setInterval(() => {
       setGameState(prev => {
         // Solo regenerar si la energía no está al máximo
         if (prev.energy < prev.maxEnergy) {
+          const newEnergy = Math.min(prev.maxEnergy, prev.energy + 1);
+          console.log(`⚡ Regenerando energía: ${prev.energy} -> ${newEnergy}`);
           return {
             ...prev,
-            energy: Math.min(prev.maxEnergy, prev.energy + 1)
+            energy: newEnergy
           };
         }
         return prev;
       });
     }, 3000); // Regenera 1 de energía cada 3 segundos
 
-    return () => clearInterval(energyInterval);
+    return () => {
+      console.log("⚡ Limpiando intervalo de energía");
+      clearInterval(energyInterval);
+    };
   }, [setGameState]);
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - Intervalo separado para coinsPerSecond
@@ -172,12 +183,14 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     });
   }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound, setAchievementsUnlocked]);
 
-  // 👆 FUNCIÓN DE TAP CORREGIDA
+  // 👆 FUNCIÓN DE TAP CORREGIDA - CON MEJOR MANEJO DE ENERGÍA
   const handleClick = useCallback((event) => {
+    console.log(`⚡ Energía actual: ${gameState.energy}, Máxima: ${gameState.maxEnergy}`);
+    
     if (gameState.energy <= 0) {
       toast({ 
         title: "⚡ Sin Energía", 
-        description: "Espera a que se recargue tu energía", 
+        description: `Espera a que se recargue tu energía (${gameState.energy}/${gameState.maxEnergy})`, 
         duration: 2000 
       });
       playSound('error');
@@ -211,14 +224,19 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     const coinsEarned = Math.floor(currentClickPower);
     
     // Actualizar estado del juego
-    setGameState(prev => ({
-      ...prev,
-      coins: prev.coins + coinsEarned,
-      totalCoins: prev.totalCoins + coinsEarned,
-      totalClicks: prev.totalClicks + 1,
-      energy: Math.max(0, prev.energy - 1),
-      experience: prev.experience + 1
-    }));
+    setGameState(prev => {
+      const newState = {
+        ...prev,
+        coins: prev.coins + coinsEarned,
+        totalCoins: prev.totalCoins + coinsEarned,
+        totalClicks: prev.totalClicks + 1,
+        energy: Math.max(0, prev.energy - 1),
+        experience: prev.experience + 1
+      };
+      
+      console.log(`👆 Tap realizado: +${coinsEarned} monedas, Energía: ${prev.energy} -> ${newState.energy}`);
+      return newState;
+    });
 
     // Efectos visuales
     setClickEffect(true);
@@ -281,6 +299,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
             console.warn('Unknown upgrade type:', upgrade.type);
         }
         
+        console.log(`🛒 Upgrade comprado: ${upgrade.name}, Tipo: ${upgrade.type}`);
         return newState;
       });
 
