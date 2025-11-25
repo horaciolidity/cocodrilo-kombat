@@ -1,11 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UPGRADES, ACHIEVEMENTS, MISSIONS, CARDS_DATA, SHOP_ITEMS, FARMING_MILESTONES, INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE as DEFAULT_INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE as DEFAULT_INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE } from '@/config/gameConfig';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useSupabasePlayer } from './useSupabasePlayer';
 
-export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides, initialMissionsOverrides, toast, playSound, setShowMilestoneModal, setLastReachedMilestone) {
+export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides, initialMissionsOverrides, toast, playSound, setShowMilestoneModal, setLastReachedMilestone, user) {
   const INITIAL_GAME_STATE = { ...DEFAULT_INITIAL_GAME_STATE, ...initialGameStateOverrides };
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
   const INITIAL_MISSIONS_STATE = { ...DEFAULT_INITIAL_MISSIONS_STATE, ...initialMissionsOverrides };
+
+  // 🔄 Integración con Supabase
+  const { 
+    stats: supabaseStats, 
+    updateGameStats, 
+    loading: supabaseLoading,
+    player: supabasePlayer
+  } = useSupabasePlayer(user);
 
   const [gameState, setGameState, loadGameState] = useLocalStorage('cocodriloKombatGameState', INITIAL_GAME_STATE);
   const [upgrades, setUpgrades, loadUpgrades] = useLocalStorage('cocodriloKombatUpgrades', INITIAL_UPGRADES_STATE);
@@ -20,6 +29,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
   
   const [floatingNumbers, setFloatingNumbers] = useState([]);
   const [clickEffect, setClickEffect] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // 🚀 Carga inicial agrupada
   useEffect(() => {
@@ -44,6 +54,41 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     loadAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 📥 Cargar datos de Supabase al inicializar
+  useEffect(() => {
+    if (supabaseStats && !supabaseLoading && isInitialLoad) {
+      console.log("🔄 Cargando datos de Supabase:", supabaseStats);
+      
+      setGameState(prev => ({
+        ...prev,
+        coins: Number(supabaseStats.coins) || prev.coins,
+        level: Number(supabaseStats.level) || prev.level,
+        totalClicks: Number(supabaseStats.clicks) || prev.totalClicks,
+        energy: Number(supabaseStats.energy) || prev.energy,
+        maxEnergy: Number(supabaseStats.max_energy) || prev.maxEnergy,
+        clickPower: Number(supabaseStats.click_power) || prev.clickPower,
+        coinsPerSecond: Number(supabaseStats.coins_per_second) || prev.coinsPerSecond,
+        experience: Number(supabaseStats.experience) || prev.experience,
+        totalCoins: Number(supabaseStats.total_coins) || prev.totalCoins,
+        nativeTokenBalance: Number(supabaseStats.native_token_balance) || prev.nativeTokenBalance
+      }));
+      
+      setIsInitialLoad(false);
+    }
+  }, [supabaseStats, supabaseLoading, isInitialLoad, setGameState]);
+
+  // 📤 Sincronizar con Supabase cuando cambie el gameState
+  useEffect(() => {
+    if (!isInitialLoad && !supabaseLoading && user) {
+      const syncTimeout = setTimeout(() => {
+        console.log("📤 Sincronizando con Supabase:", gameState);
+        updateGameStats(gameState);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [gameState, user, supabaseLoading, isInitialLoad, updateGameStats]);
 
   // ⚡ REGENERACIÓN DE ENERGÍA CORREGIDA - Intervalo separado para energía
   useEffect(() => {
@@ -587,6 +632,8 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     setAchievementsUnlocked([]);
     setDailyRewards({ lastClaim: null, streak: 0, available: true });
     setFarmingMilestonesState(INITIAL_FARMING_MILESTONES_STATE);
+    setIsInitialLoad(true);
+    
     toast({ 
       title: "🔄 Progreso Reiniciado", 
       description: "¡Comienza una nueva aventura!", 
@@ -607,6 +654,8 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     floatingNumbers,
     clickEffect,
     farmingMilestonesState,
+    supabasePlayer,
+    supabaseLoading,
     setGameState,
     setUpgrades,
     setMissions,
