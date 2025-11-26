@@ -7,16 +7,15 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
   const INITIAL_MISSIONS_STATE = { ...DEFAULT_INITIAL_MISSIONS_STATE, ...initialMissionsOverrides };
 
-  // 🔄 Integración con Supabase - SIN LOCALSTORAGE
+  // 🔄 Integración con Supabase - CORREGIDA
   const { 
     stats: supabaseStats, 
-    updateGameStats, 
+    updateGameData, // 🆕 Cambiado a updateGameData que maneja TODO
     loading: supabaseLoading,
     player: supabasePlayer,
-    updateStats
   } = useSupabasePlayer(user);
 
-  // 🎯 ESTADOS LOCALES SOLO - SIN LOCALSTORAGE
+  // 🎯 ESTADOS LOCALES - INICIALIZADOS DESDE SUPABASE
   const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
   const [upgrades, setUpgrades] = useState(INITIAL_UPGRADES_STATE);
   const [missions, setMissions] = useState(INITIAL_MISSIONS_STATE);
@@ -41,56 +40,115 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // 📥 CARGAR DATOS DE SUPABASE AL INICIALIZAR - SIMPLIFICADO
+  // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - CORREGIDO
   useEffect(() => {
     if (supabaseStats && !supabaseLoading) {
-      console.log("🔄 Cargando datos de Supabase:", supabaseStats);
+      console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabaseStats);
       
-      // ✅ FORZAR ENERGÍA SIEMPRE A UN VALOR VÁLIDO
-      const currentEnergy = Number(supabaseStats.energy) || 100;
-      const maxEnergy = Number(supabaseStats.max_energy) || 100;
-      
+      // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
       setGameState({
         coins: Number(supabaseStats.coins) || 0,
         totalCoins: Number(supabaseStats.total_coins) || 0,
         level: Number(supabaseStats.level) || 1,
         totalClicks: Number(supabaseStats.clicks) || 0,
-        energy: currentEnergy > 0 ? currentEnergy : 100, // ✅ SIEMPRE tener energía
-        maxEnergy: maxEnergy,
+        energy: Number(supabaseStats.energy) || 100,
+        maxEnergy: Number(supabaseStats.max_energy) || 100,
         clickPower: Number(supabaseStats.click_power) || 1,
         coinsPerSecond: Number(supabaseStats.coins_per_second) || 0,
         experience: Number(supabaseStats.experience) || 0,
         nativeTokenBalance: Number(supabaseStats.native_token_balance) || 0
       });
 
-      console.log("✅ GameState cargado desde Supabase");
+      // 🆕 CARGAR UPGRADES DESDE SUPABASE
+      if (supabaseStats.upgrades && Object.keys(supabaseStats.upgrades).length > 0) {
+        console.log("📥 Cargando upgrades desde Supabase:", supabaseStats.upgrades);
+        setUpgrades(supabaseStats.upgrades);
+      }
+
+      // 🆕 CARGAR MISSIONS DESDE SUPABASE
+      if (supabaseStats.missions && Object.keys(supabaseStats.missions).length > 0) {
+        console.log("📥 Cargando missions desde Supabase:", supabaseStats.missions);
+        setMissions(supabaseStats.missions);
+      }
+
+      // 🆕 CARGAR OWNED CARDS DESDE SUPABASE
+      if (supabaseStats.owned_cards && Array.isArray(supabaseStats.owned_cards)) {
+        console.log("📥 Cargando owned_cards desde Supabase:", supabaseStats.owned_cards);
+        setOwnedCards(supabaseStats.owned_cards);
+      }
+
+      // 🆕 CARGAR OWNED ITEMS DESDE SUPABASE
+      if (supabaseStats.owned_items && Array.isArray(supabaseStats.owned_items)) {
+        console.log("📥 Cargando owned_items desde Supabase:", supabaseStats.owned_items);
+        setOwnedItems(supabaseStats.owned_items);
+      }
+
+      // 🆕 CARGAR ACTIVE SKIN DESDE SUPABASE
+      if (supabaseStats.active_skin) {
+        console.log("📥 Cargando active_skin desde Supabase:", supabaseStats.active_skin);
+        setActiveSkin(supabaseStats.active_skin);
+      }
+
+      // 🆕 CARGAR ACHIEVEMENTS DESDE SUPABASE
+      if (supabaseStats.achievements_unlocked && Array.isArray(supabaseStats.achievements_unlocked)) {
+        console.log("📥 Cargando achievements desde Supabase:", supabaseStats.achievements_unlocked);
+        setAchievementsUnlocked(supabaseStats.achievements_unlocked);
+      }
+
+      // 🆕 CARGAR DAILY REWARDS DESDE SUPABASE
+      if (supabaseStats.daily_rewards) {
+        console.log("📥 Cargando daily_rewards desde Supabase:", supabaseStats.daily_rewards);
+        setDailyRewards(supabaseStats.daily_rewards);
+      }
+
+      // 🆕 CARGAR FARMING MILESTONES DESDE SUPABASE
+      if (supabaseStats.farming_milestones && Object.keys(supabaseStats.farming_milestones).length > 0) {
+        console.log("📥 Cargando farming_milestones desde Supabase:", supabaseStats.farming_milestones);
+        setFarmingMilestonesState(supabaseStats.farming_milestones);
+      }
+
+      console.log("✅ Todos los datos cargados desde Supabase");
     }
   }, [supabaseStats, supabaseLoading]);
 
-  // 📤 SINCRONIZAR CON SUPABASE CUANDO CAMBIE EL GAMESTATE
+  // 📤 SINCRONIZAR TODOS LOS DATOS CON SUPABASE CUANDO CAMBIEN - CORREGIDO
   useEffect(() => {
-    if (!supabaseLoading && user && supabaseStats) {
+    if (!supabaseLoading && user && updateGameData) {
       const syncTimeout = setTimeout(() => {
-        console.log("📤 Sincronizando con Supabase:", gameState);
-        updateGameStats(gameState);
-      }, 2000);
+        console.log("📤 Sincronizando TODOS los datos con Supabase");
+        
+        // 🆕 SINCRONIZAR TODOS LOS ESTADOS
+        updateGameData({
+          gameState,
+          upgrades,
+          missions,
+          ownedCards,
+          ownedItems,
+          activeSkin,
+          achievementsUnlocked,
+          dailyRewards,
+          farmingMilestonesState
+        });
+      }, 3000); // Sincronizar cada 3 segundos
       
       return () => clearTimeout(syncTimeout);
     }
-  }, [gameState, user, supabaseLoading, updateGameStats, supabaseStats]);
+  }, [
+    gameState, upgrades, missions, ownedCards, ownedItems, activeSkin, 
+    achievementsUnlocked, dailyRewards, farmingMilestonesState, 
+    user, supabaseLoading, updateGameData
+  ]);
 
   // ⚡ REGENERACIÓN DE ENERGÍA - SOLUCIÓN DEFINITIVA
   useEffect(() => {
     console.log("⚡ Iniciando regeneración de energía...");
     
-    // Limpiar intervalo anterior si existe
     if (energyIntervalRef.current) {
       clearInterval(energyIntervalRef.current);
     }
 
     energyIntervalRef.current = setInterval(() => {
       setGameState(prev => {
-        // Solo regenerar si la energía no está al máximo
         if (prev.energy < prev.maxEnergy) {
           const newEnergy = Math.min(prev.maxEnergy, prev.energy + 1);
           console.log(`⚡ Regenerando energía: ${prev.energy} -> ${newEnergy}`);
@@ -110,13 +168,12 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         energyIntervalRef.current = null;
       }
     };
-  }, []); // ✅ Array de dependencias VACÍO
+  }, []);
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - SOLUCIÓN DEFINITIVA
   useEffect(() => {
     console.log("💰 Iniciando generación de monedas...");
     
-    // Limpiar intervalo anterior si existe
     if (coinsIntervalRef.current) {
       clearInterval(coinsIntervalRef.current);
     }
@@ -274,7 +331,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     }
   }, [ownedItems, ownedCards, toast, playSound]);
 
-  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA
+  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA - AHORA SE GUARDA EN SUPABASE
   const buyUpgrade = useCallback((upgradeId) => {
     const upgrade = UPGRADES.find(u => u.id === upgradeId);
     if (!upgrade) {
@@ -312,7 +369,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         return newState;
       });
 
-      // Actualizar nivel del upgrade
+      // Actualizar nivel del upgrade - 🆕 ESTO SE GUARDARÁ EN SUPABASE
       setUpgrades(prev => ({
         ...prev, 
         [upgradeId]: { 

@@ -62,91 +62,15 @@ export function GameView({
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [energyRegenInterval, setEnergyRegenInterval] = useState(null);
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
   
-  // ✅ Hook de sincronización - MEJORADO
-  const { stats, setStats, referralStats, refreshReferralStats, getReferralLink, syncStatsToSupabase } = useSupabasePlayer(user);
+  // ✅ Hook de sincronización - SIMPLIFICADO
+  const { referralStats, refreshReferralStats, getReferralLink } = useSupabasePlayer(user);
 
-  // 🔥 CRÍTICO: REGENERACIÓN DE ENERGÍA
-  useEffect(() => {
-    // Limpiar intervalo anterior si existe
-    if (energyRegenInterval) {
-      clearInterval(energyRegenInterval);
-    }
-
-    // Crear nuevo intervalo de regeneración de energía
-    const interval = setInterval(() => {
-      if (gameState.energy < gameState.maxEnergy) {
-        // La regeneración de energía debería manejarse en useGameLogic
-        // Por ahora forzamos una actualización
-        console.log("⚡ Regenerando energía...");
-        
-        // Esto debería venir de useGameLogic, pero mientras tanto sincronizamos
-        if (setStats && stats) {
-          const updatedStats = {
-            coins: Math.floor(gameState.coins),
-            croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-            level: gameState.level,
-            clicks: gameState.totalClicks,
-          };
-          setStats(updatedStats);
-        }
-      }
-    }, 2000); // Regenerar cada 2 segundos
-
-    setEnergyRegenInterval(interval);
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [gameState.energy, gameState.maxEnergy, setStats, stats]);
-
-  // 🔄 SINCRONIZACIÓN AUTOMÁTICA MEJORADA - CRÍTICA
-  useEffect(() => {
-    if (!gameState || !setStats || !stats) return;
-
-    const syncTimeout = setTimeout(() => {
-      const updatedStats = {
-        coins: Math.floor(gameState.coins),
-        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-        level: gameState.level,
-        clicks: gameState.totalClicks,
-      };
-      
-      // 🔥 SINCRONIZAR SIEMPRE - No esperar cambios
-      console.log("🔄 Sincronizando gameState con stats...", updatedStats);
-      setStats(updatedStats);
-      
-      // Sincronizar inmediatamente con Supabase
-      if (syncStatsToSupabase) {
-        syncStatsToSupabase(updatedStats);
-      }
-    }, 1000); // Reducido a 1 segundo
-
-    return () => clearTimeout(syncTimeout);
-  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, setStats, stats, syncStatsToSupabase]);
-
-  // 🔥 SINCRONIZACIÓN FORZADA EN ACCIONES IMPORTANTES
-  const syncGameState = useRef(() => {
-    if (!gameState || !setStats) return;
-    
-    const updatedStats = {
-      coins: Math.floor(gameState.coins),
-      croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-      level: gameState.level,
-      clicks: gameState.totalClicks,
-    };
-    
-    console.log("🔥 Sincronización forzada:", updatedStats);
-    setStats(updatedStats);
-    
-    if (syncStatsToSupabase) {
-      syncStatsToSupabase(updatedStats);
-    }
-  });
+  // 🔥 ELIMINADO: Sincronización duplicada - ya se maneja en useGameLogic
+  // 🔥 ELIMINADO: Regeneración de energía duplicada - ya se maneja en useGameLogic
 
   // 🔄 ACTUALIZAR REFERIDOS AL CARGAR
   useEffect(() => {
@@ -246,7 +170,7 @@ export function GameView({
     return '🐊';
   };
 
-  // 🐊 Manejo de clic MEJORADO con sincronización inmediata
+  // 🐊 Manejo de clic MEJORADO - SIN sincronización duplicada
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -266,11 +190,6 @@ export function GameView({
     handleClick(event);
     playSound('bite');
     setIsClicked(true);
-
-    // 🔥 SINCRONIZACIÓN INMEDIATA DESPUÉS DEL CLIC
-    setTimeout(() => {
-      syncGameState.current();
-    }, 100);
 
     // 🎥 Manejo de videos con fallbacks
     if (videoRefIdle.current && videoRefBite.current) {
@@ -328,19 +247,9 @@ export function GameView({
     setTimeout(() => setIsClicked(false), 200);
   };
 
-  // 🔥 COMPRAR MEJORA CON SINCRONIZACIÓN INMEDIATA
+  // 🔥 COMPRAR MEJORA - SIN sincronización duplicada
   const handleBuyUpgrade = (upgradeId) => {
     buyUpgrade(upgradeId);
-    
-    // Sincronizar inmediatamente después de comprar
-    setTimeout(() => {
-      syncGameState.current();
-      toast({
-        title: "🔄 Datos guardados",
-        description: "Progreso sincronizado en la nube",
-        duration: 2000,
-      });
-    }, 500);
   };
 
   const handleBuyToken = () => {
@@ -561,16 +470,6 @@ export function GameView({
                 </div>
               )}
             </div>
-
-            {/* 🔥 BOTÓN DE SINCRONIZACIÓN MANUAL */}
-            <Button
-              onClick={() => syncGameState.current()}
-              variant="outline"
-              size="sm"
-              className="w-full mt-2"
-            >
-              🔄 Sincronizar Ahora
-            </Button>
           </div>
         </div>
 
@@ -589,13 +488,12 @@ export function GameView({
           <UpgradePanel
             upgradesConfig={UPGRADES}
             upgradesState={upgrades}
-            buyUpgrade={handleBuyUpgrade} // 🔥 Usar la versión con sincronización
+            buyUpgrade={handleBuyUpgrade}
             coins={gameState.coins}
           />
           <DailyRewardPanel
             dailyRewards={dailyRewards}
             claimDailyReward={claimDailyReward}
-            onClaim={() => setTimeout(syncGameState.current, 500)} // 🔥 Sincronizar después de reclamar
           />
         </div>
       </div>
@@ -1003,10 +901,9 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
   );
 }
 
-function DailyRewardPanel({ dailyRewards, claimDailyReward, onClaim }) {
+function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
   const handleClaim = () => {
     claimDailyReward();
-    if (onClaim) onClaim();
   };
 
   return (
