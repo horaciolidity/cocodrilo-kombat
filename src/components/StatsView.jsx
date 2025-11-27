@@ -97,15 +97,13 @@ function GeneralStatsCard({ gameState, ownedCardsCount, ownedItemsCount, farming
   );
 }
 
-// ✅ NUEVO COMPONENTE PARA ESTADÍSTICAS DE REFERIDOS
 function ReferralsStatsCard({ referralStats = {}, projectedCrocValue, tokenPrice }) {
   const stats = {
     referralsCount: referralStats?.referralsCount || 0,
-    coinsFromRefs: referralStats?.coinsFromRefs || 0,
     crocFromRefs: referralStats?.crocFromRefs || 0,
   };
 
-  const totalReferralValue = (stats.crocFromRefs * tokenPrice) + (stats.coinsFromRefs * 0.0001); // Valor aproximado de monedas
+  const totalReferralValue = stats.crocFromRefs * tokenPrice;
 
   return (
     <div className="stats-card rounded-xl p-6">
@@ -115,7 +113,7 @@ function ReferralsStatsCard({ referralStats = {}, projectedCrocValue, tokenPrice
       </h3>
       
       <div className="space-y-4">
-        {/* Estadísticas principales */}
+        {/* Estadísticas principales - SOLO CROC */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-green-900/30 rounded-lg p-3 text-center border border-green-700/30">
             <Users className="w-6 h-6 mx-auto mb-1 text-green-300" />
@@ -124,18 +122,17 @@ function ReferralsStatsCard({ referralStats = {}, projectedCrocValue, tokenPrice
           </div>
           <div className="bg-yellow-900/30 rounded-lg p-3 text-center border border-yellow-700/30">
             <Coins className="w-6 h-6 mx-auto mb-1 text-yellow-300" />
-            <div className="text-lg font-bold text-yellow-400">{stats.coinsFromRefs.toLocaleString()}</div>
-            <div className="text-xs text-yellow-200">Monedas</div>
+            <div className="text-lg font-bold text-yellow-400">{stats.crocFromRefs}</div>
+            <div className="text-xs text-yellow-200">CROC Ganados</div>
           </div>
         </div>
 
-        {/* Desglose detallado */}
+        {/* Desglose detallado - SOLO CROC */}
         <div className="space-y-3">
           {[
             { label: "Referidos Activos:", value: stats.referralsCount, color: "text-green-400" },
-            { label: "Monedas por Referidos:", value: stats.coinsFromRefs.toLocaleString(), color: "text-yellow-400" },
             { label: "Tokens CROC por Referidos:", value: stats.crocFromRefs, color: "text-emerald-400" },
-            { label: "Valor Total Referidos:", value: `$${totalReferralValue.toFixed(2)}`, color: "text-blue-400" },
+            { label: "Valor CROC Referidos:", value: `$${totalReferralValue.toFixed(2)}`, color: "text-blue-400" },
           ].map(stat => (
             <div key={stat.label} className="flex justify-between items-center">
               <span className="text-sm">{stat.label}</span>
@@ -150,7 +147,7 @@ function ReferralsStatsCard({ referralStats = {}, projectedCrocValue, tokenPrice
             <div className="flex items-center justify-center gap-2">
               <Sparkles className="w-4 h-4 text-green-300" />
               <p className="text-xs text-green-200 text-center">
-                ¡Ganando recompensas por tus {stats.referralsCount} referido(s)!
+                ¡Ganando {stats.crocFromRefs} CROC por tus {stats.referralsCount} referido(s)!
               </p>
             </div>
           </div>
@@ -159,7 +156,7 @@ function ReferralsStatsCard({ referralStats = {}, projectedCrocValue, tokenPrice
         {/* Información del programa */}
         <div className="mt-3 p-2 bg-gray-800/30 rounded border border-gray-700/50">
           <p className="text-xs text-gray-300 text-center">
-            💰 Cada referido te da 10% de sus ganancias
+            💰 Cada referido te da 10 CROC tokens
           </p>
         </div>
       </div>
@@ -307,9 +304,16 @@ function AchievementsCard({ achievementsUnlocked }) {
 }
 
 function UpgradesOwnedCard({ upgradesState }) {
-  const totalLevels = Object.values(upgradesState).reduce((sum, upgrade) => sum + upgrade.level, 0);
+  // ✅ CORREGIR: Asegurarnos de que upgradesState sea un objeto válido
+  const safeUpgradesState = upgradesState || {};
+  
+  const totalLevels = Object.values(safeUpgradesState).reduce((sum, upgrade) => {
+    return sum + (upgrade?.level || 0);
+  }, 0);
+  
   const totalUpgrades = UPGRADES.length;
-  const averageLevel = totalLevels / totalUpgrades;
+  const ownedUpgrades = Object.values(safeUpgradesState).filter(u => u?.level > 0).length;
+  const averageLevel = totalUpgrades > 0 ? totalLevels / totalUpgrades : 0;
 
   return (
     <div className="stats-card rounded-xl p-6">
@@ -330,9 +334,7 @@ function UpgradesOwnedCard({ upgradesState }) {
           <div className="text-xs text-green-200">Niveles</div>
         </div>
         <div className="bg-blue-900/30 rounded p-2 text-center border border-blue-700/30">
-          <div className="text-lg font-bold text-blue-400">
-            {Object.values(upgradesState).filter(u => u.level > 0).length}
-          </div>
+          <div className="text-lg font-bold text-blue-400">{ownedUpgrades}</div>
           <div className="text-xs text-blue-200">Mejoras</div>
         </div>
         <div className="bg-purple-900/30 rounded p-2 text-center border border-purple-700/30">
@@ -343,7 +345,8 @@ function UpgradesOwnedCard({ upgradesState }) {
 
       <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
         {UPGRADES.map(upgrade => {
-          const level = upgradesState[upgrade.id].level;
+          const upgradeData = safeUpgradesState[upgrade.id] || { level: 0 };
+          const level = upgradeData.level || 0;
           const Icon = upgrade.icon;
           const progress = (level / 10) * 100; // Asumiendo máximo nivel 10
 
