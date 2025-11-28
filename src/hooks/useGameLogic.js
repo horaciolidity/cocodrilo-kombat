@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { UPGRADES, ACHIEVEMENTS, MISSIONS, CARDS_DATA, SHOP_ITEMS, FARMING_MILESTONES, INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE as DEFAULT_INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE as DEFAULT_INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE } from '@/config/gameConfig';
-import { useSupabasePlayer } from './useSupabasePlayer';
 
-export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides, initialMissionsOverrides, toast, playSound, setShowMilestoneModal, setLastReachedMilestone, user) {
+export function useGameLogic(
+  initialGameStateOverrides, 
+  initialUpgradesOverrides, 
+  initialMissionsOverrides, 
+  toast, 
+  playSound, 
+  setShowMilestoneModal, 
+  setLastReachedMilestone, 
+  user, 
+  supabasePlayerData // ✅ NUEVO: Recibir datos de Supabase desde App.jsx
+) {
   const INITIAL_GAME_STATE = { ...DEFAULT_INITIAL_GAME_STATE, ...initialGameStateOverrides };
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
   const INITIAL_MISSIONS_STATE = { ...DEFAULT_INITIAL_MISSIONS_STATE, ...initialMissionsOverrides };
-
-  // 🔄 Integración con Supabase - CORREGIDA
-  const { 
-    stats: supabaseStats, 
-    updateGameData, // 🆕 Cambiado a updateGameData que maneja TODO
-    loading: supabaseLoading,
-    player: supabasePlayer,
-  } = useSupabasePlayer(user);
 
   // 🎯 ESTADOS LOCALES - INICIALIZADOS DESDE SUPABASE
   const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
@@ -42,102 +43,117 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
 
   // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - CORREGIDO
   useEffect(() => {
-    if (supabaseStats && !supabaseLoading) {
-      console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabaseStats);
+    if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
+      console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabasePlayerData.stats);
       
       // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
-      setGameState({
-        coins: Number(supabaseStats.coins) || 0,
-        totalCoins: Number(supabaseStats.total_coins) || 0,
-        level: Number(supabaseStats.level) || 1,
-        totalClicks: Number(supabaseStats.clicks) || 0,
-        energy: Number(supabaseStats.energy) || 100,
-        maxEnergy: Number(supabaseStats.max_energy) || 100,
-        clickPower: Number(supabaseStats.click_power) || 1,
-        coinsPerSecond: Number(supabaseStats.coins_per_second) || 0,
-        experience: Number(supabaseStats.experience) || 0,
-        nativeTokenBalance: Number(supabaseStats.native_token_balance) || 0
-      });
+      setGameState(prev => ({
+        ...prev,
+        coins: Number(supabasePlayerData.stats.coins) || 0,
+        totalCoins: Number(supabasePlayerData.stats.total_coins) || 0,
+        level: Number(supabasePlayerData.stats.level) || 1,
+        totalClicks: Number(supabasePlayerData.stats.clicks) || 0,
+        energy: Number(supabasePlayerData.stats.energy) || 100,
+        maxEnergy: Number(supabasePlayerData.stats.max_energy) || 100,
+        clickPower: Number(supabasePlayerData.stats.click_power) || 1,
+        coinsPerSecond: Number(supabasePlayerData.stats.coins_per_second) || 0,
+        experience: Number(supabasePlayerData.stats.experience) || 0,
+        nativeTokenBalance: Number(supabasePlayerData.stats.native_token_balance) || 0
+      }));
 
-      // 🆕 CARGAR UPGRADES DESDE SUPABASE
-      if (supabaseStats.upgrades && Object.keys(supabaseStats.upgrades).length > 0) {
-        console.log("📥 Cargando upgrades desde Supabase:", supabaseStats.upgrades);
-        setUpgrades(supabaseStats.upgrades);
+      // ✅ CARGAR UPGRADES DESDE SUPABASE - CRÍTICO
+      if (supabasePlayerData.stats.upgrades && typeof supabasePlayerData.stats.upgrades === 'object' && Object.keys(supabasePlayerData.stats.upgrades).length > 0) {
+        console.log("📥 Cargando upgrades desde Supabase:", supabasePlayerData.stats.upgrades);
+        setUpgrades(supabasePlayerData.stats.upgrades);
+      } else {
+        console.log("🆕 No hay upgrades en BD, usando iniciales");
+        setUpgrades(INITIAL_UPGRADES_STATE);
       }
 
       // 🆕 CARGAR MISSIONS DESDE SUPABASE
-      if (supabaseStats.missions && Object.keys(supabaseStats.missions).length > 0) {
-        console.log("📥 Cargando missions desde Supabase:", supabaseStats.missions);
-        setMissions(supabaseStats.missions);
+      if (supabasePlayerData.stats.missions && Object.keys(supabasePlayerData.stats.missions).length > 0) {
+        console.log("📥 Cargando missions desde Supabase:", supabasePlayerData.stats.missions);
+        setMissions(supabasePlayerData.stats.missions);
       }
 
       // 🆕 CARGAR OWNED CARDS DESDE SUPABASE
-      if (supabaseStats.owned_cards && Array.isArray(supabaseStats.owned_cards)) {
-        console.log("📥 Cargando owned_cards desde Supabase:", supabaseStats.owned_cards);
-        setOwnedCards(supabaseStats.owned_cards);
+      if (supabasePlayerData.stats.owned_cards && Array.isArray(supabasePlayerData.stats.owned_cards)) {
+        console.log("📥 Cargando owned_cards desde Supabase:", supabasePlayerData.stats.owned_cards);
+        setOwnedCards(supabasePlayerData.stats.owned_cards);
       }
 
       // 🆕 CARGAR OWNED ITEMS DESDE SUPABASE
-      if (supabaseStats.owned_items && Array.isArray(supabaseStats.owned_items)) {
-        console.log("📥 Cargando owned_items desde Supabase:", supabaseStats.owned_items);
-        setOwnedItems(supabaseStats.owned_items);
+      if (supabasePlayerData.stats.owned_items && Array.isArray(supabasePlayerData.stats.owned_items)) {
+        console.log("📥 Cargando owned_items desde Supabase:", supabasePlayerData.stats.owned_items);
+        setOwnedItems(supabasePlayerData.stats.owned_items);
       }
 
       // 🆕 CARGAR ACTIVE SKIN DESDE SUPABASE
-      if (supabaseStats.active_skin) {
-        console.log("📥 Cargando active_skin desde Supabase:", supabaseStats.active_skin);
-        setActiveSkin(supabaseStats.active_skin);
+      if (supabasePlayerData.stats.active_skin) {
+        console.log("📥 Cargando active_skin desde Supabase:", supabasePlayerData.stats.active_skin);
+        setActiveSkin(supabasePlayerData.stats.active_skin);
       }
 
       // 🆕 CARGAR ACHIEVEMENTS DESDE SUPABASE
-      if (supabaseStats.achievements_unlocked && Array.isArray(supabaseStats.achievements_unlocked)) {
-        console.log("📥 Cargando achievements desde Supabase:", supabaseStats.achievements_unlocked);
-        setAchievementsUnlocked(supabaseStats.achievements_unlocked);
+      if (supabasePlayerData.stats.achievements_unlocked && Array.isArray(supabasePlayerData.stats.achievements_unlocked)) {
+        console.log("📥 Cargando achievements desde Supabase:", supabasePlayerData.stats.achievements_unlocked);
+        setAchievementsUnlocked(supabasePlayerData.stats.achievements_unlocked);
       }
 
       // 🆕 CARGAR DAILY REWARDS DESDE SUPABASE
-      if (supabaseStats.daily_rewards) {
-        console.log("📥 Cargando daily_rewards desde Supabase:", supabaseStats.daily_rewards);
-        setDailyRewards(supabaseStats.daily_rewards);
+      if (supabasePlayerData.stats.daily_rewards) {
+        console.log("📥 Cargando daily_rewards desde Supabase:", supabasePlayerData.stats.daily_rewards);
+        setDailyRewards(supabasePlayerData.stats.daily_rewards);
       }
 
       // 🆕 CARGAR FARMING MILESTONES DESDE SUPABASE
-      if (supabaseStats.farming_milestones && Object.keys(supabaseStats.farming_milestones).length > 0) {
-        console.log("📥 Cargando farming_milestones desde Supabase:", supabaseStats.farming_milestones);
-        setFarmingMilestonesState(supabaseStats.farming_milestones);
+      if (supabasePlayerData.stats.farming_milestones && Object.keys(supabasePlayerData.stats.farming_milestones).length > 0) {
+        console.log("📥 Cargando farming_milestones desde Supabase:", supabasePlayerData.stats.farming_milestones);
+        setFarmingMilestonesState(supabasePlayerData.stats.farming_milestones);
       }
 
       console.log("✅ Todos los datos cargados desde Supabase");
     }
-  }, [supabaseStats, supabaseLoading]);
+  }, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
 
-  // 📤 SINCRONIZAR TODOS LOS DATOS CON SUPABASE CUANDO CAMBIEN - CORREGIDO
+  // 📤 SINCRONIZAR UPGRADES CON SUPABASE CUANDO CAMBIEN - MEJORADO
   useEffect(() => {
-    if (!supabaseLoading && user && updateGameData) {
+    if (!supabasePlayerData?.loading && user && supabasePlayerData?.syncUpgradesToSupabase) {
       const syncTimeout = setTimeout(() => {
-        console.log("📤 Sincronizando TODOS los datos con Supabase");
-        
-        // 🆕 SINCRONIZAR TODOS LOS ESTADOS
-        updateGameData({
-          gameState,
-          upgrades,
-          missions,
-          ownedCards,
-          ownedItems,
-          activeSkin,
-          achievementsUnlocked,
-          dailyRewards,
-          farmingMilestonesState
-        });
-      }, 3000); // Sincronizar cada 3 segundos
+        console.log("🔄 Sincronizando upgrades con Supabase:", upgrades);
+        supabasePlayerData.syncUpgradesToSupabase(upgrades);
+      }, 2000); // Sincronizar 2 segundos después del cambio
       
       return () => clearTimeout(syncTimeout);
     }
-  }, [
-    gameState, upgrades, missions, ownedCards, ownedItems, activeSkin, 
-    achievementsUnlocked, dailyRewards, farmingMilestonesState, 
-    user, supabaseLoading, updateGameData
-  ]);
+  }, [upgrades, user, supabasePlayerData?.loading, supabasePlayerData?.syncUpgradesToSupabase]);
+
+  // 📤 SINCRONIZAR GAME STATE CON SUPABASE CUANDO CAMBIEN
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando gameState con Supabase");
+        
+        const statsToSync = {
+          coins: Math.floor(gameState.coins),
+          croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+          level: gameState.level,
+          clicks: gameState.totalClicks,
+          energy: gameState.energy,
+          max_energy: gameState.maxEnergy,
+          click_power: gameState.clickPower,
+          coins_per_second: gameState.coinsPerSecond,
+          experience: gameState.experience,
+          total_coins: gameState.totalCoins,
+          native_token_balance: gameState.nativeTokenBalance,
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 3000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [gameState, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
 
   // ⚡ REGENERACIÓN DE ENERGÍA - SOLUCIÓN DEFINITIVA
   useEffect(() => {
@@ -151,7 +167,6 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       setGameState(prev => {
         if (prev.energy < prev.maxEnergy) {
           const newEnergy = Math.min(prev.maxEnergy, prev.energy + 1);
-          console.log(`⚡ Regenerando energía: ${prev.energy} -> ${newEnergy}`);
           return {
             ...prev,
             energy: newEnergy
@@ -227,7 +242,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         switch (achievement.type) {
           case 'clicks': currentValue = gameState.totalClicks; break;
           case 'totalCoins': currentValue = gameState.totalCoins; break;
-          case 'upgrades': currentValue = Object.values(upgrades).reduce((sum, upg) => sum + upg.owned, 0); break;
+          case 'upgrades': currentValue = Object.values(upgrades).reduce((sum, upg) => sum + (upg?.owned || 0), 0); break;
           case 'missions': currentValue = Object.values(missions).filter(m => m.completed).length; break;
           case 'cards': currentValue = ownedCards.length; break;
           case 'items': currentValue = ownedItems.filter(item => typeof item === 'string' || (typeof item === 'object' && item.type !== 'consumable')).length; break;
@@ -250,8 +265,6 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
   const handleClick = useCallback((event) => {
     const currentEnergy = gameStateRef.current.energy;
     const maxEnergy = gameStateRef.current.maxEnergy;
-    
-    console.log(`⚡ Energía actual: ${currentEnergy}, Máxima: ${maxEnergy}`);
     
     if (currentEnergy <= 0) {
       toast({ 
@@ -300,7 +313,6 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
         experience: prev.experience + 1
       };
       
-      console.log(`👆 Tap realizado: +${coinsEarned} monedas, Energía: ${prev.energy} -> ${newState.energy}`);
       return newState;
     });
 
@@ -331,7 +343,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     }
   }, [ownedItems, ownedCards, toast, playSound]);
 
-  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA - AHORA SE GUARDA EN SUPABASE
+  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA - CON SINCRONIZACIÓN INMEDIATA
   const buyUpgrade = useCallback((upgradeId) => {
     const upgrade = UPGRADES.find(u => u.id === upgradeId);
     if (!upgrade) {
@@ -365,18 +377,25 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
             console.warn('Unknown upgrade type:', upgrade.type);
         }
         
-        console.log(`🛒 Upgrade comprado: ${upgrade.name}, Tipo: ${upgrade.type}`);
         return newState;
       });
 
-      // Actualizar nivel del upgrade - 🆕 ESTO SE GUARDARÁ EN SUPABASE
-      setUpgrades(prev => ({
-        ...prev, 
+      // ✅ ACTUALIZAR UPGRADES Y SINCRONIZAR INMEDIATAMENTE
+      const newUpgrades = {
+        ...upgrades,
         [upgradeId]: { 
-          level: (prev[upgradeId]?.level || 0) + 1, 
-          owned: (prev[upgradeId]?.owned || 0) + 1 
+          level: (upgrades[upgradeId]?.level || 0) + 1, 
+          owned: (upgrades[upgradeId]?.owned || 0) + 1 
         }
-      }));
+      };
+      
+      setUpgrades(newUpgrades);
+
+      // 🔥 SINCRONIZAR UPGRADES INMEDIATAMENTE CON SUPABASE
+      if (supabasePlayerData?.syncUpgradesToSupabase) {
+        console.log("🚀 Sincronizando upgrades inmediatamente...");
+        supabasePlayerData.syncUpgradesToSupabase(newUpgrades);
+      }
 
       toast({ 
         title: "✅ Mejora Comprada", 
@@ -392,7 +411,7 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
       });
       playSound('error');
     }
-  }, [gameState.coins, upgrades, toast, playSound]);
+  }, [gameState.coins, upgrades, toast, playSound, supabasePlayerData]);
 
   // 🎯 Misiones
   const completeMission = useCallback((missionId, isSocial = false) => {
@@ -738,8 +757,8 @@ export function useGameLogic(initialGameStateOverrides, initialUpgradesOverrides
     floatingNumbers,
     clickEffect,
     farmingMilestonesState,
-    supabasePlayer,
-    supabaseLoading,
+    supabasePlayer: supabasePlayerData?.player,
+    supabaseLoading: supabasePlayerData?.loading,
     setGameState,
     setUpgrades,
     setMissions,
