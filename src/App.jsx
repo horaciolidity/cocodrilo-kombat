@@ -58,7 +58,7 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-  const [tokenPrice, setTokenPrice] = useState(0.05); // ✅ PRECIO DEL TOKEN PARA VALOR PROYECTADO
+  const [tokenPrice, setTokenPrice] = useState(0.05);
 
   /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
@@ -79,51 +79,6 @@ function App() {
       setSession(session);
       setUser(session?.user || null);
     });
-
-
-
-    // ✅ FUNCIÓN PARA SUMAR CROC DE REFERIDOS AL BALANCE
-const addReferralBonuses = useCallback(() => {
-  if (!referralStats?.crocFromRefs || !setGameState) return;
-
-  console.log("💰 Procesando bonificaciones de referidos:", referralStats);
-  
-  setGameState(prev => {
-    const currentCrocFromRefs = prev.crocFromRefs || 0;
-    const newCrocFromRefs = referralStats.crocFromRefs || 0;
-    
-    // Si hay nuevos CROC por referidos, sumarlos al balance
-    if (newCrocFromRefs > currentCrocFromRefs) {
-      const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-      const newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
-      
-      console.log(`🎁 Sumando ${crocDifference} CROC por referidos. Nuevo balance: ${newBalance}`);
-      
-      return {
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: newCrocFromRefs,
-        coinsFromRefs: referralStats.coinsFromRefs || 0,
-        nativeTokenBalance: newBalance
-      };
-    }
-    
-    return {
-      ...prev,
-      referralsCount: referralStats.referralsCount || 0,
-      crocFromRefs: newCrocFromRefs,
-      coinsFromRefs: referralStats.coinsFromRefs || 0,
-    };
-  });
-}, [referralStats, setGameState]);
-
-// ✅ EFECTO PARA PROCESAR BONIFICACIONES DE REFERIDOS
-useEffect(() => {
-  if (referralStats && referralStats.referralsCount > 0) {
-    console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
-    addReferralBonuses();
-  }
-}, [referralStats, addReferralBonuses]);
 
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -183,17 +138,71 @@ useEffect(() => {
     setLastReachedMilestone
   );
 
-  // ✅ SINCRONIZACIÓN MEJORADA - CORREGIDA
-  useEffect(() => {
-    if (!stats || !gameState || !syncStatsToSupabase) return;
+  // ✅ FUNCIÓN PARA SUMAR CROC DE REFERIDOS AL BALANCE
+  const addReferralBonuses = useCallback(() => {
+    if (!referralStats?.crocFromRefs || !setGameState) return;
 
-    const syncTimeout = setTimeout(() => {
+    console.log("💰 Procesando bonificaciones de referidos:", referralStats);
+    
+    setGameState(prev => {
+      const currentCrocFromRefs = prev.crocFromRefs || 0;
+      const newCrocFromRefs = referralStats.crocFromRefs || 0;
+      
+      // Si hay nuevos CROC por referidos, sumarlos al balance
+      if (newCrocFromRefs > currentCrocFromRefs) {
+        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
+        const newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
+        
+        console.log(`🎁 Sumando ${crocDifference} CROC por referidos. Nuevo balance: ${newBalance}`);
+        
+        return {
+          ...prev,
+          referralsCount: referralStats.referralsCount || 0,
+          crocFromRefs: newCrocFromRefs,
+          coinsFromRefs: referralStats.coinsFromRefs || 0,
+          nativeTokenBalance: newBalance
+        };
+      }
+      
+      return {
+        ...prev,
+        referralsCount: referralStats.referralsCount || 0,
+        crocFromRefs: newCrocFromRefs,
+        coinsFromRefs: referralStats.coinsFromRefs || 0,
+      };
+    });
+  }, [referralStats, setGameState]);
+
+  // ✅ EFECTO PARA PROCESAR BONIFICACIONES DE REFERIDOS
+  useEffect(() => {
+    if (referralStats && referralStats.referralsCount > 0) {
+      console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
+      addReferralBonuses();
+    }
+  }, [referralStats, addReferralBonuses]);
+
+  // ✅ SINCRONIZACIÓN SIMPLIFICADA
+  useEffect(() => {
+    if (!player?.id || !stats) return;
+
+    // Sincronizar cada 15 segundos
+    const interval = setInterval(() => {
       const updatedStats = {
         coins: Math.floor(gameState.coins),
         croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
         level: gameState.level,
         clicks: gameState.totalClicks,
+        energy: gameState.energy,
+        max_energy: gameState.maxEnergy,
+        click_power: gameState.clickPower,
+        coins_per_second: gameState.coinsPerSecond,
+        experience: gameState.experience,
+        total_coins: gameState.totalCoins,
+        native_token_balance: gameState.nativeTokenBalance,
       };
+      
+      console.log("🔄 Sincronización automática:", updatedStats);
+      setStats(updatedStats);
       
       // Solo sincronizar si hay cambios reales
       const hasChanges = 
@@ -202,34 +211,43 @@ useEffect(() => {
         stats.clicks !== updatedStats.clicks ||
         Math.floor(stats.croc_tokens) !== updatedStats.croc_tokens;
       
-      if (hasChanges) {
-        console.log("🔄 Sincronizando con Supabase...", updatedStats);
-        setStats(updatedStats);
+      if (hasChanges && syncStatsToSupabase) {
         syncStatsToSupabase(updatedStats);
       }
-    }, 2000); // 2 segundos de delay para evitar sobrecarga
-
-    return () => clearTimeout(syncTimeout);
-  }, [gameState.coins, gameState.level, gameState.totalClicks, gameState.nativeTokenBalance, stats, setStats, syncStatsToSupabase]);
-
-  // ✅ SINCRONIZACIÓN FORZADA EN EVENTOS IMPORTANTES
-  useEffect(() => {
-    if (!stats || !setStats || !syncStatsToSupabase) return;
-    
-    const interval = setInterval(() => {
-      const updatedStats = {
-        coins: Math.floor(gameState.coins),
-        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-        level: gameState.level,
-        clicks: gameState.totalClicks,
-      };
-      
-      // Actualizar stats locales periódicamente
-      setStats(updatedStats);
-    }, 10000); // Sincronizar cada 10 segundos
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [gameState, stats, setStats, syncStatsToSupabase]);
+  }, [player?.id, stats, gameState, setStats, syncStatsToSupabase]);
+
+  // ✅ SINCRONIZAR UPGRADES CUANDO CAMBIEN
+  useEffect(() => {
+    if (!player?.id || !upgrades) return;
+
+    const syncTimeout = setTimeout(() => {
+      console.log("🔄 Sincronizando upgrades...", upgrades);
+      
+      // Sincronizar upgrades directamente
+      const payload = {
+        player_id: player.id,
+        upgrades: upgrades,
+        updated_at: new Date().toISOString(),
+      };
+
+      supabase
+        .from("player_stats")
+        .update(payload)
+        .eq('player_id', player.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error("❌ Error sincronizando upgrades:", error);
+          } else {
+            console.log("✅ Upgrades sincronizados");
+          }
+        });
+    }, 5000);
+
+    return () => clearTimeout(syncTimeout);
+  }, [upgrades, player?.id]);
 
   /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO */
   useEffect(() => {
@@ -254,7 +272,7 @@ useEffect(() => {
     if (user && refreshReferralStats) {
       const interval = setInterval(() => {
         refreshReferralStats();
-      }, 30000); // Actualizar cada 30 segundos
+      }, 30000);
       
       return () => clearInterval(interval);
     }
@@ -272,51 +290,6 @@ useEffect(() => {
   /* 🪙 Fallbacks seguros */
   const safeCoins = stats?.coins ?? gameState?.coins ?? 0;
   const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
-
-  // ✅ ACTUALIZAR CROC POR REFERIDOS EN EL BALANCE GLOBAL
-useEffect(() => {
-  if (referralStats?.crocFromRefs && setGameState) {
-    setGameState(prev => {
-      const currentCrocFromRefs = prev.crocFromRefs || 0;
-      const newCrocFromRefs = referralStats.crocFromRefs || 0;
-      
-      // Solo actualizar si hay un incremento
-      if (newCrocFromRefs > currentCrocFromRefs) {
-        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-        
-        return {
-          ...prev,
-          referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs,
-          coinsFromRefs: referralStats.coinsFromRefs || 0,
-          nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDifference,
-        };
-      }
-      
-      return {
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: newCrocFromRefs,
-        coinsFromRefs: referralStats.coinsFromRefs || 0,
-      };
-    });
-  }
-}, [referralStats, setGameState]);
-
-
-
-  // ✅ SINCRONIZAR UPGRADES CUANDO CAMBIEN
-useEffect(() => {
-  if (!player?.id || !upgrades || !syncStatsToSupabase) return;
-
-  const syncTimeout = setTimeout(() => {
-    console.log("🔄 Sincronizando upgrades...", upgrades);
-    syncStatsToSupabase(null, upgrades);
-  }, 3000);
-
-  return () => clearTimeout(syncTimeout);
-}, [upgrades, player?.id, syncStatsToSupabase]);
-
 
   /* 🚪 Logout */
   const logout = useCallback(async () => {
@@ -420,7 +393,8 @@ useEffect(() => {
                     nativeTokenBalance: gameState.nativeTokenBalance,
                     energy: gameState.energy,
                     coinsPerSecond: gameState.coinsPerSecond
-                  }
+                  },
+                  upgrades: upgrades
                 });
                 
                 // Forzar sincronización
@@ -478,10 +452,10 @@ useEffect(() => {
                 activeSkin={activeSkin}
                 toast={toast}
                 user={user}
-                tokenPrice={tokenPrice} // ✅ PASAR PRECIO DEL TOKEN
-                referralStats={referralStats} // ✅ PASAR STATS DE REFERIDOS
-                refreshReferralStats={refreshReferralStats} // ✅ PASAR FUNCIÓN DE ACTUALIZACIÓN
-                setGameState={setGameState} // 🔥🔥🔥 CRÍTICO: PASAR setGameState PARA REGENERACIÓN Y FARMEO
+                tokenPrice={tokenPrice}
+                referralStats={referralStats}
+                refreshReferralStats={refreshReferralStats}
+                setGameState={setGameState}
               />
             )}
 
@@ -539,8 +513,8 @@ useEffect(() => {
                 farmingMilestonesCount={
                   Object.values(farmingMilestonesState).filter((m) => m.claimed).length
                 }
-                referralStats={referralStats} // ✅ PASAR STATS DE REFERIDOS
-                tokenPrice={tokenPrice} // ✅ PASAR PRECIO DEL TOKEN
+                referralStats={referralStats}
+                tokenPrice={tokenPrice}
               />
             )}
             {currentView === "settings" && (

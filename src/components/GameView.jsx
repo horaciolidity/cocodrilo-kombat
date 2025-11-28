@@ -56,8 +56,12 @@ export function GameView({
   activeSkin,
   toast,
   user,
+  tokenPrice = 0.05, // ✅ AGREGAR tokenPrice COMO PROP
+  referralStats, // ✅ AGREGAR referralStats COMO PROP
+  refreshReferralStats, // ✅ AGREGAR refreshReferralStats COMO PROP
+  setGameState, // ✅ AGREGAR setGameState COMO PROP
 }) {
-  const [tokenPrice, setTokenPrice] = useState(0.05);
+  const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
   const [priceData, setPriceData] = useState(generateRandomPriceData());
   const [isClicked, setIsClicked] = useState(false);
@@ -66,19 +70,14 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
   
-  // ✅ Hook de sincronización - SIMPLIFICADO
-  const { referralStats, refreshReferralStats, getReferralLink } = useSupabasePlayer(user);
+  // ✅ Hook de sincronización - USAR PROPS EN LUGAR DE HOOK INTERNO
+  const { getReferralLink } = useSupabasePlayer(user);
 
-  // 🔥 ELIMINADO: Sincronización duplicada - ya se maneja en useGameLogic
-  // 🔥 ELIMINADO: Regeneración de energía duplicada - ya se maneja en useGameLogic
-
-  // 🔄 ACTUALIZAR REFERIDOS AL CARGAR
+  // 🔄 ACTUALIZAR REFERIDOS AL CARGAR - USANDO PROP
   useEffect(() => {
-    if (user) {
+    if (user && refreshReferralStats) {
       const timer = setTimeout(() => {
-        if (refreshReferralStats) {
-          refreshReferralStats();
-        }
+        refreshReferralStats();
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -133,10 +132,10 @@ export function GameView({
     initializeVideos();
   }, []);
 
-  // Simulación simple de precio/token
+  // Simulación simple de precio/token - USAR PROP O LOCAL
   useEffect(() => {
     const interval = setInterval(() => {
-      setTokenPrice(prev =>
+      setLocalTokenPrice(prev =>
         parseFloat(
           Math.max(0.01, prev + (Math.random() - 0.5) * 0.005).toFixed(4),
         ),
@@ -148,7 +147,7 @@ export function GameView({
         const newPrice = parseFloat(
           Math.max(
             0.01,
-            tokenPrice + (Math.random() - 0.5) * 0.005,
+            localTokenPrice + (Math.random() - 0.5) * 0.005,
           ).toFixed(4),
         );
         return [
@@ -158,7 +157,7 @@ export function GameView({
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [tokenPrice]);
+  }, [localTokenPrice]);
 
   const getCrocodileCharacter = () => {
     if (activeSkin) {
@@ -170,7 +169,7 @@ export function GameView({
     return '🐊';
   };
 
-  // 🐊 Manejo de clic MEJORADO - SIN sincronización duplicada
+  // 🐊 Manejo de clic MEJORADO
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -273,8 +272,9 @@ export function GameView({
     playSound('uiClick');
   };
 
-  // ✅ CALCULAR VALOR PROYECTADO
-  const projectedCrocValue = (gameState.nativeTokenBalance || 0) * tokenPrice;
+  // ✅ CALCULAR VALOR PROYECTADO - USAR PROP tokenPrice
+  const actualTokenPrice = tokenPrice || localTokenPrice;
+  const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
@@ -331,7 +331,7 @@ export function GameView({
         <ProjectedValueMobile 
           projectedValue={projectedCrocValue}
           tokenBalance={gameState.nativeTokenBalance || 0}
-          tokenPrice={tokenPrice}
+          tokenPrice={actualTokenPrice}
         />
       </div>
 
@@ -476,7 +476,7 @@ export function GameView({
         {/* 📊 Panel lateral */}
         <div className="w-full space-y-4">
           <TokenInfoPanel
-            tokenPrice={tokenPrice}
+            tokenPrice={actualTokenPrice}
             liquidity={liquidity}
             priceData={priceData}
             onBuyToken={handleBuyToken}
