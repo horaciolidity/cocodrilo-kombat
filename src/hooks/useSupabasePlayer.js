@@ -15,6 +15,7 @@ export function useSupabasePlayer(user) {
   const syncTimeout = useRef(null);
   const lastSyncRef = useRef(0);
   const pendingSyncRef = useRef(null);
+  const upgradesDataRef = useRef(null); // ✅ AGREGAR ESTA LÍNEA FALTANTE
   const isMounted = useRef(true);
 
   // Generador de nombre aleatorio
@@ -194,91 +195,148 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-// Función de sincronización mejorada CON upgrades
-const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null) => {
-  if (!player?.id) {
-    console.log("⏸️ Sync pausado: no hay player.id");
-    return;
-  }
-
-  const statsToSync = newStats || pendingSyncRef.current || stats;
-  const upgradesToSync = upgradesData || upgradesDataRef.current;
-  
-  if (!statsToSync && !upgradesToSync) {
-    console.log("⏸️ Sync pausado: no hay datos para sincronizar");
-    return;
-  }
-
-  const now = Date.now();
-  
-  if (now - lastSyncRef.current < 2000) {
-    console.log("⏸️ Sync muy rápido, agendando...");
-    pendingSyncRef.current = statsToSync;
-    upgradesDataRef.current = upgradesToSync;
-    
-    if (syncTimeout.current) clearTimeout(syncTimeout.current);
-    syncTimeout.current = setTimeout(() => {
-      syncStatsToSupabase();
-    }, 2000 - (now - lastSyncRef.current));
-    return;
-  }
-
-  try {
-    const payload = {
-      player_id: player.id,
-      coins: Math.floor(statsToSync?.coins || 0),
-      croc_tokens: statsToSync?.croc_tokens || statsToSync?.nativeTokenBalance || 0,
-      level: statsToSync?.level || 1,
-      clicks: statsToSync?.clicks || statsToSync?.totalClicks || 0,
-      energy: statsToSync?.energy || 100,
-      max_energy: statsToSync?.max_energy || statsToSync?.maxEnergy || 100,
-      click_power: statsToSync?.click_power || statsToSync?.clickPower || 1,
-      coins_per_second: statsToSync?.coins_per_second || statsToSync?.coinsPerSecond || 0,
-      experience: statsToSync?.experience || 0,
-      total_coins: statsToSync?.total_coins || statsToSync?.totalCoins || 0,
-      native_token_balance: statsToSync?.native_token_balance || statsToSync?.nativeTokenBalance || 0,
-      last_active: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // ✅ AGREGAR UPGRADES AL PAYLOAD SI ESTÁN DISPONIBLES
-    if (upgradesToSync) {
-      payload.upgrades = upgradesToSync;
+  // 🎯 FUNCIÓN SIMPLIFICADA DE SINCRONIZACIÓN - CORREGIDA
+  const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null) => {
+    if (!player?.id) {
+      console.log("⏸️ Sync pausado: no hay player.id");
+      return;
     }
 
-    console.log("🔄 Sincronizando stats + upgrades a Supabase:", payload);
+    const statsToSync = newStats || pendingSyncRef.current || stats;
+    
+    // ✅ MANEJO SEGURO DE UPGRADES DATA
+    let upgradesToSync = null;
+    if (upgradesData !== undefined && upgradesData !== null) {
+      upgradesToSync = upgradesData;
+    } else if (upgradesDataRef.current !== null) {
+      upgradesToSync = upgradesDataRef.current;
+    }
+    
+    if (!statsToSync && !upgradesToSync) {
+      console.log("⏸️ Sync pausado: no hay datos para sincronizar");
+      return;
+    }
 
-    const { error: updateError } = await supabase
-      .from("player_stats")
-      .update(payload)
-      .eq('player_id', player.id);
-
-    if (updateError) {
-      console.error("❌ Error en update:", updateError);
+    const now = Date.now();
+    
+    if (now - lastSyncRef.current < 2000) {
+      console.log("⏸️ Sync muy rápido, agendando...");
+      pendingSyncRef.current = statsToSync;
       
-      const { error: upsertError } = await supabase
-        .from("player_stats")
-        .upsert(payload, { onConflict: 'player_id' });
-
-      if (upsertError) {
-        console.error("❌ Error crítico en upsert:", upsertError);
-        throw upsertError;
-      } else {
-        console.log("✅ Stats + upgrades sincronizados (upsert fallback)");
+      // ✅ ACTUALIZAR UPGRADES DATA REF SI SE PROVEEN
+      if (upgradesData !== undefined && upgradesData !== null) {
+        upgradesDataRef.current = upgradesData;
       }
-    } else {
-      console.log("✅ Stats + upgrades actualizados correctamente");
+      
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      syncTimeout.current = setTimeout(() => {
+        syncStatsToSupabase();
+      }, 2000 - (now - lastSyncRef.current));
+      return;
     }
 
-    lastSyncRef.current = Date.now();
-    pendingSyncRef.current = null;
-    upgradesDataRef.current = null;
-    
-  } catch (err) {
-    console.error("🚨 Error en syncStatsToSupabase:", err);
-    setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync), 5000);
-  }
-}, [player?.id, stats]);
+    try {
+      const payload = {
+        player_id: player.id,
+        coins: Math.floor(statsToSync?.coins || 0),
+        croc_tokens: Math.floor(statsToSync?.croc_tokens || statsToSync?.nativeTokenBalance || 0),
+        level: statsToSync?.level || 1,
+        clicks: statsToSync?.clicks || statsToSync?.totalClicks || 0,
+        energy: statsToSync?.energy || 100,
+        max_energy: statsToSync?.max_energy || statsToSync?.maxEnergy || 100,
+        click_power: statsToSync?.click_power || statsToSync?.clickPower || 1,
+        coins_per_second: statsToSync?.coins_per_second || statsToSync?.coinsPerSecond || 0,
+        experience: statsToSync?.experience || 0,
+        total_coins: statsToSync?.total_coins || statsToSync?.totalCoins || 0,
+        native_token_balance: statsToSync?.native_token_balance || statsToSync?.nativeTokenBalance || 0,
+        last_active: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // ✅ AGREGAR UPGRADES SI ESTÁN DISPONIBLES
+      if (upgradesToSync) {
+        payload.upgrades = upgradesToSync;
+        console.log("🔄 Incluyendo upgrades en la sincronización:", upgradesToSync);
+      }
+
+      console.log("🔄 Sincronizando stats a Supabase:", payload);
+
+      const { error: updateError } = await supabase
+        .from("player_stats")
+        .update(payload)
+        .eq('player_id', player.id);
+
+      if (updateError) {
+        console.error("❌ Error en update:", updateError);
+        
+        const { error: upsertError } = await supabase
+          .from("player_stats")
+          .upsert(payload, { onConflict: 'player_id' });
+
+        if (upsertError) {
+          console.error("❌ Error crítico en upsert:", upsertError);
+          throw upsertError;
+        } else {
+          console.log("✅ Stats sincronizados (upsert fallback)");
+        }
+      } else {
+        console.log("✅ Stats actualizados correctamente");
+      }
+
+      lastSyncRef.current = Date.now();
+      pendingSyncRef.current = null;
+      upgradesDataRef.current = null;
+      
+    } catch (err) {
+      console.error("🚨 Error en syncStatsToSupabase:", err);
+      setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync), 5000);
+    }
+  }, [player?.id, stats]);
+
+  // ✅ FUNCIÓN ESPECÍFICA PARA SINCRONIZAR UPGRADES
+  const syncUpgradesToSupabase = useCallback(async (upgradesData) => {
+    if (!player?.id || !upgradesData) {
+      console.log("⏸️ Sync upgrades pausado: no hay player.id o upgrades");
+      return;
+    }
+
+    try {
+      const payload = {
+        player_id: player.id,
+        upgrades: upgradesData,
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log("🔄 Sincronizando upgrades a Supabase:", payload);
+
+      const { error } = await supabase
+        .from("player_stats")
+        .update(payload)
+        .eq('player_id', player.id);
+
+      if (error) {
+        console.error("❌ Error sincronizando upgrades:", error);
+        
+        // Intentar con upsert como fallback
+        const { error: upsertError } = await supabase
+          .from("player_stats")
+          .upsert(payload, { onConflict: 'player_id' });
+
+        if (upsertError) {
+          console.error("❌ Error crítico en upsert de upgrades:", upsertError);
+          throw upsertError;
+        } else {
+          console.log("✅ Upgrades sincronizados (upsert fallback)");
+        }
+      } else {
+        console.log("✅ Upgrades sincronizados correctamente");
+      }
+      
+    } catch (err) {
+      console.error("🚨 Error en syncUpgradesToSupabase:", err);
+      setTimeout(() => syncUpgradesToSupabase(upgradesData), 5000);
+    }
+  }, [player?.id]);
 
   // Actualización unificada de stats
   const updateStats = useCallback((newStats) => {
@@ -420,6 +478,12 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
         if (cleanStats) {
           console.log("📥 Stats limpias cargadas:", cleanStats);
           setStats(cleanStats);
+
+          // ✅ CARGAR UPGRADES DESDE LA BASE DE DATOS SI EXISTEN
+          if (cleanStats.upgrades && typeof cleanStats.upgrades === 'object') {
+            console.log("🔄 Upgrades cargados desde BD:", cleanStats.upgrades);
+            // Nota: Los upgrades se deben manejar en el componente que use este hook
+          }
         } else {
           console.log("🆕 Creando stats iniciales...");
 
@@ -509,8 +573,8 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
       isMounted.current = false;
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);
-        if (pendingSyncRef.current) {
-          syncStatsToSupabase(pendingSyncRef.current);
+        if (pendingSyncRef.current || upgradesDataRef.current) {
+          syncStatsToSupabase(pendingSyncRef.current, upgradesDataRef.current);
         }
       }
     };
@@ -524,6 +588,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
     error,
     refresh: loadPlayerData,
     syncStatsToSupabase,
+    syncUpgradesToSupabase, // ✅ NUEVA FUNCIÓN PARA UPGRADES
     referralStats,
     refreshReferralStats,
     getReferralLink: () => {

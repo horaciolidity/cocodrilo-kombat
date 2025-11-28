@@ -92,6 +92,7 @@ function App() {
     loading: playerLoading,
     error: playerError,
     syncStatsToSupabase,
+    syncUpgradesToSupabase, // ✅ NUEVA FUNCIÓN PARA UPGRADES
     refreshReferralStats,
   } = useSupabasePlayer(user);
 
@@ -219,17 +220,35 @@ function App() {
     return () => clearInterval(interval);
   }, [player?.id, stats, gameState, setStats, syncStatsToSupabase]);
 
-  // ✅ SINCRONIZAR UPGRADES CUANDO CAMBIEN
+  // ✅ SINCRONIZAR UPGRADES CUANDO CAMBIEN - USANDO NUEVA FUNCIÓN
   useEffect(() => {
     if (!player?.id || !upgrades) return;
 
     const syncTimeout = setTimeout(() => {
       console.log("🔄 Sincronizando upgrades...", upgrades);
       
-      // Sincronizar upgrades directamente
+      // Usar la nueva función específica para upgrades
+      if (syncUpgradesToSupabase) {
+        syncUpgradesToSupabase(upgrades);
+      } else {
+        // Fallback a la función general
+        syncStatsToSupabase(null, upgrades);
+      }
+    }, 3000);
+
+    return () => clearTimeout(syncTimeout);
+  }, [upgrades, player?.id, syncUpgradesToSupabase, syncStatsToSupabase]);
+
+  // ✅ SINCRONIZAR DAILY REWARDS CUANDO CAMBIEN
+  useEffect(() => {
+    if (!player?.id || !dailyRewards) return;
+
+    const syncTimeout = setTimeout(() => {
+      console.log("🔄 Sincronizando daily rewards...", dailyRewards);
+      
       const payload = {
         player_id: player.id,
-        upgrades: upgrades,
+        daily_rewards: dailyRewards,
         updated_at: new Date().toISOString(),
       };
 
@@ -239,22 +258,23 @@ function App() {
         .eq('player_id', player.id)
         .then(({ error }) => {
           if (error) {
-            console.error("❌ Error sincronizando upgrades:", error);
+            console.error("❌ Error sincronizando daily rewards:", error);
           } else {
-            console.log("✅ Upgrades sincronizados");
+            console.log("✅ Daily rewards sincronizados");
           }
         });
-    }, 5000);
+    }, 4000);
 
     return () => clearTimeout(syncTimeout);
-  }, [upgrades, player?.id]);
+  }, [dailyRewards, player?.id]);
 
-  /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO */
+  /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO CON UPGRADES */
   useEffect(() => {
-    if (stats && gameState && setGameState) {
+    if (stats && gameState && setGameState && setUpgrades) {
       // Solo cargar desde Supabase si el juego está recién iniciado
       if (gameState.coins === 0 && gameState.totalClicks === 0) {
-        console.log("📥 Cargando datos desde Supabase...");
+        console.log("📥 Cargando datos desde Supabase...", stats);
+        
         setGameState(prev => ({
           ...prev,
           coins: Number(stats.coins) || 0,
@@ -263,9 +283,17 @@ function App() {
           nativeTokenBalance: Number(stats.croc_tokens) || 0,
           totalClicks: stats.clicks || 0,
         }));
+
+        // ✅ CARGAR UPGRADES DESDE LA BASE DE DATOS
+        if (stats.upgrades && typeof stats.upgrades === 'object' && Object.keys(stats.upgrades).length > 0) {
+          console.log("🔄 Cargando upgrades desde BD:", stats.upgrades);
+          setUpgrades(stats.upgrades);
+        } else {
+          console.log("🆕 No hay upgrades en BD, usando iniciales");
+        }
       }
     }
-  }, [stats?.coins, stats?.level, stats?.croc_tokens, stats?.clicks, gameState, setGameState]);
+  }, [stats?.coins, stats?.level, stats?.croc_tokens, stats?.clicks, stats?.upgrades, gameState, setGameState, setUpgrades]);
 
   // ✅ ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
@@ -394,10 +422,21 @@ function App() {
                     energy: gameState.energy,
                     coinsPerSecond: gameState.coinsPerSecond
                   },
-                  upgrades: upgrades
+                  upgrades: upgrades,
+                  dailyRewards: dailyRewards
                 });
                 
-                // Forzar sincronización
+                // Forzar sincronización de upgrades
+                if (player?.id && upgrades && syncUpgradesToSupabase) {
+                  syncUpgradesToSupabase(upgrades);
+                  toast({
+                    title: "🔄 Upgrades forzados",
+                    description: "Upgrades enviados a la base de datos",
+                    duration: 2000,
+                  });
+                }
+
+                // Forzar sincronización de stats
                 if (stats && syncStatsToSupabase) {
                   const updatedStats = {
                     coins: Math.floor(gameState.coins),
@@ -408,8 +447,8 @@ function App() {
                   setStats(updatedStats);
                   syncStatsToSupabase(updatedStats);
                   toast({
-                    title: "🔄 Sincronización forzada",
-                    description: "Datos enviados a Supabase",
+                    title: "🔄 Stats forzados",
+                    description: "Stats enviados a Supabase",
                     duration: 2000,
                   });
                 }
@@ -419,6 +458,53 @@ function App() {
               className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
             >
               🐛 Debug
+            </Button>
+
+            {/* 🔧 Botón de Debug Upgrades */}
+            <Button
+              onClick={() => {
+                console.log("🔧 DEBUG UPGRADES:", {
+                  upgrades: upgrades,
+                  statsUpgrades: stats?.upgrades,
+                  playerId: player?.id
+                });
+                
+                // Forzar sincronización específica de upgrades
+                if (player?.id && upgrades) {
+                  const payload = {
+                    player_id: player.id,
+                    upgrades: upgrades,
+                    updated_at: new Date().toISOString(),
+                  };
+
+                  supabase
+                    .from("player_stats")
+                    .update(payload)
+                    .eq('player_id', player.id)
+                    .then(({ error }) => {
+                      if (error) {
+                        console.error("❌ Error forzando sync upgrades:", error);
+                        toast({
+                          title: "❌ Error upgrades",
+                          description: "No se pudieron sincronizar los upgrades",
+                          duration: 3000,
+                        });
+                      } else {
+                        console.log("✅ Upgrades forzados a BD");
+                        toast({
+                          title: "✅ Upgrades sincronizados",
+                          description: "Upgrades guardados en la base de datos",
+                          duration: 2000,
+                        });
+                      }
+                    });
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-yellow-500 hover:bg-yellow-600"
+            >
+              🔧 Upgrades
             </Button>
           </div>
         </div>
