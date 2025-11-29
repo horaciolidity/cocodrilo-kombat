@@ -93,45 +93,53 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  // Obtener estadísticas de referidos
-  const getReferralStats = useCallback(async (playerId) => {
-    if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+ // En useSupabasePlayer.js, modifica la función getReferralStats:
 
-    try {
-      const { data: referrals, error: refError } = await supabase
-        .from('players')
-        .select('id, created_at')
-        .eq('referred_by', playerId);
+const getReferralStats = useCallback(async (playerId) => {
+  if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
 
-      if (refError) {
-        console.error("❌ Error contando referidos:", refError);
-        return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
-      }
+  try {
+    const { data: referrals, error: refError } = await supabase
+      .from('players')
+      .select('id, created_at')
+      .eq('referred_by', playerId);
 
-      const referralsCount = referrals?.length || 0;
-      
-      const activeReferrals = referrals?.filter(ref => {
-        const refDate = new Date(ref.created_at);
-        const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysSinceRef <= 30;
-      }).length || 0;
-
-      const crocFromRefs = activeReferrals * 10;
-      const coinsFromRefs = activeReferrals * 1000;
-
-      console.log("📊 Stats de referidos:", { referralsCount, crocFromRefs, coinsFromRefs });
-
-      return {
-        referralsCount,
-        crocFromRefs,
-        coinsFromRefs
-      };
-
-    } catch (error) {
-      console.error("❌ Error en getReferralStats:", error);
+    if (refError) {
+      console.error("❌ Error contando referidos:", refError);
       return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
     }
-  }, []);
+
+    const referralsCount = referrals?.length || 0;
+    
+    // ✅ CORREGIDO: Calcular CROC basado en referidos activos (últimos 30 días)
+    const activeReferrals = referrals?.filter(ref => {
+      const refDate = new Date(ref.created_at);
+      const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceRef <= 30;
+    }).length || 0;
+
+    // ✅ 10 CROC por cada referido activo
+    const crocFromRefs = activeReferrals * 10;
+    const coinsFromRefs = activeReferrals * 1000;
+
+    console.log("📊 Stats de referidos CALCULADOS:", { 
+      referralsCount, 
+      activeReferrals,
+      crocFromRefs, 
+      coinsFromRefs 
+    });
+
+    return {
+      referralsCount,
+      crocFromRefs,
+      coinsFromRefs
+    };
+
+  } catch (error) {
+    console.error("❌ Error en getReferralStats:", error);
+    return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+  }
+}, []);
 
   // Actualizar estadísticas de referidos
   const refreshReferralStats = useCallback(async () => {

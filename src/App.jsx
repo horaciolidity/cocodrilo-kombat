@@ -93,11 +93,11 @@ function App() {
     error: playerError,
     syncStatsToSupabase,
     syncUpgradesToSupabase,
-    syncDailyRewardsToSupabase, // ✅ NUEVA FUNCIÓN PARA DAILY REWARDS
+    syncDailyRewardsToSupabase,
     refreshReferralStats,
   } = useSupabasePlayer(user);
 
-  /* ⚙️ Lógica del juego - CORREGIDO: Pasar user y datos de Supabase */
+  /* ⚙️ Lógica del juego */
   const {
     gameState,
     upgrades,
@@ -130,7 +130,7 @@ function App() {
     claimDailyReward,
     resetProgress,
     claimFarmingMilestone,
-    calculateRealClickPower, // ✅ NUEVA FUNCIÓN PARA CALCULAR CLICK POWER
+    calculateRealClickPower,
   } = useGameLogic(
     INITIAL_GAME_STATE,
     INITIAL_UPGRADES_STATE,
@@ -139,8 +139,8 @@ function App() {
     playSound,
     setShowMilestoneModal,
     setLastReachedMilestone,
-    user, // ✅ PASAR user
-    { // ✅ PASAR TODOS LOS DATOS DE SUPABASE
+    user,
+    {
       stats,
       player,
       loading: playerLoading,
@@ -150,49 +150,90 @@ function App() {
     }
   );
 
-  // ✅ FUNCIÓN MEJORADA PARA SUMAR CROC DE REFERIDOS SIN DUPLICADOS
+  // ✅ FUNCIÓN MEJORADA PARA SUMAR CROC DE REFERIDOS - CORREGIDA
   const addReferralBonuses = useCallback(() => {
-    if (!referralStats?.crocFromRefs || !setGameState) return;
+    if (!referralStats || !setGameState) {
+      console.log("⏸️ No se pueden procesar bonificaciones: datos faltantes");
+      return;
+    }
 
     console.log("💰 Procesando bonificaciones de referidos:", referralStats);
     
     setGameState(prev => {
       const currentCrocFromRefs = prev.crocFromRefs || 0;
       const newCrocFromRefs = referralStats.crocFromRefs || 0;
+      const currentCoinsFromRefs = prev.coinsFromRefs || 0;
+      const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
       
-      // ✅ SOLO SUMAR SI HAY NUEVOS CROC Y NO HEMOS SUMADO ESTA CANTIDAD ANTES
-      if (newCrocFromRefs > currentCrocFromRefs) {
+      console.log(`📊 Comparando CROC de referidos: Actual ${currentCrocFromRefs} vs Nuevo ${newCrocFromRefs}`);
+      
+      let newBalance = prev.nativeTokenBalance || 0;
+      let newCoins = prev.coins || 0;
+      
+      // ✅ SIEMPRE ACTUALIZAR SI HAY NUEVOS REFERIDOS, INCLUSO SI crocFromRefs ES 0
+      if (newCrocFromRefs > currentCrocFromRefs || referralStats.referralsCount > (prev.referralsCount || 0)) {
         const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-        const newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
+        const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
         
-        console.log(`🎁 Sumando ${crocDifference} CROC por referidos. Nuevo balance: ${newBalance}`);
+        newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
+        newCoins = (prev.coins || 0) + coinsDifference;
+        
+        console.log(`🎁 Sumando ${crocDifference} CROC y ${coinsDifference} monedas por referidos. Nuevo balance: ${newBalance} CROC`);
         
         return {
           ...prev,
           referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs, // ✅ ACTUALIZAR PARA EVITAR DUPLICADOS
-          coinsFromRefs: referralStats.coinsFromRefs || 0,
-          nativeTokenBalance: newBalance
+          crocFromRefs: newCrocFromRefs,
+          coinsFromRefs: newCoinsFromRefs,
+          nativeTokenBalance: newBalance,
+          coins: newCoins,
+          totalCoins: (prev.totalCoins || 0) + coinsDifference
         };
       }
       
-      // ✅ SI NO HAY CAMBIOS, SOLO ACTUALIZAR LOS CONTADORES
-      return {
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: newCrocFromRefs,
-        coinsFromRefs: referralStats.coinsFromRefs || 0,
-      };
+      // ✅ SI NO HAY CAMBIOS EN CROC, PERO SÍ EN REFERIDOS, ACTUALIZAR CONTADORES
+      if (referralStats.referralsCount !== (prev.referralsCount || 0)) {
+        console.log("🔄 Actualizando contadores de referidos sin cambios en CROC");
+        return {
+          ...prev,
+          referralsCount: referralStats.referralsCount || 0,
+          crocFromRefs: newCrocFromRefs,
+          coinsFromRefs: newCoinsFromRefs,
+        };
+      }
+      
+      return prev;
     });
   }, [referralStats, setGameState]);
 
-  // ✅ EFECTO MEJORADO PARA PROCESAR BONIFICACIONES DE REFERIDOS
+  // ✅ EFECTO MEJORADO PARA PROCESAR BONIFICACIONES DE REFERIDOS - CORREGIDO
   useEffect(() => {
-    if (referralStats && referralStats.referralsCount > 0) {
+    if (referralStats && user) {
       console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
-      addReferralBonuses();
+      
+      // ✅ FORZAR ACTUALIZACIÓN SI HAY REFERIDOS, INCLUSO SI crocFromRefs ES 0
+      if (referralStats.referralsCount > 0) {
+        console.log("🎯 Jugador tiene referidos, procesando bonificaciones...");
+        addReferralBonuses();
+      }
     }
-  }, [referralStats, addReferralBonuses]);
+  }, [referralStats, user, addReferralBonuses]);
+
+  // ✅ AGREGAR ESTE NUEVO EFECTO PARA INICIALIZAR CROC DE REFERIDOS
+  useEffect(() => {
+    if (user && gameState && setGameState) {
+      // Inicializar crocFromRefs si no existe
+      if (gameState.crocFromRefs === undefined) {
+        console.log("🆕 Inicializando crocFromRefs en el estado del juego");
+        setGameState(prev => ({
+          ...prev,
+          crocFromRefs: 0,
+          coinsFromRefs: 0,
+          referralsCount: 0
+        }));
+      }
+    }
+  }, [user, gameState, setGameState]);
 
   // ✅ SINCRONIZACIÓN SIMPLIFICADA - CORREGIDA
   useEffect(() => {
@@ -239,11 +280,9 @@ function App() {
     const syncTimeout = setTimeout(() => {
       console.log("🔄 Sincronizando upgrades...", upgrades);
       
-      // Usar la nueva función específica para upgrades
       if (syncUpgradesToSupabase) {
         syncUpgradesToSupabase(upgrades);
       } else {
-        // Fallback a la función general
         syncStatsToSupabase(null, upgrades);
       }
     }, 2000);
@@ -261,7 +300,6 @@ function App() {
       if (syncDailyRewardsToSupabase) {
         syncDailyRewardsToSupabase(dailyRewards);
       } else {
-        // Fallback a la función general
         const payload = {
           player_id: player.id,
           daily_rewards: dailyRewards,
@@ -285,7 +323,7 @@ function App() {
     return () => clearTimeout(syncTimeout);
   }, [dailyRewards, player?.id, syncDailyRewardsToSupabase]);
 
-  /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO CON TODOS LOS DATOS */
+  /* 🔄 Cargar datos de Supabase al iniciar - MEJORADO CON REFERIDOS */
   useEffect(() => {
     if (stats && gameState && setGameState && setUpgrades) {
       // Solo cargar desde Supabase si el juego está recién iniciado
@@ -304,6 +342,10 @@ function App() {
           clickPower: stats.click_power || 1,
           coinsPerSecond: stats.coins_per_second || 0,
           experience: stats.experience || 0,
+          // ✅ INICIALIZAR CROC DE REFERIDOS DESDE STATS SI EXISTEN
+          crocFromRefs: stats.croc_from_refs || 0,
+          coinsFromRefs: stats.coins_from_refs || 0,
+          referralsCount: stats.referrals_count || 0
         }));
 
         // ✅ CARGAR UPGRADES DESDE LA BASE DE DATOS
@@ -441,6 +483,9 @@ function App() {
                     level: gameState.level,
                     clicks: gameState.totalClicks,
                     nativeTokenBalance: gameState.nativeTokenBalance,
+                    crocFromRefs: gameState.crocFromRefs,
+                    coinsFromRefs: gameState.coinsFromRefs,
+                    referralsCount: gameState.referralsCount,
                     energy: gameState.energy,
                     coinsPerSecond: gameState.coinsPerSecond,
                     clickPower: gameState.clickPower,
@@ -541,6 +586,37 @@ function App() {
             >
               🔧 Upgrades
             </Button>
+
+            {/* 🔍 TEMPORAL: Botón de debug para referidos */}
+            <Button
+              onClick={() => {
+                console.log("🔍 DEBUG REFERIDOS:", {
+                  referralStats: referralStats,
+                  gameState: {
+                    crocFromRefs: gameState.crocFromRefs,
+                    coinsFromRefs: gameState.coinsFromRefs,
+                    referralsCount: gameState.referralsCount,
+                    nativeTokenBalance: gameState.nativeTokenBalance
+                  },
+                  user: user?.id
+                });
+                
+                // Forzar actualización de referidos
+                if (refreshReferralStats) {
+                  refreshReferralStats();
+                  toast({
+                    title: "🔄 Actualizando referidos",
+                    description: "Forzando actualización de estadísticas de referidos",
+                    duration: 2000,
+                  });
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-purple-500 hover:bg-purple-600"
+            >
+              🔍 Referidos
+            </Button>
           </div>
         </div>
       </nav>
@@ -577,7 +653,7 @@ function App() {
                 referralStats={referralStats}
                 refreshReferralStats={refreshReferralStats}
                 setGameState={setGameState}
-                calculateRealClickPower={calculateRealClickPower} // ✅ PASAR FUNCIÓN A GAMEVIEW
+                calculateRealClickPower={calculateRealClickPower}
               />
             )}
 
