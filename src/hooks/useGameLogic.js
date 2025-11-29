@@ -10,7 +10,7 @@ export function useGameLogic(
   setShowMilestoneModal, 
   setLastReachedMilestone, 
   user, 
-  supabasePlayerData // ✅ NUEVO: Recibir datos de Supabase desde App.jsx
+  supabasePlayerData
 ) {
   const INITIAL_GAME_STATE = { ...DEFAULT_INITIAL_GAME_STATE, ...initialGameStateOverrides };
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
@@ -122,7 +122,7 @@ export function useGameLogic(
       const syncTimeout = setTimeout(() => {
         console.log("🔄 Sincronizando upgrades con Supabase:", upgrades);
         supabasePlayerData.syncUpgradesToSupabase(upgrades);
-      }, 2000); // Sincronizar 2 segundos después del cambio
+      }, 2000);
       
       return () => clearTimeout(syncTimeout);
     }
@@ -154,6 +154,18 @@ export function useGameLogic(
       return () => clearTimeout(syncTimeout);
     }
   }, [gameState, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR DAILY REWARDS CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && dailyRewards && supabasePlayerData?.syncDailyRewardsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando daily rewards con Supabase:", dailyRewards);
+        supabasePlayerData.syncDailyRewardsToSupabase(dailyRewards);
+      }, 2500);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [dailyRewards, user, supabasePlayerData?.loading, supabasePlayerData?.syncDailyRewardsToSupabase]);
 
   // ⚡ REGENERACIÓN DE ENERGÍA - SOLUCIÓN DEFINITIVA
   useEffect(() => {
@@ -261,7 +273,54 @@ export function useGameLogic(
     });
   }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound]);
 
-  // 👆 FUNCIÓN DE TAP - CON ENERGÍA GARANTIZADA
+  // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL
+  const calculateRealClickPower = useCallback(() => {
+    let clickPower = gameStateRef.current.clickPower;
+    
+    console.log(`🎯 Click power base: ${clickPower}`);
+    
+    // ✅ APLICAR BONUS DE UPGRADES DE MULTIPLICADOR PRIMERO
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeData?.level > 0) {
+        if (upgradeConfig.type === 'multiplier') {
+          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+          clickPower = clickPower * (1 + multiplierBonus);
+          console.log(`🔢 Multiplicador ${upgradeConfig.name}: x${(1 + multiplierBonus).toFixed(2)}`);
+        }
+      }
+    });
+
+    // ✅ APLICAR BONUS DE ITEMS (suma plana)
+    ownedItems.forEach(itemId => {
+      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+      if (item && item.effect.type === 'click_boost') {
+        clickPower += item.effect.value;
+        console.log(`🛍️ Item ${item.name}: +${item.effect.value}`);
+      }
+    });
+
+    // ✅ APLICAR BONUS DE CARTAS (suma plana y porcentaje)
+    ownedCards.forEach(cardId => {
+      const card = CARDS_DATA.find(c => c.id === cardId);
+      if (card) {
+        if (card.effect.type === 'click_power_flat') {
+          clickPower += card.effect.value;
+          console.log(`🃏 Carta ${card.name}: +${card.effect.value}`);
+        }
+        if (card.effect.type === 'click_power_percent') {
+          const percentBonus = clickPower * (card.effect.value / 100);
+          clickPower += percentBonus;
+          console.log(`🃏 Carta ${card.name}: +${card.effect.value}%`);
+        }
+      }
+    });
+
+    console.log(`💰 Click power total calculado: ${clickPower.toFixed(2)}`);
+    return clickPower;
+  }, [upgrades, ownedItems, ownedCards]);
+
+  // 👆 FUNCIÓN DE TAP - CORREGIDA CON CÁLCULO EN TIEMPO REAL
   const handleClick = useCallback((event) => {
     const currentEnergy = gameStateRef.current.energy;
     const maxEnergy = gameStateRef.current.maxEnergy;
@@ -278,30 +337,12 @@ export function useGameLogic(
     
     playSound('click');
 
-    // Calcular poder de click con todos los boosts
-    let currentClickPower = gameStateRef.current.clickPower;
-    
-    // Boosts de items
-    ownedItems.forEach(itemId => {
-      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-      if (item && item.effect.type === 'click_boost') {
-        currentClickPower += item.effect.value;
-      }
-    });
-
-    // Boosts de cartas
-    ownedCards.forEach(cardId => {
-      const card = CARDS_DATA.find(c => c.id === cardId);
-      if (card && card.effect.type === 'click_power_flat') {
-        currentClickPower += card.effect.value;
-      }
-      if (card && card.effect.type === 'click_power_percent') {
-        currentClickPower *= (1 + card.effect.value / 100);
-      }
-    });
-
+    // 🎯 CALCULAR PODER DE CLIC EN TIEMPO REAL CON TODOS LOS BONUS
+    const currentClickPower = calculateRealClickPower();
     const coinsEarned = Math.floor(currentClickPower);
     
+    console.log(`💰 Monedas ganadas por click: ${coinsEarned}`);
+
     // Actualizar estado del juego
     setGameState(prev => {
       const newState = {
@@ -341,7 +382,7 @@ export function useGameLogic(
       });
       playSound('levelUp');
     }
-  }, [ownedItems, ownedCards, toast, playSound]);
+  }, [calculateRealClickPower, toast, playSound]);
 
   // 🛒 FUNCIÓN DE COMPRA DE UPGRADES CORREGIDA - CON SINCRONIZACIÓN INMEDIATA
   const buyUpgrade = useCallback((upgradeId) => {
@@ -371,7 +412,7 @@ export function useGameLogic(
             break;
           case 'energy':
             newState.maxEnergy = prev.maxEnergy + upgrade.basePower;
-            newState.energy = newState.maxEnergy; // Llenar energía al comprar upgrade de energía
+            newState.energy = newState.maxEnergy;
             break;
           default:
             console.warn('Unknown upgrade type:', upgrade.type);
@@ -779,5 +820,6 @@ export function useGameLogic(
     buyShopItem,
     resetProgress,
     claimFarmingMilestone,
+    calculateRealClickPower, // ✅ NUEVO: Exportar función para GameView
   };
 }

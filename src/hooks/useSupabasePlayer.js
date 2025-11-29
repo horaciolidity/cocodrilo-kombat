@@ -15,7 +15,8 @@ export function useSupabasePlayer(user) {
   const syncTimeout = useRef(null);
   const lastSyncRef = useRef(0);
   const pendingSyncRef = useRef(null);
-  const upgradesDataRef = useRef(null); // ✅ AGREGAR ESTA LÍNEA FALTANTE
+  const upgradesDataRef = useRef(null);
+  const dailyRewardsDataRef = useRef(null); // ✅ NUEVO: Ref para daily rewards
   const isMounted = useRef(true);
 
   // Generador de nombre aleatorio
@@ -196,7 +197,7 @@ export function useSupabasePlayer(user) {
   }, []);
 
   // 🎯 FUNCIÓN SIMPLIFICADA DE SINCRONIZACIÓN - CORREGIDA
-  const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null) => {
+  const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null, dailyRewardsData = null) => {
     if (!player?.id) {
       console.log("⏸️ Sync pausado: no hay player.id");
       return;
@@ -211,8 +212,16 @@ export function useSupabasePlayer(user) {
     } else if (upgradesDataRef.current !== null) {
       upgradesToSync = upgradesDataRef.current;
     }
+
+    // ✅ MANEJO SEGURO DE DAILY REWARDS DATA
+    let dailyRewardsToSync = null;
+    if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
+      dailyRewardsToSync = dailyRewardsData;
+    } else if (dailyRewardsDataRef.current !== null) {
+      dailyRewardsToSync = dailyRewardsDataRef.current;
+    }
     
-    if (!statsToSync && !upgradesToSync) {
+    if (!statsToSync && !upgradesToSync && !dailyRewardsToSync) {
       console.log("⏸️ Sync pausado: no hay datos para sincronizar");
       return;
     }
@@ -226,6 +235,11 @@ export function useSupabasePlayer(user) {
       // ✅ ACTUALIZAR UPGRADES DATA REF SI SE PROVEEN
       if (upgradesData !== undefined && upgradesData !== null) {
         upgradesDataRef.current = upgradesData;
+      }
+
+      // ✅ ACTUALIZAR DAILY REWARDS DATA REF SI SE PROVEEN
+      if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
+        dailyRewardsDataRef.current = dailyRewardsData;
       }
       
       if (syncTimeout.current) clearTimeout(syncTimeout.current);
@@ -259,6 +273,12 @@ export function useSupabasePlayer(user) {
         console.log("🔄 Incluyendo upgrades en la sincronización:", upgradesToSync);
       }
 
+      // ✅ AGREGAR DAILY REWARDS SI ESTÁN DISPONIBLES
+      if (dailyRewardsToSync) {
+        payload.daily_rewards = dailyRewardsToSync;
+        console.log("🔄 Incluyendo daily rewards en la sincronización:", dailyRewardsToSync);
+      }
+
       console.log("🔄 Sincronizando stats a Supabase:", payload);
 
       const { error: updateError } = await supabase
@@ -286,10 +306,11 @@ export function useSupabasePlayer(user) {
       lastSyncRef.current = Date.now();
       pendingSyncRef.current = null;
       upgradesDataRef.current = null;
+      dailyRewardsDataRef.current = null;
       
     } catch (err) {
       console.error("🚨 Error en syncStatsToSupabase:", err);
-      setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync), 5000);
+      setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync, dailyRewardsToSync), 5000);
     }
   }, [player?.id, stats]);
 
@@ -335,6 +356,51 @@ export function useSupabasePlayer(user) {
     } catch (err) {
       console.error("🚨 Error en syncUpgradesToSupabase:", err);
       setTimeout(() => syncUpgradesToSupabase(upgradesData), 5000);
+    }
+  }, [player?.id]);
+
+  // ✅ NUEVA FUNCIÓN ESPECÍFICA PARA SINCRONIZAR DAILY REWARDS
+  const syncDailyRewardsToSupabase = useCallback(async (dailyRewardsData) => {
+    if (!player?.id || !dailyRewardsData) {
+      console.log("⏸️ Sync daily rewards pausado: no hay player.id o dailyRewards");
+      return;
+    }
+
+    try {
+      const payload = {
+        player_id: player.id,
+        daily_rewards: dailyRewardsData,
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log("🔄 Sincronizando daily rewards a Supabase:", payload);
+
+      const { error } = await supabase
+        .from("player_stats")
+        .update(payload)
+        .eq('player_id', player.id);
+
+      if (error) {
+        console.error("❌ Error sincronizando daily rewards:", error);
+        
+        // Intentar con upsert como fallback
+        const { error: upsertError } = await supabase
+          .from("player_stats")
+          .upsert(payload, { onConflict: 'player_id' });
+
+        if (upsertError) {
+          console.error("❌ Error crítico en upsert de daily rewards:", upsertError);
+          throw upsertError;
+        } else {
+          console.log("✅ Daily rewards sincronizados (upsert fallback)");
+        }
+      } else {
+        console.log("✅ Daily rewards sincronizados correctamente");
+      }
+      
+    } catch (err) {
+      console.error("🚨 Error en syncDailyRewardsToSupabase:", err);
+      setTimeout(() => syncDailyRewardsToSupabase(dailyRewardsData), 5000);
     }
   }, [player?.id]);
 
@@ -482,7 +548,11 @@ export function useSupabasePlayer(user) {
           // ✅ CARGAR UPGRADES DESDE LA BASE DE DATOS SI EXISTEN
           if (cleanStats.upgrades && typeof cleanStats.upgrades === 'object') {
             console.log("🔄 Upgrades cargados desde BD:", cleanStats.upgrades);
-            // Nota: Los upgrades se deben manejar en el componente que use este hook
+          }
+
+          // ✅ CARGAR DAILY REWARDS DESDE LA BASE DE DATOS SI EXISTEN
+          if (cleanStats.daily_rewards && typeof cleanStats.daily_rewards === 'object') {
+            console.log("🔄 Daily rewards cargados desde BD:", cleanStats.daily_rewards);
           }
         } else {
           console.log("🆕 Creando stats iniciales...");
@@ -573,8 +643,8 @@ export function useSupabasePlayer(user) {
       isMounted.current = false;
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);
-        if (pendingSyncRef.current || upgradesDataRef.current) {
-          syncStatsToSupabase(pendingSyncRef.current, upgradesDataRef.current);
+        if (pendingSyncRef.current || upgradesDataRef.current || dailyRewardsDataRef.current) {
+          syncStatsToSupabase(pendingSyncRef.current, upgradesDataRef.current, dailyRewardsDataRef.current);
         }
       }
     };
@@ -588,7 +658,8 @@ export function useSupabasePlayer(user) {
     error,
     refresh: loadPlayerData,
     syncStatsToSupabase,
-    syncUpgradesToSupabase, // ✅ NUEVA FUNCIÓN PARA UPGRADES
+    syncUpgradesToSupabase,
+    syncDailyRewardsToSupabase, // ✅ NUEVA FUNCIÓN PARA DAILY REWARDS
     referralStats,
     refreshReferralStats,
     getReferralLink: () => {
