@@ -56,10 +56,11 @@ export function GameView({
   activeSkin,
   toast,
   user,
-  tokenPrice = 0.05, // ✅ AGREGAR tokenPrice COMO PROP
-  referralStats, // ✅ AGREGAR referralStats COMO PROP
-  refreshReferralStats, // ✅ AGREGAR refreshReferralStats COMO PROP
-  setGameState, // ✅ AGREGAR setGameState COMO PROP
+  tokenPrice = 0.05,
+  referralStats,
+  refreshReferralStats,
+  setGameState,
+  calculateRealClickPower,
 }) {
   const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
@@ -169,6 +170,27 @@ export function GameView({
     return '🐊';
   };
 
+  // ✅ CALCULAR CLICK POWER EN TIEMPO REAL - USANDO LA FUNCIÓN DEL HOOK
+  const getCurrentClickPower = () => {
+    if (calculateRealClickPower) {
+      return calculateRealClickPower();
+    }
+    
+    // Fallback si la función no está disponible
+    let clickPower = gameState.clickPower;
+    
+    // Aplicar bonus de upgrades de multiplicador
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeData?.level > 0 && upgradeConfig.type === 'multiplier') {
+        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+        clickPower = clickPower * (1 + multiplierBonus);
+      }
+    });
+    
+    return clickPower;
+  };
+
   // 🐊 Manejo de clic MEJORADO
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
@@ -221,7 +243,8 @@ export function GameView({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    clickEffect.textContent = `+${Math.floor(gameState.clickPower)}`;
+    const currentClickPower = getCurrentClickPower();
+    clickEffect.textContent = `+${Math.floor(currentClickPower)}`;
     clickEffect.style.position = 'absolute';
     clickEffect.style.left = `${x}px`;
     clickEffect.style.top = `${y}px`;
@@ -246,7 +269,7 @@ export function GameView({
     setTimeout(() => setIsClicked(false), 200);
   };
 
-  // 🔥 COMPRAR MEJORA - SIN sincronización duplicada
+  // 🔥 COMPRAR MEJORA - USAR LA FUNCIÓN DIRECTAMENTE DEL HOOK
   const handleBuyUpgrade = (upgradeId) => {
     buyUpgrade(upgradeId);
   };
@@ -405,7 +428,7 @@ export function GameView({
                   {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
                 </div>
                 <div className="text-lime-200 text-lg md:text-xl mt-1">
-                  +{Math.floor(gameState.clickPower)}
+                  +{Math.floor(getCurrentClickPower())}
                 </div>
                 {gameState.energy <= 0 && (
                   <div className="text-red-300 text-sm mt-2 animate-pulse">
@@ -490,6 +513,7 @@ export function GameView({
             upgradesState={upgrades}
             buyUpgrade={handleBuyUpgrade}
             coins={gameState.coins}
+            calculateRealClickPower={calculateRealClickPower}
           />
           <DailyRewardPanel
             dailyRewards={dailyRewards}
@@ -781,7 +805,6 @@ function TokenInfoPanel({
   );
 }
 
-// ... (los demás componentes StatCard, EnergyStatCard, UpgradePanel, DailyRewardPanel se mantienen igual)
 function StatCard({ icon: Icon, value, label, color }) {
   return (
     <div className="stats-card rounded-xl p-3 md:p-4 text-center">
@@ -821,7 +844,7 @@ function EnergyStatCard({ energy, maxEnergy, isRegenerating = false }) {
   );
 }
 
-function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins }) {
+function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calculateRealClickPower }) {
   return (
     <div className="upgrade-card rounded-xl p-4">
       <h3 className="text-xl font-bold mb-4 flex items-center">
