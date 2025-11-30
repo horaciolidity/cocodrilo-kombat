@@ -151,8 +151,8 @@ function App() {
     }
   );
 
-  // ✅ SINCRONIZACIÓN UNIFICADA Y OPTIMIZADA
- // ✅ SINCRONIZACIÓN UNIFICADA Y CORREGIDA
+  
+// ✅ SINCRONIZACIÓN SIMPLIFICADA EN App.jsx
 const syncAllDataToSupabase = useCallback(() => {
   if (!player?.id) {
     console.log("⏸️ Sync pausado: no hay player.id");
@@ -162,23 +162,22 @@ const syncAllDataToSupabase = useCallback(() => {
   console.log("🔄 Sincronización manual iniciada...");
   
   const dataToSync = {
-    // ✅ DATOS BÁSICOS DEL JUEGO - CORREGIDOS
+    // ✅ DATOS BÁSICOS DEL JUEGO
     coins: Math.floor(gameState.coins),
-    croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-    native_token_balance: Math.floor(gameState.nativeTokenBalance || 0),
+    nativeTokenBalance: Math.floor(gameState.nativeTokenBalance || 0),
     level: gameState.level,
-    clicks: gameState.totalClicks,
+    totalClicks: gameState.totalClicks,
     energy: gameState.energy,
-    max_energy: gameState.maxEnergy,
-    click_power: gameState.clickPower,
-    coins_per_second: gameState.coinsPerSecond,
+    maxEnergy: gameState.maxEnergy,
+    clickPower: gameState.clickPower,
+    coinsPerSecond: gameState.coinsPerSecond,
     experience: gameState.experience,
-    total_coins: gameState.totalCoins,
+    totalCoins: gameState.totalCoins,
     
-    // ✅ DATOS DE REFERIDOS - CORREGIDOS
-    croc_from_refs: gameState.crocFromRefs || 0,
-    coins_from_refs: gameState.coinsFromRefs || 0,
-    referrals_count: gameState.referralsCount || 0,
+    // ✅ DATOS DE REFERIDOS
+    crocFromRefs: gameState.crocFromRefs || 0,
+    coinsFromRefs: gameState.coinsFromRefs || 0,
+    referralsCount: gameState.referralsCount || 0,
     
     // ✅ DATOS ADICIONALES
     upgrades: upgrades || {},
@@ -191,11 +190,10 @@ const syncAllDataToSupabase = useCallback(() => {
     farming_milestones: farmingMilestonesState || {},
   };
 
-  console.log("📤 Enviando datos corregidos a Supabase:", {
+  console.log("📤 Enviando datos a Supabase:", {
     coins: dataToSync.coins,
-    croc_tokens: dataToSync.croc_tokens,
-    level: dataToSync.level,
-    referrals: dataToSync.referrals_count
+    nativeTokenBalance: dataToSync.nativeTokenBalance,
+    level: dataToSync.level
   });
 
   // Sincronizar con Supabase
@@ -205,7 +203,7 @@ const syncAllDataToSupabase = useCallback(() => {
   
   toast({
     title: "🔄 Datos sincronizados",
-    description: "Todos los datos se enviaron correctamente a Supabase",
+    description: "Todos los datos se enviaron correctamente",
     duration: 3000,
   });
 }, [
@@ -222,9 +220,7 @@ const syncAllDataToSupabase = useCallback(() => {
   syncStatsToSupabase,
   toast
 ]);
-
   // ✅ SINCRONIZACIÓN AUTOMÁTICA CENTRALIZADA - SOLO UNA VEZ CADA 30 SEGUNDOS
- // Reemplazar el efecto de sincronización automática:
 useEffect(() => {
   if (!player?.id || !syncStatsToSupabase) return;
 
