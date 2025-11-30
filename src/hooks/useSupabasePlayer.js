@@ -93,64 +93,100 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  // Función para obtener estadísticas de referidos - CORREGIDA
-  const getReferralStats = useCallback(async (playerId) => {
-    if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+ // REEMPLAZAR la función getReferralStats con esta versión corregida:
+const getReferralStats = useCallback(async (playerId) => {
+  if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
 
-    try {
-      const { data: referrals, error: refError } = await supabase
-        .from('players')
-        .select('id, created_at')
-        .eq('referred_by', playerId);
+  try {
+    console.log("🔍 Buscando referidos para player:", playerId);
+    
+    const { data: referrals, error: refError } = await supabase
+      .from('players')
+      .select('id, username, created_at, referred_by')
+      .eq('referred_by', playerId);
 
-      if (refError) {
-        console.error("❌ Error contando referidos:", refError);
-        return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
-      }
-
-      const referralsCount = referrals?.length || 0;
-      
-      // ✅ CORREGIDO: Calcular CROC basado en referidos activos (últimos 30 días)
-      const activeReferrals = referrals?.filter(ref => {
-        const refDate = new Date(ref.created_at);
-        const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysSinceRef <= 30;
-      }).length || 0;
-
-      // ✅ 10 CROC por cada referido activo
-      const crocFromRefs = activeReferrals * 10;
-      const coinsFromRefs = activeReferrals * 1000;
-
-      console.log("📊 Stats de referidos CALCULADOS:", { 
-        referralsCount, 
-        activeReferrals,
-        crocFromRefs, 
-        coinsFromRefs 
-      });
-
-      return {
-        referralsCount,
-        crocFromRefs,
-        coinsFromRefs
-      };
-
-    } catch (error) {
-      console.error("❌ Error en getReferralStats:", error);
+    if (refError) {
+      console.error("❌ Error contando referidos:", refError);
       return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
     }
-  }, []);
 
-  // Actualizar estadísticas de referidos
-  const refreshReferralStats = useCallback(async () => {
-    if (!player?.id) return;
+    const referralsCount = referrals?.length || 0;
     
-    try {
-      const stats = await getReferralStats(player.id);
-      setReferralStats(stats);
-    } catch (error) {
-      console.error("❌ Error actualizando stats de referidos:", error);
+    console.log("📊 Referidos encontrados:", referrals);
+
+    // ✅ CÁLCULO SIMPLIFICADO Y ESTABLE - 10 CROC por referido
+    const crocFromRefs = referralsCount * 10;
+    const coinsFromRefs = referralsCount * 1000;
+
+    console.log("🎯 Stats de referidos calculados:", { 
+      referralsCount,
+      crocFromRefs, 
+      coinsFromRefs,
+      referidos: referrals?.map(r => r.username) 
+    });
+
+    return {
+      referralsCount,
+      crocFromRefs,
+      coinsFromRefs
+    };
+
+  } catch (error) {
+    console.error("❌ Error en getReferralStats:", error);
+    return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+  }
+}, []);
+
+// Agregar esta función en useSupabasePlayer.js
+const fixReferralData = useCallback(async () => {
+  if (!player?.id) return;
+  
+  try {
+    console.log("🔧 Reparando datos de referidos...");
+    
+    // Forzar actualización de stats de referidos
+    const refStats = await getReferralStats(player.id);
+    setReferralStats(refStats);
+    
+    // Sincronizar con Supabase
+    if (syncStatsToSupabase) {
+      await syncStatsToSupabase({
+        croc_from_refs: refStats.crocFromRefs,
+        coins_from_refs: refStats.coinsFromRefs,
+        referrals_count: refStats.referralsCount
+      });
     }
-  }, [player?.id, getReferralStats]);
+    
+    console.log("✅ Datos de referidos reparados:", refStats);
+  } catch (error) {
+    console.error("❌ Error reparando datos de referidos:", error);
+  }
+}, [player?.id, getReferralStats, syncStatsToSupabase]);
+
+
+ const refreshReferralStats = useCallback(async () => {
+  if (!player?.id) return;
+  
+  try {
+    const stats = await getReferralStats(player.id);
+    setReferralStats(stats);
+    
+    // ✅ ACTUALIZAR LA BASE DE DATOS CON LOS NUEVOS STATS DE REFERIDOS
+    if (supabasePlayerData?.syncStatsToSupabase) {
+      const updatedStats = {
+        croc_from_refs: stats.crocFromRefs,
+        coins_from_refs: stats.coinsFromRefs,
+        referrals_count: stats.referralsCount
+      };
+      supabasePlayerData.syncStatsToSupabase(updatedStats);
+    }
+  } catch (error) {
+    console.error("❌ Error actualizando stats de referidos:", error);
+  }
+}, [player?.id, getReferralStats, supabasePlayerData]);
+
+
+
 
   // Función para limpiar duplicados en stats
   const cleanDuplicateStats = useCallback(async (playerId) => {
