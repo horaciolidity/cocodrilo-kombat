@@ -295,49 +295,124 @@ function App() {
   }, [user, refreshReferralStats]);
 
   // ✅ FUNCIÓN MEJORADA PARA PROCESAR BONIFICACIONES DE REFERIDOS
-  const processReferralBonuses = useCallback(() => {
-    if (!referralStats || !setGameState) {
+  const processReferralBonuses = useCallback(async () => {
+    if (!referralStats || !setGameState || !player?.id) {
       console.log("⏸️ No se pueden procesar bonificaciones: datos faltantes");
       return;
     }
 
     console.log("💰 Procesando bonificaciones de referidos:", referralStats);
     
-    setGameState(prev => {
-      const currentCrocFromRefs = prev.crocFromRefs || 0;
-      const newCrocFromRefs = referralStats.crocFromRefs || 0;
-      const currentCoinsFromRefs = prev.coinsFromRefs || 0;
-      const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
+    const { crocFromRefs, coinsFromRefs, referralsCount } = referralStats;
+    
+    // Verificar si hay bonificaciones pendientes por aplicar
+    const hasPendingBonuses = 
+      crocFromRefs > (gameState.crocFromRefs || 0) ||
+      coinsFromRefs > (gameState.coinsFromRefs || 0);
+
+    if (hasPendingBonuses) {
+      const crocDifference = crocFromRefs - (gameState.crocFromRefs || 0);
+      const coinsDifference = coinsFromRefs - (gameState.coinsFromRefs || 0);
       
-      // Solo actualizar si hay cambios
-      if (newCrocFromRefs !== currentCrocFromRefs || newCoinsFromRefs !== currentCoinsFromRefs) {
-        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-        const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
-        
-        console.log(`🎁 Sumando ${crocDifference} CROC y ${coinsDifference} monedas por referidos`);
-        
-        return {
+      console.log(`🎁 Aplicando ${crocDifference} CROC y ${coinsDifference} monedas por referidos`);
+
+      try {
+        // 🆕 SINCRONIZAR PRIMERO CON SUPABASE
+        const { error } = await supabase
+          .from('player_stats')
+          .update({
+            native_token_balance: supabase.rpc('increment', { 
+              x: crocDifference,
+              column: 'native_token_balance'
+            }),
+            coins: supabase.rpc('increment', { 
+              x: coinsDifference, 
+              column: 'coins'
+            }),
+            total_coins: supabase.rpc('increment', { 
+              x: coinsDifference, 
+              column: 'total_coins'
+            }),
+            croc_from_refs: crocFromRefs,
+            coins_from_refs: coinsFromRefs,
+            referrals_count: referralsCount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('player_id', player.id);
+
+        if (error) throw error;
+
+        // 🆕 ACTUALIZAR ESTADO LOCAL DESPUÉS DE SINCRONIZAR CON BD
+        setGameState(prev => ({
           ...prev,
-          referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs,
-          coinsFromRefs: newCoinsFromRefs,
+          referralsCount: referralsCount || 0,
+          crocFromRefs: crocFromRefs,
+          coinsFromRefs: coinsFromRefs,
           nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDifference,
           coins: (prev.coins || 0) + coinsDifference,
           totalCoins: (prev.totalCoins || 0) + coinsDifference
-        };
-      }
-      
-      return prev;
-    });
-  }, [referralStats, setGameState]);
+        }));
 
-  // ✅ EFECTO PARA APLICAR BONIFICACIONES DE REFERIDOS
-  useEffect(() => {
-    if (referralStats && user) {
-      console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
-      processReferralBonuses();
+        console.log("✅ Bonificaciones aplicadas y sincronizadas correctamente");
+        
+        // Mostrar notificación al usuario
+        if (crocDifference > 0 || coinsDifference > 0) {
+          toast({
+            title: "🎉 ¡Bonificaciones de Referidos!",
+            description: `+${crocDifference} CROC y +${coinsDifference} monedas por tus referidos`,
+            duration: 5000,
+          });
+          playSound("reward");
+        }
+        
+      } catch (error) {
+        console.error("❌ Error aplicando bonificaciones:", error);
+        toast({
+          title: "❌ Error en bonificaciones",
+          description: "No se pudieron aplicar las bonificaciones de referidos",
+          duration: 3000,
+        });
+      }
+    } else {
+      // Solo actualizar contadores si no hay bonificaciones nuevas
+      setGameState(prev => ({
+        ...prev,
+        referralsCount: referralsCount || 0,
+        crocFromRefs: crocFromRefs,
+        coinsFromRefs: coinsFromRefs
+      }));
     }
-  }, [referralStats, user, processReferralBonuses]);
+  }, [referralStats, setGameState, player?.id, gameState, toast, playSound]);
+
+  // ✅ EFECTO MEJORADO PARA APLICAR BONIFICACIONES DE REFERIDOS
+  useEffect(() => {
+    if (referralStats && user && player?.id) {
+      console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
+      
+      // Esperar un momento para asegurar que el estado del juego esté cargado
+      const timer = setTimeout(() => {
+        processReferralBonuses();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [referralStats, user, player?.id, processReferralBonuses]);
+
+  // ✅ EFECTO PARA SINCRONIZAR BONIFICACIONES DESPUÉS DE CARGAR
+  useEffect(() => {
+    if (referralStats && user && gameState && player?.id) {
+      console.log("🔄 Sincronizando bonificaciones de referidos...");
+      
+      const hasPendingBonuses = 
+        (referralStats.crocFromRefs || 0) > (gameState.crocFromRefs || 0) ||
+        (referralStats.coinsFromRefs || 0) > (gameState.coinsFromRefs || 0);
+      
+      if (hasPendingBonuses) {
+        console.log("🎯 Aplicando bonificaciones pendientes de referidos");
+        processReferralBonuses();
+      }
+    }
+  }, [referralStats, user, gameState, player?.id, processReferralBonuses]);
 
   // ✅ INICIALIZAR DATOS DE REFERIDOS SI NO EXISTEN
   useEffect(() => {
@@ -354,44 +429,57 @@ function App() {
     }
   }, [user, gameState, setGameState]);
 
-  // ✅ FUNCIÓN DE LIMPIEZA DE DATOS CORRUPTOS
+  // ✅ FUNCIÓN DE LIMPIEZA DE DATOS CORRUPTOS MEJORADA
   const cleanupCorruptedData = useCallback(async () => {
     if (!player?.id) return;
     
     try {
       console.log("🧹 Iniciando limpieza de datos corruptos...");
       
+      // Obtener datos actuales de Supabase primero
+      const { data: currentStats, error: fetchError } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('player_id', player.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       const cleanData = {
-        coins: Math.floor(gameState.coins),
-        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-        native_token_balance: Math.floor(gameState.nativeTokenBalance || 0),
-        level: gameState.level,
-        clicks: gameState.totalClicks,
-        energy: gameState.energy,
-        max_energy: gameState.maxEnergy,
-        click_power: gameState.clickPower,
-        coins_per_second: gameState.coinsPerSecond,
-        experience: gameState.experience,
-        total_coins: gameState.totalCoins,
-        croc_from_refs: gameState.crocFromRefs || 0,
-        coins_from_refs: gameState.coinsFromRefs || 0,
-        referrals_count: gameState.referralsCount || 0,
-        upgrades: upgrades || {},
-        missions: missions || {},
-        owned_cards: ownedCards || [],
-        owned_items: ownedItems || [],
+        coins: Math.max(0, Math.floor(gameState.coins)),
+        croc_tokens: Math.max(0, Math.floor(gameState.nativeTokenBalance || 0)),
+        native_token_balance: Math.max(0, Math.floor(gameState.nativeTokenBalance || 0)),
+        level: Math.max(1, gameState.level),
+        clicks: Math.max(0, gameState.totalClicks),
+        energy: Math.max(0, Math.min(gameState.energy, gameState.maxEnergy)),
+        max_energy: Math.max(100, gameState.maxEnergy),
+        click_power: Math.max(1, gameState.clickPower),
+        coins_per_second: Math.max(0, gameState.coinsPerSecond),
+        experience: Math.max(0, gameState.experience),
+        total_coins: Math.max(gameState.coins, gameState.totalCoins || 0),
+        croc_from_refs: Math.max(0, gameState.crocFromRefs || 0),
+        coins_from_refs: Math.max(0, gameState.coinsFromRefs || 0),
+        referrals_count: Math.max(0, gameState.referralsCount || 0),
+        upgrades: upgrades && typeof upgrades === 'object' ? upgrades : {},
+        missions: missions && typeof missions === 'object' ? missions : {},
+        owned_cards: Array.isArray(ownedCards) ? ownedCards : [],
+        owned_items: Array.isArray(ownedItems) ? ownedItems : [],
         active_skin: activeSkin || null,
-        achievements_unlocked: achievementsUnlocked || [],
-        daily_rewards: dailyRewards || { streak: 0, available: true, lastClaim: null },
-        farming_milestones: farmingMilestonesState || {},
+        achievements_unlocked: Array.isArray(achievementsUnlocked) ? achievementsUnlocked : [],
+        daily_rewards: dailyRewards && typeof dailyRewards === 'object' ? dailyRewards : { streak: 0, available: true, lastClaim: null },
+        farming_milestones: farmingMilestonesState && typeof farmingMilestonesState === 'object' ? farmingMilestonesState : {},
+        last_active: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-      
+
+      // Actualizar estado local
       if (setStats) {
         setStats(cleanData);
       }
       
+      // Sincronizar con Supabase
       if (syncStatsToSupabase) {
-        syncStatsToSupabase(cleanData);
+        await syncStatsToSupabase(cleanData);
       }
       
       toast({
@@ -423,6 +511,76 @@ function App() {
     syncStatsToSupabase, 
     toast
   ]);
+
+  // ✅ FUNCIÓN PARA FORZAR APLICACIÓN DE BONIFICACIONES
+  const forceApplyReferralBonuses = useCallback(async () => {
+    if (!player?.id || !referralStats) {
+      toast({
+        title: "❌ No hay datos de referidos",
+        description: "No se pueden aplicar bonificaciones",
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      console.log("🚀 Forzando aplicación de bonificaciones...");
+      
+      const { crocFromRefs, coinsFromRefs, referralsCount } = referralStats;
+      
+      // Aplicar directamente en Supabase
+      const { error } = await supabase
+        .from('player_stats')
+        .update({
+          native_token_balance: supabase.rpc('increment', { 
+            x: crocFromRefs,
+            column: 'native_token_balance'
+          }),
+          coins: supabase.rpc('increment', { 
+            x: coinsFromRefs, 
+            column: 'coins'
+          }),
+          total_coins: supabase.rpc('increment', { 
+            x: coinsFromRefs, 
+            column: 'total_coins'
+          }),
+          croc_from_refs: crocFromRefs,
+          coins_from_refs: coinsFromRefs,
+          referrals_count: referralsCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('player_id', player.id);
+
+      if (error) throw error;
+
+      // Actualizar estado local
+      setGameState(prev => ({
+        ...prev,
+        referralsCount: referralsCount,
+        crocFromRefs: crocFromRefs,
+        coinsFromRefs: coinsFromRefs,
+        nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocFromRefs,
+        coins: (prev.coins || 0) + coinsFromRefs,
+        totalCoins: (prev.totalCoins || 0) + coinsFromRefs
+      }));
+
+      toast({
+        title: "🎉 ¡Bonificaciones Aplicadas!",
+        description: `+${crocFromRefs} CROC y +${coinsFromRefs} monedas por referidos`,
+        duration: 5000,
+      });
+      
+      playSound("reward");
+      
+    } catch (error) {
+      console.error("❌ Error forzando bonificaciones:", error);
+      toast({
+        title: "❌ Error aplicando bonificaciones",
+        description: "Intenta nuevamente o contacta soporte",
+        duration: 3000,
+      });
+    }
+  }, [player?.id, referralStats, setGameState, toast, playSound]);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -531,17 +689,29 @@ function App() {
               onClick={syncAllDataToSupabase}
               variant="outline"
               size="sm"
-              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-blue-500 hover:bg-blue-600"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-blue-500 hover:bg-blue-600 text-white"
             >
               🔄 Sync
             </Button>
+
+            {/* 🎁 Botón de Forzar Bonificaciones */}
+            {referralStats && (referralStats.crocFromRefs > 0 || referralStats.coinsFromRefs > 0) && (
+              <Button
+                onClick={forceApplyReferralBonuses}
+                variant="outline"
+                size="sm"
+                className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-green-500 hover:bg-green-600 text-white"
+              >
+                🎁 Bonos
+              </Button>
+            )}
 
             {/* 🧹 Botón de Limpieza de Datos */}
             <Button
               onClick={cleanupCorruptedData}
               variant="outline"
               size="sm"
-              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-red-500 hover:bg-red-600"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-red-500 hover:bg-red-600 text-white"
             >
               🧹 Limpiar
             </Button>
@@ -575,6 +745,12 @@ function App() {
                   achievementsUnlocked: achievementsUnlocked,
                   dailyRewards: dailyRewards,
                   farmingMilestonesState: farmingMilestonesState
+                });
+                
+                toast({
+                  title: "🐛 Debug Info",
+                  description: "Revisa la consola para ver los detalles",
+                  duration: 3000,
                 });
               }}
               variant="outline"
@@ -621,6 +797,7 @@ function App() {
                 setGameState={setGameState}
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={getReferralLink}
+                forceApplyReferralBonuses={forceApplyReferralBonuses}
               />
             )}
 
@@ -692,6 +869,7 @@ function App() {
                 setShowTutorial={setShowTutorial}
                 resetProgress={resetProgress}
                 playSound={playSound}
+                forceApplyReferralBonuses={forceApplyReferralBonuses}
               />
             )}
           </React.Suspense>
