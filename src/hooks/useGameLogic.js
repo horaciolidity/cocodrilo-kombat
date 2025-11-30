@@ -125,9 +125,6 @@ export function useGameLogic(
       console.log("🔍 DEBUG - Estado después de cargar desde Supabase:");
       console.log("- Click power:", loadedStats.click_power);
       console.log("- Coins per second:", loadedStats.coins_per_second);
-      console.log("- Referrals count en BD:", supabasePlayerData.stats.referrals_count);
-      console.log("- CROC from refs en BD:", supabasePlayerData.stats.croc_from_refs);
-      console.log("- Coins from refs en BD:", supabasePlayerData.stats.coins_from_refs);
       console.log("- Upgrades levels:", loadedStats.upgrades ? Object.entries(loadedStats.upgrades).map(([id, data]) => 
         `${id}: nivel ${data.level}`
       ) : 'No upgrades');
