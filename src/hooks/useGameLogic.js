@@ -49,13 +49,14 @@ export function useGameLogic(
   }, [upgrades]);
 
   // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - OPTIMIZADO
+// REEMPLAZAR el efecto de carga de datos:
 useEffect(() => {
   if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
-    console.log("🔄 Cargando datos COMPLETOS y CORREGIDOS de Supabase");
+    console.log("🔄 Cargando datos desde Supabase");
     
     const loadedStats = supabasePlayerData.stats;
     
-    // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE CON CAMPOS CORREGIDOS
+    // ✅ CARGAR DATOS BÁSICOS CON VALORES POR DEFECTO
     setGameState(prev => ({
       ...prev,
       coins: Number(loadedStats.coins) || 0,
@@ -68,19 +69,21 @@ useEffect(() => {
       coinsPerSecond: Number(loadedStats.coins_per_second) || 0,
       experience: Number(loadedStats.experience) || 0,
       nativeTokenBalance: Number(loadedStats.native_token_balance) || Number(loadedStats.croc_tokens) || 0,
-      // ✅ CARGAR DATOS DE REFERIDOS DESDE SUPABASE
       crocFromRefs: Number(loadedStats.croc_from_refs) || 0,
       coinsFromRefs: Number(loadedStats.coins_from_refs) || 0,
       referralsCount: Number(loadedStats.referrals_count) || 0
     }));
 
-    // ✅ CARGAR UPGRADES DESDE SUPABASE
+    // ✅ CARGAR UPGRADES - CRÍTICO
     if (loadedStats.upgrades && typeof loadedStats.upgrades === 'object') {
-      console.log("📥 Cargando upgrades desde Supabase:", loadedStats.upgrades);
+      console.log("📥 Cargando upgrades:", Object.keys(loadedStats.upgrades).length);
       setUpgrades(loadedStats.upgrades);
+    } else {
+      console.log("🆕 Usando upgrades iniciales");
+      setUpgrades(INITIAL_UPGRADES_STATE);
     }
 
-    // ✅ CARGAR DATOS ADICIONALES DESDE SUPABASE
+    // ✅ CARGAR DATOS ADICIONALES
     if (loadedStats.missions && Object.keys(loadedStats.missions).length > 0) {
       setMissions(loadedStats.missions);
     }
@@ -109,7 +112,7 @@ useEffect(() => {
       setFarmingMilestonesState(loadedStats.farming_milestones);
     }
 
-    console.log("✅ Todos los datos cargados y corregidos desde Supabase");
+    console.log("✅ Datos cargados correctamente");
   }
 }, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
 
