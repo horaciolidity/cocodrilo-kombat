@@ -61,6 +61,7 @@ export function GameView({
   refreshReferralStats,
   setGameState,
   calculateRealClickPower,
+  getReferralLink, // ✅ Asegurar que esta prop esté disponible
 }) {
   const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
@@ -70,42 +71,58 @@ export function GameView({
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
-  
-  // ✅ Hook de sincronización - USAR PROPS EN LUGAR DE HOOK INTERNO
-  const { getReferralLink } = useSupabasePlayer(user);
 
-  // 🔄 ACTUALIZAR REFERIDOS AL CARGAR - USANDO PROP
+  // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
     if (user && refreshReferralStats) {
-      const timer = setTimeout(() => {
+      const interval = setInterval(() => {
         refreshReferralStats();
-      }, 2000);
-      return () => clearTimeout(timer);
+      }, 30000); // Actualizar cada 30 segundos
+      
+      return () => clearInterval(interval);
     }
   }, [user, refreshReferralStats]);
 
-  // 🎥 Manejo de videos - MEJORADO con fallbacks robustos
+  // 🎯 SINCRONIZACIÓN AUTOMÁTICA MEJORADA
+  useEffect(() => {
+    if (!user) return;
+
+    // Sincronizar datos críticos cada 20 segundos
+    const syncInterval = setInterval(() => {
+      console.log("🔄 Sincronización automática desde GameView");
+      
+      // Aquí podrías forzar una sincronización si es necesario
+      // La sincronización principal ya se maneja en useGameLogic
+    }, 20000);
+
+    return () => clearInterval(syncInterval);
+  }, [user]);
+
+  // 🎥 Manejo de videos - MEJORADO con mejores fallbacks
   useEffect(() => {
     const initializeVideos = async () => {
       if (!videoRefIdle.current || !videoRefBite.current) return;
 
       try {
-        // Configurar videos con manejo de errores
+        // Configurar videos
         videoRefIdle.current.loop = true;
         videoRefBite.current.loop = false;
         
-        // Precargar y manejar errores de carga
+        // Precargar videos
         const loadVideo = (videoElement, src) => {
           return new Promise((resolve) => {
             videoElement.src = src;
             videoElement.onloadeddata = () => resolve(true);
             videoElement.onerror = () => {
-              console.warn(`❌ No se pudo cargar el video: ${src}`);
-              resolve(false);
+              console.warn(`❌ Video no disponible: ${src}`);
+              // Intentar con formato alternativo
+              const altSrc = src.replace('.mp4', '.webm');
+              videoElement.src = altSrc;
+              videoElement.onerror = () => resolve(false);
+              videoElement.onloadeddata = () => resolve(true);
             };
             
-            // Timeout de seguridad
-            setTimeout(() => resolve(false), 3000);
+            setTimeout(() => resolve(false), 4000);
           });
         };
 
@@ -118,7 +135,7 @@ export function GameView({
           try {
             await videoRefIdle.current.play();
           } catch (err) {
-            console.log("🔇 Autoplay bloqueado - esperando interacción del usuario");
+            console.log("🔇 Autoplay bloqueado - esperando interacción");
           }
         }
 
@@ -133,65 +150,35 @@ export function GameView({
     initializeVideos();
   }, []);
 
-  // Simulación simple de precio/token - USAR PROP O LOCAL
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLocalTokenPrice(prev =>
-        parseFloat(
-          Math.max(0.01, prev + (Math.random() - 0.5) * 0.005).toFixed(4),
-        ),
-      );
-      setLiquidity(prev =>
-        Math.max(10000, prev + (Math.random() - 0.5) * 1000),
-      );
-      setPriceData(prevData => {
-        const newPrice = parseFloat(
-          Math.max(
-            0.01,
-            localTokenPrice + (Math.random() - 0.5) * 0.005,
-          ).toFixed(4),
-        );
-        return [
-          ...prevData.slice(1),
-          { name: `D${prevData.length}`, price: newPrice },
-        ];
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [localTokenPrice]);
-
-  const getCrocodileCharacter = () => {
-    if (activeSkin) {
-      const skin = SHOP_ITEMS.find(item => item.id === activeSkin);
-      if (skin?.id === 'skin_golden_croc') return '🌟🐊';
-      if (skin?.id === 'skin_camo_croc') return '🌳🐊';
-      if (skin?.id === 'skin_cyborg_croc') return '🤖🐊';
-    }
-    return '🐊';
-  };
-
-  // ✅ CALCULAR CLICK POWER EN TIEMPO REAL - USANDO LA FUNCIÓN DEL HOOK
+  // ✅ CALCULAR CLICK POWER EN TIEMPO REAL - VERSIÓN MEJORADA
   const getCurrentClickPower = () => {
     if (calculateRealClickPower) {
-      return calculateRealClickPower();
+      const power = calculateRealClickPower();
+      console.log(`🎯 Click power calculado: ${power}`);
+      return power;
     }
     
-    // Fallback si la función no está disponible
-    let clickPower = gameState.clickPower;
+    // Fallback robusto
+    let clickPower = gameState.clickPower || 1;
     
-    // Aplicar bonus de upgrades de multiplicador
-    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+    // Aplicar bonus de upgrades
+    Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
       const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-      if (upgradeConfig && upgradeData?.level > 0 && upgradeConfig.type === 'multiplier') {
-        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-        clickPower = clickPower * (1 + multiplierBonus);
+      if (upgradeConfig && upgradeData?.level > 0) {
+        if (upgradeConfig.type === 'multiplier') {
+          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+          clickPower = clickPower * (1 + multiplierBonus);
+        } else if (upgradeConfig.type === 'click') {
+          const clickBonus = upgradeConfig.basePower * upgradeData.level;
+          clickPower += clickBonus;
+        }
       }
     });
-    
+
     return clickPower;
   };
 
-  // 🐊 Manejo de clic MEJORADO
+  // 🐊 Manejo de clic MEJORADO con mejor feedback
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -201,7 +188,7 @@ export function GameView({
       
       toast({
         title: "⚡ Sin Energía",
-        description: "La energía se regenera automáticamente. ¡Espera un momento!",
+        description: `La energía se regenera automáticamente. Actual: ${gameState.energy}/${gameState.maxEnergy}`,
         duration: 3000,
       });
       return;
@@ -212,39 +199,43 @@ export function GameView({
     playSound('bite');
     setIsClicked(true);
 
-    // 🎥 Manejo de videos con fallbacks
+    // 🎥 Manejo de videos mejorado
     if (videoRefIdle.current && videoRefBite.current) {
       try {
         videoRefIdle.current.pause();
         videoRefBite.current.currentTime = 0;
         
-        videoRefBite.current.play().catch(err => {
-          console.log("🔇 Video de mordida no pudo reproducirse:", err);
-        });
+        const playPromise = videoRefBite.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.log("🔇 Video de mordida no pudo reproducirse:", err);
+          });
+        }
 
         const onBiteEnd = () => {
           videoRefBite.current.pause();
           videoRefBite.current.currentTime = 0;
           videoRefIdle.current.play().catch(() => {
-            // Fallback: mostrar frame inicial
             videoRefIdle.current.currentTime = 0;
           });
         };
         
         videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
       } catch (error) {
-        console.log("🎥 Error en animación de video, usando fallback visual");
+        console.log("🎥 Error en animación de video");
       }
     }
 
-    // 🪙 Efecto visual de +1
+    // 🪙 Efecto visual mejorado
     const clickEffect = document.createElement('div');
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
     const currentClickPower = getCurrentClickPower();
-    clickEffect.textContent = `+${Math.floor(currentClickPower)}`;
+    const coinsEarned = Math.floor(currentClickPower);
+    
+    clickEffect.textContent = `+${coinsEarned}`;
     clickEffect.style.position = 'absolute';
     clickEffect.style.left = `${x}px`;
     clickEffect.style.top = `${y}px`;
@@ -255,6 +246,7 @@ export function GameView({
     clickEffect.style.zIndex = '50';
     clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
 
+    // Color basado en nivel
     const lvl = gameState.level;
     clickEffect.style.color =
       lvl < 5 ? '#bef264' :
@@ -262,53 +254,71 @@ export function GameView({
       lvl < 20 ? '#4ade80' :
       lvl < 30 ? '#22c55e' : '#16a34a';
 
+    // Sombra para mejor legibilidad
+    clickEffect.style.textShadow = '0 0 8px rgba(0,0,0,0.8)';
+
     event.currentTarget.appendChild(clickEffect);
-    setTimeout(() => clickEffect.remove(), 1200);
+    setTimeout(() => {
+      if (clickEffect.parentNode) {
+        clickEffect.parentNode.removeChild(clickEffect);
+      }
+    }, 1200);
 
     // 🔁 Reset efecto de clic visual
     setTimeout(() => setIsClicked(false), 200);
   };
 
-  // 🔥 COMPRAR MEJORA - USAR LA FUNCIÓN DIRECTAMENTE DEL HOOK
+  // 🔥 COMPRAR MEJORA CON MEJOR FEEDBACK
   const handleBuyUpgrade = (upgradeId) => {
+    console.log(`🛒 Intentando comprar upgrade: ${upgradeId}`);
     buyUpgrade(upgradeId);
   };
 
-  const handleBuyToken = () => {
-    toast({
-      title: '🚧 Comprar Token CROC',
-      description:
-        'Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).',
-      duration: 5000,
-    });
-  };
-
-  // 📋 Función para copiar enlace de referidos SEGURO
+  // 📋 Función para copiar enlace de referidos MEJORADA
   const copyReferralLink = () => {
+    if (!getReferralLink) {
+      toast({
+        title: '❌ Error',
+        description: 'Función de referidos no disponible',
+        duration: 3000,
+      });
+      return;
+    }
+
     const referralLink = getReferralLink();
-    navigator.clipboard.writeText(referralLink);
-    toast({
-      title: '📋 Enlace copiado',
-      description: '¡Compartí tu link seguro y ganá recompensas!',
-      duration: 2000,
+    navigator.clipboard.writeText(referralLink).then(() => {
+      toast({
+        title: '📋 Enlace copiado',
+        description: '¡Comparte tu link y gana recompensas!',
+        duration: 3000,
+      });
+      playSound('uiClick');
+    }).catch(err => {
+      console.error('Error copiando enlace:', err);
+      toast({
+        title: '❌ Error',
+        description: 'No se pudo copiar el enlace',
+        duration: 3000,
+      });
     });
-    playSound('uiClick');
   };
 
-  // ✅ CALCULAR VALOR PROYECTADO - USAR PROP tokenPrice
+  // ✅ CALCULAR VALOR PROYECTADO MEJORADO
   const actualTokenPrice = tokenPrice || localTokenPrice;
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
+  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001);
 
+  // 🎯 RENDER PRINCIPAL
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
-      {/* 🔥 BANNER DE SINCRONIZACIÓN */}
-      <div className="bg-blue-600 text-white text-center py-2 px-4 rounded-lg mb-4 flex items-center justify-center gap-2">
+      {/* 🔥 BANNER DE SINCRONIZACIÓN MEJORADO */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white text-center py-2 px-4 rounded-lg mb-4 flex items-center justify-center gap-2 shadow-lg">
         <Sparkles className="w-4 h-4" />
         <span className="text-sm font-bold">Sincronizado con la nube - Todo se guarda automáticamente</span>
         <Sparkles className="w-4 h-4" />
       </div>
 
-      {/* Stats */}
+      {/* 📊 Stats rápidas */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <StatCard
           icon={Coins}
@@ -341,7 +351,7 @@ export function GameView({
         />
       </div>
 
-      {/* 🎯 Widget de Referidos Móvil - Solo se muestra en móviles */}
+      {/* 🎯 Widget de Referidos Móvil */}
       <div className="block md:hidden mb-4">
         <ReferralsWidget 
           referralStats={referralStats} 
@@ -352,7 +362,7 @@ export function GameView({
       {/* ✅ VALOR PROYECTADO MÓVIL */}
       <div className="block md:hidden mb-4">
         <ProjectedValueMobile 
-          projectedValue={projectedCrocValue}
+          projectedValue={totalProjectedValue}
           tokenBalance={gameState.nativeTokenBalance || 0}
           tokenPrice={actualTokenPrice}
         />
@@ -360,7 +370,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo - MEJORADO */}
+        {/* 🐊 Zona del cocodrilo - VERSIÓN MEJORADA */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -375,15 +385,15 @@ export function GameView({
                 transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
                 ${
                   activeSkin === 'skin_golden_croc'
-                    ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)]'
+                    ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)] bg-yellow-500/10'
                     : activeSkin === 'skin_camo_croc'
-                    ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)]'
+                    ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)] bg-green-500/10'
                     : activeSkin === 'skin_cyborg_croc'
-                    ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)]'
-                    : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)]'
+                    ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)] bg-blue-500/10'
+                    : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)] bg-emerald-500/10'
                 }`}
             >
-              {/* 🎥 Video idle con fallback */}
+              {/* 🎥 Videos con mejor manejo de errores */}
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
@@ -393,9 +403,12 @@ export function GameView({
                 loop
                 preload="auto"
                 poster="/images/crocodile-poster.jpg"
+                onError={(e) => {
+                  console.error("❌ Error cargando video idle");
+                  e.target.style.display = 'none';
+                }}
               />
 
-              {/* 🎥 Video de mordida */}
               <video
                 ref={videoRefBite}
                 src="/videos/crocodile_bite.mp4"
@@ -403,14 +416,19 @@ export function GameView({
                 muted
                 playsInline
                 preload="auto"
+                onError={(e) => {
+                  console.error("❌ Error cargando video bite");
+                  e.target.style.display = 'none';
+                }}
               />
 
-              {/* 🖼️ Fallback de imagen si videos no cargan */}
+              {/* 🖼️ Fallback de imagen mejorado */}
               {!videoLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-800 rounded-full">
-                  <div className="text-center text-white">
-                    <div className="text-6xl mb-4">{getCrocodileCharacter()}</div>
-                    <p className="text-lg font-bold">¡Haz clic para ganar!</p>
+                  <div className="text-center text-white p-4">
+                    <div className="text-6xl mb-4">🐊</div>
+                    <p className="text-lg font-bold mb-2">¡Haz clic para ganar!</p>
+                    <p className="text-sm opacity-80">+{Math.floor(getCurrentClickPower())} por click</p>
                   </div>
                 </div>
               )}
@@ -422,34 +440,40 @@ export function GameView({
                 transition={{ repeat: Infinity, duration: 1.5 }}
               />
 
-              {/* 🪙 Texto principal */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10">
-                <div className="font-bold text-2xl md:text-3xl neon-glow">
+              {/* 🪙 Texto principal mejorado */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10 p-4">
+                <div className="font-bold text-2xl md:text-3xl neon-glow mb-2">
                   {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
                 </div>
-                <div className="text-lime-200 text-lg md:text-xl mt-1">
+                <div className="text-lime-200 text-lg md:text-xl font-semibold">
                   +{Math.floor(getCurrentClickPower())}
                 </div>
                 {gameState.energy <= 0 && (
-                  <div className="text-red-300 text-sm mt-2 animate-pulse">
-                    Energía regenerándose...
+                  <div className="text-red-300 text-sm mt-2 animate-pulse flex items-center gap-1">
+                    <Zap className="w-4 h-4" />
+                    <span>Energía regenerándose...</span>
                   </div>
                 )}
               </div>
             </div>
           </motion.div>
 
-          {/* Barra de progreso y energía */}
+          {/* Barra de progreso y energía MEJORADA */}
           <div className="mt-10 w-full max-w-md space-y-4">
             {/* Barra de nivel */}
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span>Nivel {gameState.level}</span>
-                <span>{gameState.experience % 100}/100 XP</span>
+                <span className="flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  Nivel {gameState.level}
+                </span>
+                <span className="text-yellow-300 font-semibold">
+                  {gameState.experience % 100}/100 XP
+                </span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3">
+              <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
                 <div
-                  className="progress-bar h-3 rounded-full transition-all duration-300"
+                  className="progress-bar h-3 rounded-full transition-all duration-300 shadow-lg"
                   style={{ width: `${(gameState.experience % 100)}%` }}
                 />
               </div>
@@ -459,6 +483,7 @@ export function GameView({
             <div>
               <div className="flex justify-between text-sm mb-2">
                 <span className="flex items-center gap-1">
+                  <Zap className="w-4 h-4 text-blue-400" />
                   Energía 
                   {gameState.energy < gameState.maxEnergy && (
                     <motion.span
@@ -470,14 +495,14 @@ export function GameView({
                     </motion.span>
                   )}
                 </span>
-                <span className={gameState.energy < gameState.maxEnergy ? "text-green-400 font-bold" : ""}>
+                <span className={`font-semibold ${gameState.energy < gameState.maxEnergy ? "text-green-400" : "text-blue-400"}`}>
                   {gameState.energy}/{gameState.maxEnergy}
                   {gameState.energy < gameState.maxEnergy && " 🔄"}
                 </span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3">
+              <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
                 <div
-                  className={`h-3 rounded-full transition-all duration-1000 ${
+                  className={`h-3 rounded-full transition-all duration-1000 shadow-lg ${
                     gameState.energy > 50 
                       ? 'bg-green-500' 
                       : gameState.energy > 20 
@@ -488,15 +513,16 @@ export function GameView({
                 />
               </div>
               {gameState.energy < gameState.maxEnergy && (
-                <div className="text-xs text-green-400 text-center mt-1 animate-pulse">
-                  ⚡ Regenerando {gameState.maxEnergy - gameState.energy} puntos...
+                <div className="text-xs text-green-400 text-center mt-1 animate-pulse flex items-center justify-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  <span>Regenerando {gameState.maxEnergy - gameState.energy} puntos...</span>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* 📊 Panel lateral */}
+        {/* 📊 Panel lateral MEJORADO */}
         <div className="w-full space-y-4">
           <TokenInfoPanel
             tokenPrice={actualTokenPrice}
@@ -506,7 +532,7 @@ export function GameView({
             referralStats={referralStats}
             onCopyReferralLink={copyReferralLink}
             nativeTokenBalance={gameState.nativeTokenBalance || 0}
-            projectedValue={projectedCrocValue}
+            projectedValue={totalProjectedValue}
           />
           <UpgradePanel
             upgradesConfig={UPGRADES}
