@@ -277,52 +277,61 @@ useEffect(() => {
     });
   }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound]);
 
-  // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL
-  const calculateRealClickPower = useCallback(() => {
-    let clickPower = gameStateRef.current.clickPower;
-    
-    console.log(`🎯 Click power base: ${clickPower}`);
-    
-    // ✅ APLICAR BONUS DE UPGRADES DE MULTIPLICADOR PRIMERO
-    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
-      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-      if (upgradeConfig && upgradeData?.level > 0) {
-        if (upgradeConfig.type === 'multiplier') {
-          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-          clickPower = clickPower * (1 + multiplierBonus);
-          console.log(`🔢 Multiplicador ${upgradeConfig.name}: x${(1 + multiplierBonus).toFixed(2)}`);
-        }
+  // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL - CORREGIDA
+const calculateRealClickPower = useCallback(() => {
+  // Usar gameStateRef.current para obtener el estado más reciente
+  let clickPower = gameStateRef.current.clickPower;
+  
+  console.log(`🎯 Click power base: ${clickPower}`);
+  console.log(`🔧 Upgrades disponibles:`, upgrades);
+  
+  // ✅ APLICAR BONUS DE UPGRADES DE MULTIPLICADOR PRIMERO
+  Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+    if (upgradeConfig && upgradeData?.level > 0) {
+      console.log(`🔧 Procesando upgrade: ${upgradeConfig.name} nivel ${upgradeData.level}`);
+      
+      if (upgradeConfig.type === 'multiplier') {
+        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+        clickPower = clickPower * (1 + multiplierBonus);
+        console.log(`🔢 Multiplicador ${upgradeConfig.name}: x${(1 + multiplierBonus).toFixed(2)} -> ${clickPower.toFixed(2)}`);
+      } else if (upgradeConfig.type === 'click') {
+        const clickBonus = upgradeConfig.basePower * upgradeData.level;
+        clickPower += clickBonus;
+        console.log(`🔼 Click boost ${upgradeConfig.name}: +${clickBonus} -> ${clickPower.toFixed(2)}`);
       }
-    });
+      // Los upgrades de tipo 'cps' y 'energy' no afectan el click power
+    }
+  });
 
-    // ✅ APLICAR BONUS DE ITEMS (suma plana)
-    ownedItems.forEach(itemId => {
-      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-      if (item && item.effect.type === 'click_boost') {
-        clickPower += item.effect.value;
-        console.log(`🛍️ Item ${item.name}: +${item.effect.value}`);
+  // ✅ APLICAR BONUS DE ITEMS (suma plana)
+  ownedItems.forEach(itemId => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+    if (item && item.effect.type === 'click_boost') {
+      clickPower += item.effect.value;
+      console.log(`🛍️ Item ${item.name}: +${item.effect.value} -> ${clickPower.toFixed(2)}`);
+    }
+  });
+
+  // ✅ APLICAR BONUS DE CARTAS (suma plana y porcentaje)
+  ownedCards.forEach(cardId => {
+    const card = CARDS_DATA.find(c => c.id === cardId);
+    if (card) {
+      if (card.effect.type === 'click_power_flat') {
+        clickPower += card.effect.value;
+        console.log(`🃏 Carta ${card.name}: +${card.effect.value} -> ${clickPower.toFixed(2)}`);
       }
-    });
-
-    // ✅ APLICAR BONUS DE CARTAS (suma plana y porcentaje)
-    ownedCards.forEach(cardId => {
-      const card = CARDS_DATA.find(c => c.id === cardId);
-      if (card) {
-        if (card.effect.type === 'click_power_flat') {
-          clickPower += card.effect.value;
-          console.log(`🃏 Carta ${card.name}: +${card.effect.value}`);
-        }
-        if (card.effect.type === 'click_power_percent') {
-          const percentBonus = clickPower * (card.effect.value / 100);
-          clickPower += percentBonus;
-          console.log(`🃏 Carta ${card.name}: +${card.effect.value}%`);
-        }
+      if (card.effect.type === 'click_power_percent') {
+        const percentBonus = clickPower * (card.effect.value / 100);
+        clickPower += percentBonus;
+        console.log(`🃏 Carta ${card.name}: +${card.effect.value}% -> ${clickPower.toFixed(2)}`);
       }
-    });
+    }
+  });
 
-    console.log(`💰 Click power total calculado: ${clickPower.toFixed(2)}`);
-    return clickPower;
-  }, [upgrades, ownedItems, ownedCards]);
+  console.log(`💰 Click power total calculado: ${clickPower.toFixed(2)}`);
+  return clickPower;
+}, [upgrades, ownedItems, ownedCards]);
 
   // 👆 FUNCIÓN DE TAP - CORREGIDA CON CÁLCULO EN TIEMPO REAL
   const handleClick = useCallback((event) => {

@@ -184,7 +184,7 @@ export const UPGRADES = [
     image: "/images/upgrades/scales.jpeg",
   },
   {
-    id: "reyDelPantano",
+    id: "rey_del_pantano",
     name: "Rey del Pantano",
     description: "Genera 100 monedas por segundo",
     basePrice: 20000,
