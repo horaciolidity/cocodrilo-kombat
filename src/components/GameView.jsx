@@ -72,6 +72,17 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
 
+   // ✅ DEFINIR handleBuyToken - ESTA ES LA SOLUCIÓN AL ERROR PRINCIPAL
+  const handleBuyToken = () => {
+    toast({
+      title: '🚧 Comprar Token CROC',
+      description: 'Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).',
+      duration: 5000,
+    });
+    playSound('uiClick');
+  };
+
+
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
     if (user && refreshReferralStats) {
