@@ -228,26 +228,26 @@ const syncStatsToSupabase = useCallback(async (data = null) => {
   }
 
   try {
-    // 🎯 PAYLOAD UNIFICADO Y CORREGIDO
+    // 🎯 PAYLOAD UNIFICADO Y COMPLETO
     const payload = {
       player_id: player.id,
-      // ✅ DATOS BÁSICOS DEL JUEGO - CORREGIDOS
-      coins: Math.floor(mergedData.coins || stats?.coins || gameState?.coins || 0),
-      croc_tokens: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.croc_tokens || gameState?.nativeTokenBalance || 0),
-      native_token_balance: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.native_token_balance || gameState?.nativeTokenBalance || 0),
-      level: mergedData.level || stats?.level || gameState?.level || 1,
-      clicks: mergedData.clicks || mergedData.totalClicks || stats?.clicks || gameState?.totalClicks || 0,
-      energy: mergedData.energy || stats?.energy || gameState?.energy || 100,
-      max_energy: mergedData.max_energy || mergedData.maxEnergy || stats?.max_energy || gameState?.maxEnergy || 100,
-      click_power: mergedData.click_power || mergedData.clickPower || stats?.click_power || gameState?.clickPower || 1,
-      coins_per_second: mergedData.coins_per_second || mergedData.coinsPerSecond || stats?.coins_per_second || gameState?.coinsPerSecond || 0,
-      experience: mergedData.experience || stats?.experience || gameState?.experience || 0,
-      total_coins: mergedData.total_coins || mergedData.totalCoins || stats?.total_coins || gameState?.totalCoins || 0,
+      // ✅ DATOS BÁSICOS DEL JUEGO
+      coins: Math.floor(mergedData.coins || stats?.coins || 0),
+      croc_tokens: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.croc_tokens || 0),
+      native_token_balance: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.native_token_balance || 0),
+      level: mergedData.level || stats?.level || 1,
+      clicks: mergedData.clicks || mergedData.totalClicks || stats?.clicks || 0,
+      energy: mergedData.energy || stats?.energy || 100,
+      max_energy: mergedData.max_energy || mergedData.maxEnergy || stats?.max_energy || 100,
+      click_power: mergedData.click_power || mergedData.clickPower || stats?.click_power || 1,
+      coins_per_second: mergedData.coins_per_second || mergedData.coinsPerSecond || stats?.coins_per_second || 0,
+      experience: mergedData.experience || stats?.experience || 0,
+      total_coins: mergedData.total_coins || mergedData.totalCoins || stats?.total_coins || 0,
       
-      // ✅ DATOS DE REFERIDOS - CORREGIDOS
-      croc_from_refs: Math.floor(mergedData.crocFromRefs || stats?.croc_from_refs || gameState?.crocFromRefs || 0),
-      coins_from_refs: Math.floor(mergedData.coinsFromRefs || stats?.coins_from_refs || gameState?.coinsFromRefs || 0),
-      referrals_count: mergedData.referralsCount || stats?.referrals_count || gameState?.referralsCount || 0,
+      // ✅ DATOS DE REFERIDOS
+      croc_from_refs: Math.floor(mergedData.crocFromRefs || stats?.croc_from_refs || 0),
+      coins_from_refs: Math.floor(mergedData.coinsFromRefs || stats?.coins_from_refs || 0),
+      referrals_count: mergedData.referralsCount || stats?.referrals_count || 0,
       
       // ✅ DATOS ADICIONALES
       upgrades: mergedData.upgrades || stats?.upgrades || {},
@@ -263,10 +263,10 @@ const syncStatsToSupabase = useCallback(async (data = null) => {
       updated_at: new Date().toISOString(),
     };
 
-    console.log("🔄 Sincronizando datos CORREGIDOS a Supabase:", {
+    console.log("🔄 Sincronizando datos COMPLETOS a Supabase:", {
       coins: payload.coins,
       croc_tokens: payload.croc_tokens,
-      level: payload.level,
+      upgrades: Object.keys(payload.upgrades).length,
       referrals: payload.referrals_count
     });
 
@@ -274,16 +274,24 @@ const syncStatsToSupabase = useCallback(async (data = null) => {
     const { error } = await supabase
       .from("player_stats")
       .upsert(payload, { 
-        onConflict: 'player_id'
+        onConflict: 'player_id',
+        ignoreDuplicates: false 
       });
 
     if (error) {
       console.error("❌ Error en upsert:", error);
-      throw error;
+      
+      // Fallback: intentar insert
+      const { error: insertError } = await supabase
+        .from("player_stats")
+        .insert(payload);
+        
+      if (insertError) {
+        console.error("❌ Error crítico en insert fallback:", insertError);
+        throw insertError;
+      }
     } else {
       console.log("✅ Datos sincronizados correctamente");
-      // Actualizar stats locales después de sincronizar exitosamente
-      setStats(payload);
     }
 
     lastSyncRef.current = Date.now();
@@ -294,8 +302,7 @@ const syncStatsToSupabase = useCallback(async (data = null) => {
     // Reintentar después de 5 segundos
     setTimeout(() => syncStatsToSupabase(mergedData), 5000);
   }
-}, [player?.id, stats, gameState]);
-
+}, [player?.id, stats]);
 
   // ✅ FUNCIÓN ESPECÍFICA PARA SINCRONIZAR UPGRADES
   const syncUpgradesToSupabase = useCallback(async (upgradesData) => {
