@@ -49,68 +49,72 @@ export function useGameLogic(
   }, [upgrades]);
 
   // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - OPTIMIZADO
-  useEffect(() => {
-    if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
-      console.log("🔄 Cargando datos COMPLETOS de Supabase");
-      
-      const loadedStats = supabasePlayerData.stats;
-      
-      // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE EN UNA SOLA OPERACIÓN
-      setGameState(prev => ({
-        ...prev,
-        coins: Number(loadedStats.coins) || 0,
-        totalCoins: Number(loadedStats.total_coins) || 0,
-        level: Number(loadedStats.level) || 1,
-        totalClicks: Number(loadedStats.clicks) || 0,
-        energy: Number(loadedStats.energy) || 100,
-        maxEnergy: Number(loadedStats.max_energy) || 100,
-        clickPower: Number(loadedStats.click_power) || 1,
-        coinsPerSecond: Number(loadedStats.coins_per_second) || 0,
-        experience: Number(loadedStats.experience) || 0,
-        nativeTokenBalance: Number(loadedStats.native_token_balance) || 0,
-        crocFromRefs: Number(loadedStats.croc_from_refs) || 0,
-        coinsFromRefs: Number(loadedStats.coins_from_refs) || 0,
-        referralsCount: Number(loadedStats.referrals_count) || 0
-      }));
+useEffect(() => {
+  if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
+    console.log("🔄 Cargando datos COMPLETOS y CORREGIDOS de Supabase");
+    
+    const loadedStats = supabasePlayerData.stats;
+    
+    // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE CON CAMPOS CORREGIDOS
+    setGameState(prev => ({
+      ...prev,
+      coins: Number(loadedStats.coins) || 0,
+      totalCoins: Number(loadedStats.total_coins) || 0,
+      level: Number(loadedStats.level) || 1,
+      totalClicks: Number(loadedStats.clicks) || 0,
+      energy: Number(loadedStats.energy) || 100,
+      maxEnergy: Number(loadedStats.max_energy) || 100,
+      clickPower: Number(loadedStats.click_power) || 1,
+      coinsPerSecond: Number(loadedStats.coins_per_second) || 0,
+      experience: Number(loadedStats.experience) || 0,
+      nativeTokenBalance: Number(loadedStats.native_token_balance) || Number(loadedStats.croc_tokens) || 0,
+      // ✅ CARGAR DATOS DE REFERIDOS DESDE SUPABASE
+      crocFromRefs: Number(loadedStats.croc_from_refs) || 0,
+      coinsFromRefs: Number(loadedStats.coins_from_refs) || 0,
+      referralsCount: Number(loadedStats.referrals_count) || 0
+    }));
 
-      // ✅ CARGAR UPGRADES DESDE SUPABASE
-      if (loadedStats.upgrades && typeof loadedStats.upgrades === 'object') {
-        console.log("📥 Cargando upgrades desde Supabase");
-        setUpgrades(loadedStats.upgrades);
-      }
-
-      // ✅ CARGAR DATOS ADICIONALES DESDE SUPABASE
-      if (loadedStats.missions && Object.keys(loadedStats.missions).length > 0) {
-        setMissions(loadedStats.missions);
-      }
-
-      if (loadedStats.owned_cards && Array.isArray(loadedStats.owned_cards)) {
-        setOwnedCards(loadedStats.owned_cards);
-      }
-
-      if (loadedStats.owned_items && Array.isArray(loadedStats.owned_items)) {
-        setOwnedItems(loadedStats.owned_items);
-      }
-
-      if (loadedStats.active_skin) {
-        setActiveSkin(loadedStats.active_skin);
-      }
-
-      if (loadedStats.achievements_unlocked && Array.isArray(loadedStats.achievements_unlocked)) {
-        setAchievementsUnlocked(loadedStats.achievements_unlocked);
-      }
-
-      if (loadedStats.daily_rewards) {
-        setDailyRewards(loadedStats.daily_rewards);
-      }
-
-      if (loadedStats.farming_milestones && Object.keys(loadedStats.farming_milestones).length > 0) {
-        setFarmingMilestonesState(loadedStats.farming_milestones);
-      }
-
-      console.log("✅ Todos los datos cargados desde Supabase");
+    // ✅ CARGAR UPGRADES DESDE SUPABASE
+    if (loadedStats.upgrades && typeof loadedStats.upgrades === 'object') {
+      console.log("📥 Cargando upgrades desde Supabase:", loadedStats.upgrades);
+      setUpgrades(loadedStats.upgrades);
     }
-  }, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
+
+    // ✅ CARGAR DATOS ADICIONALES DESDE SUPABASE
+    if (loadedStats.missions && Object.keys(loadedStats.missions).length > 0) {
+      setMissions(loadedStats.missions);
+    }
+
+    if (loadedStats.owned_cards && Array.isArray(loadedStats.owned_cards)) {
+      setOwnedCards(loadedStats.owned_cards);
+    }
+
+    if (loadedStats.owned_items && Array.isArray(loadedStats.owned_items)) {
+      setOwnedItems(loadedStats.owned_items);
+    }
+
+    if (loadedStats.active_skin) {
+      setActiveSkin(loadedStats.active_skin);
+    }
+
+    if (loadedStats.achievements_unlocked && Array.isArray(loadedStats.achievements_unlocked)) {
+      setAchievementsUnlocked(loadedStats.achievements_unlocked);
+    }
+
+    if (loadedStats.daily_rewards) {
+      setDailyRewards(loadedStats.daily_rewards);
+    }
+
+    if (loadedStats.farming_milestones && Object.keys(loadedStats.farming_milestones).length > 0) {
+      setFarmingMilestonesState(loadedStats.farming_milestones);
+    }
+
+    console.log("✅ Todos los datos cargados y corregidos desde Supabase");
+  }
+}, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
+
+
+
 
   // 🎯 SINCRONIZACIÓN UNIFICADA Y OPTIMIZADA
   const syncAllData = useCallback(() => {
