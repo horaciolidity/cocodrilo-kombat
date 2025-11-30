@@ -12,11 +12,12 @@ export function useGameLogic(
   user, 
   supabasePlayerData
 ) {
+  // 🎯 INICIALIZAR ESTADOS DIRECTAMENTE
   const INITIAL_GAME_STATE = { ...DEFAULT_INITIAL_GAME_STATE, ...initialGameStateOverrides };
   const INITIAL_UPGRADES_STATE = { ...DEFAULT_INITIAL_UPGRADES_STATE, ...initialUpgradesOverrides };
   const INITIAL_MISSIONS_STATE = { ...DEFAULT_INITIAL_MISSIONS_STATE, ...initialMissionsOverrides };
 
-  // 🎯 ESTADOS LOCALES - INICIALIZADOS DESDE SUPABASE
+  // 🎯 ESTADOS LOCALES
   const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
   const [upgrades, setUpgrades] = useState(INITIAL_UPGRADES_STATE);
   const [missions, setMissions] = useState(INITIAL_MISSIONS_STATE);
@@ -48,81 +49,73 @@ export function useGameLogic(
     upgradesRef.current = upgrades;
   }, [upgrades]);
 
-  // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - OPTIMIZADO
-// REEMPLAZAR el efecto de carga de datos:
-useEffect(() => {
-  if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
-    console.log("🔄 Cargando datos desde Supabase");
-    
-    const loadedStats = supabasePlayerData.stats;
-    
-    // ✅ CARGAR DATOS BÁSICOS CON VALORES POR DEFECTO
-    setGameState(prev => ({
-      ...prev,
-      coins: Number(loadedStats.coins) || 0,
-      totalCoins: Number(loadedStats.total_coins) || 0,
-      level: Number(loadedStats.level) || 1,
-      totalClicks: Number(loadedStats.clicks) || 0,
-      energy: Number(loadedStats.energy) || 100,
-      maxEnergy: Number(loadedStats.max_energy) || 100,
-      clickPower: Number(loadedStats.click_power) || 1,
-      coinsPerSecond: Number(loadedStats.coins_per_second) || 0,
-      experience: Number(loadedStats.experience) || 0,
-      nativeTokenBalance: Number(loadedStats.native_token_balance) || Number(loadedStats.croc_tokens) || 0,
-      crocFromRefs: Number(loadedStats.croc_from_refs) || 0,
-      coinsFromRefs: Number(loadedStats.coins_from_refs) || 0,
-      referralsCount: Number(loadedStats.referrals_count) || 0
-    }));
+  // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - VERSIÓN SEGURA
+  useEffect(() => {
+    if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
+      console.log("🔄 Cargando datos desde Supabase");
+      
+      const loadedStats = supabasePlayerData.stats;
+      
+      // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE EN UNA SOLA OPERACIÓN
+      setGameState(prev => ({
+        ...prev,
+        coins: Number(loadedStats.coins) || 0,
+        totalCoins: Number(loadedStats.total_coins) || 0,
+        level: Number(loadedStats.level) || 1,
+        totalClicks: Number(loadedStats.clicks) || 0,
+        energy: Number(loadedStats.energy) || 100,
+        maxEnergy: Number(loadedStats.max_energy) || 100,
+        clickPower: Number(loadedStats.click_power) || 1,
+        coinsPerSecond: Number(loadedStats.coins_per_second) || 0,
+        experience: Number(loadedStats.experience) || 0,
+        nativeTokenBalance: Number(loadedStats.native_token_balance) || Number(loadedStats.croc_tokens) || 0,
+        crocFromRefs: Number(loadedStats.croc_from_refs) || 0,
+        coinsFromRefs: Number(loadedStats.coins_from_refs) || 0,
+        referralsCount: Number(loadedStats.referrals_count) || 0
+      }));
 
-    // ✅ CARGAR UPGRADES - CRÍTICO
-    if (loadedStats.upgrades && typeof loadedStats.upgrades === 'object') {
-      console.log("📥 Cargando upgrades:", Object.keys(loadedStats.upgrades).length);
-      setUpgrades(loadedStats.upgrades);
-    } else {
-      console.log("🆕 Usando upgrades iniciales");
-      setUpgrades(INITIAL_UPGRADES_STATE);
+      // ✅ CARGAR UPGRADES DESDE SUPABASE
+      if (loadedStats.upgrades && typeof loadedStats.upgrades === 'object' && Object.keys(loadedStats.upgrades).length > 0) {
+        console.log("📥 Cargando upgrades desde Supabase");
+        setUpgrades(loadedStats.upgrades);
+      }
+
+      // ✅ CARGAR DATOS ADICIONALES DESDE SUPABASE
+      if (loadedStats.missions && Object.keys(loadedStats.missions).length > 0) {
+        setMissions(loadedStats.missions);
+      }
+
+      if (loadedStats.owned_cards && Array.isArray(loadedStats.owned_cards)) {
+        setOwnedCards(loadedStats.owned_cards);
+      }
+
+      if (loadedStats.owned_items && Array.isArray(loadedStats.owned_items)) {
+        setOwnedItems(loadedStats.owned_items);
+      }
+
+      if (loadedStats.active_skin) {
+        setActiveSkin(loadedStats.active_skin);
+      }
+
+      if (loadedStats.achievements_unlocked && Array.isArray(loadedStats.achievements_unlocked)) {
+        setAchievementsUnlocked(loadedStats.achievements_unlocked);
+      }
+
+      if (loadedStats.daily_rewards) {
+        setDailyRewards(loadedStats.daily_rewards);
+      }
+
+      if (loadedStats.farming_milestones && Object.keys(loadedStats.farming_milestones).length > 0) {
+        setFarmingMilestonesState(loadedStats.farming_milestones);
+      }
+
+      console.log("✅ Todos los datos cargados desde Supabase");
     }
+  }, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
 
-    // ✅ CARGAR DATOS ADICIONALES
-    if (loadedStats.missions && Object.keys(loadedStats.missions).length > 0) {
-      setMissions(loadedStats.missions);
-    }
-
-    if (loadedStats.owned_cards && Array.isArray(loadedStats.owned_cards)) {
-      setOwnedCards(loadedStats.owned_cards);
-    }
-
-    if (loadedStats.owned_items && Array.isArray(loadedStats.owned_items)) {
-      setOwnedItems(loadedStats.owned_items);
-    }
-
-    if (loadedStats.active_skin) {
-      setActiveSkin(loadedStats.active_skin);
-    }
-
-    if (loadedStats.achievements_unlocked && Array.isArray(loadedStats.achievements_unlocked)) {
-      setAchievementsUnlocked(loadedStats.achievements_unlocked);
-    }
-
-    if (loadedStats.daily_rewards) {
-      setDailyRewards(loadedStats.daily_rewards);
-    }
-
-    if (loadedStats.farming_milestones && Object.keys(loadedStats.farming_milestones).length > 0) {
-      setFarmingMilestonesState(loadedStats.farming_milestones);
-    }
-
-    console.log("✅ Datos cargados correctamente");
-  }
-}, [supabasePlayerData?.stats, supabasePlayerData?.loading]);
-
-
-
-
-  // 🎯 SINCRONIZACIÓN UNIFICADA Y OPTIMIZADA
+  // 🎯 SINCRONIZACIÓN UNIFICADA Y OPTIMIZADA - VERSIÓN SEGURA
   const syncAllData = useCallback(() => {
     if (!user || !supabasePlayerData?.syncStatsToSupabase) {
-      console.log("⏸️ Sync pausado: usuario no autenticado");
       return;
     }
 
@@ -130,7 +123,6 @@ useEffect(() => {
     
     // Throttling: mínimo 3 segundos entre sincronizaciones
     if (now - lastSyncRef.current < 3000) {
-      console.log("⏸️ Sync throttled, demasiado rápido");
       return;
     }
 
@@ -168,31 +160,31 @@ useEffect(() => {
 
     supabasePlayerData.syncStatsToSupabase(dataToSync);
     lastSyncRef.current = now;
-  }, [gameState, upgrades, missions, ownedCards, ownedItems, activeSkin, achievementsUnlocked, dailyRewards, farmingMilestonesState, user, supabasePlayerData]);
-
-  // 📤 SINCRONIZACIÓN AUTOMÁTICA UNIFICADA - SOLO UNA VEZ CADA 30 SEGUNDOS
-  useEffect(() => {
-    if (!user || !supabasePlayerData?.syncStatsToSupabase) return;
-
-    console.log("🎯 Iniciando sincronización automática unificada");
-
-    const syncInterval = setInterval(() => {
-      const hasSignificantChanges = 
-        Math.floor(gameState.coins) !== Math.floor(supabasePlayerData.stats?.coins || 0) ||
-        gameState.level !== (supabasePlayerData.stats?.level || 1) ||
-        Math.floor(gameState.nativeTokenBalance || 0) !== Math.floor(supabasePlayerData.stats?.native_token_balance || 0);
-
-      if (hasSignificantChanges) {
-        console.log("🔄 Sincronización automática por cambios significativos");
-        syncAllData();
-      }
-    }, 30000); // 30 segundos
-
-    return () => {
-      console.log("🧹 Limpiando sincronización automática");
-      clearInterval(syncInterval);
-    };
-  }, [user, gameState, supabasePlayerData, syncAllData]);
+  }, [
+    user, 
+    supabasePlayerData, 
+    gameState.coins,
+    gameState.nativeTokenBalance,
+    gameState.level,
+    gameState.totalClicks,
+    gameState.energy,
+    gameState.maxEnergy,
+    gameState.clickPower,
+    gameState.coinsPerSecond,
+    gameState.experience,
+    gameState.totalCoins,
+    gameState.crocFromRefs,
+    gameState.coinsFromRefs,
+    gameState.referralsCount,
+    upgrades,
+    missions,
+    ownedCards,
+    ownedItems,
+    activeSkin,
+    achievementsUnlocked,
+    dailyRewards,
+    farmingMilestonesState
+  ]);
 
   // 📤 SINCRONIZACIÓN EN EVENTOS IMPORTANTES
   const syncImportantChange = useCallback((changeType, additionalData = {}) => {
@@ -220,9 +212,25 @@ useEffect(() => {
 
     supabasePlayerData.syncStatsToSupabase(dataToSync);
     lastSyncRef.current = Date.now();
-  }, [gameState, user, supabasePlayerData]);
+  }, [
+    user, 
+    supabasePlayerData, 
+    gameState.coins,
+    gameState.nativeTokenBalance,
+    gameState.level,
+    gameState.totalClicks,
+    gameState.energy,
+    gameState.maxEnergy,
+    gameState.clickPower,
+    gameState.coinsPerSecond,
+    gameState.experience,
+    gameState.totalCoins,
+    gameState.crocFromRefs,
+    gameState.coinsFromRefs,
+    gameState.referralsCount
+  ]);
 
-  // ⚡ REGENERACIÓN DE ENERGÍA
+  // ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN ESTABLE
   useEffect(() => {
     console.log("⚡ Iniciando regeneración de energía...");
     
@@ -251,7 +259,7 @@ useEffect(() => {
     };
   }, []);
 
-  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
+  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - VERSIÓN ESTABLE
   useEffect(() => {
     console.log("💰 Iniciando generación de monedas...");
     
@@ -329,14 +337,14 @@ useEffect(() => {
         }
       }
     });
-  }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound, syncImportantChange]);
+  }, [gameState.totalClicks, gameState.totalCoins, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound, syncImportantChange]);
 
-  // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL
+  // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL - VERSIÓN SIMPLIFICADA
   const calculateRealClickPower = useCallback(() => {
-    let clickPower = gameStateRef.current.clickPower;
+    let clickPower = gameState.clickPower;
     
     // ✅ APLICAR BONUS DE UPGRADES
-    Object.entries(upgradesRef.current).forEach(([upgradeId, upgradeData]) => {
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
       const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
       if (upgradeConfig && upgradeData?.level > 0) {
         if (upgradeConfig.type === 'multiplier') {
@@ -373,12 +381,12 @@ useEffect(() => {
 
     const finalClickPower = Math.max(1, clickPower);
     return finalClickPower;
-  }, [ownedItems, ownedCards]);
+  }, [gameState.clickPower, upgrades, ownedItems, ownedCards]);
 
-  // 👆 FUNCIÓN DE TAP - OPTIMIZADA
+  // 👆 FUNCIÓN DE TAP - OPTIMIZADA Y SEGURA
   const handleClick = useCallback((event) => {
-    const currentEnergy = gameStateRef.current.energy;
-    const maxEnergy = gameStateRef.current.maxEnergy;
+    const currentEnergy = gameState.energy;
+    const maxEnergy = gameState.maxEnergy;
     
     if (currentEnergy <= 0) {
       toast({ 
@@ -424,8 +432,8 @@ useEffect(() => {
     }
 
     // Sistema de niveles
-    const newLevel = Math.floor((gameStateRef.current.experience + 1) / 100) + 1;
-    if (newLevel > gameStateRef.current.level) {
+    const newLevel = Math.floor((gameState.experience + 1) / 100) + 1;
+    if (newLevel > gameState.level) {
       setGameState(prev => ({ ...prev, level: newLevel }));
       toast({ 
         title: "🎉 ¡Nivel Subido!", 
@@ -433,13 +441,10 @@ useEffect(() => {
         duration: 3000 
       });
       playSound('levelUp');
-      
-      // Sincronizar nivel
-      syncImportantChange('level_up', { level: newLevel });
     }
-  }, [calculateRealClickPower, toast, playSound, syncImportantChange]);
+  }, [gameState.energy, gameState.maxEnergy, gameState.experience, gameState.level, calculateRealClickPower, toast, playSound]);
 
-  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES OPTIMIZADA
+  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES SEGURA
   const buyUpgrade = useCallback((upgradeId) => {
     const upgrade = UPGRADES.find(u => u.id === upgradeId);
     if (!upgrade) {
@@ -487,15 +492,6 @@ useEffect(() => {
       
       setUpgrades(newUpgrades);
 
-      // 🔥 SINCRONIZAR INMEDIATAMENTE
-      syncImportantChange('upgrade_purchase', {
-        coins: Math.floor(gameState.coins - price),
-        click_power: gameState.clickPower + (upgrade.type === 'click' ? upgrade.basePower : 0),
-        coins_per_second: gameState.coinsPerSecond + (upgrade.type === 'cps' ? upgrade.basePower : 0),
-        max_energy: gameState.maxEnergy + (upgrade.type === 'energy' ? upgrade.basePower : 0),
-        upgrades: newUpgrades
-      });
-
       toast({ 
         title: "✅ Mejora Comprada", 
         description: `${upgrade.name} nivel ${currentLevel + 1}`, 
@@ -510,7 +506,7 @@ useEffect(() => {
       });
       playSound('error');
     }
-  }, [gameState, upgrades, toast, playSound, syncImportantChange]);
+  }, [gameState.coins, upgrades, toast, playSound]);
 
   // 🎯 Misiones
   const completeMission = useCallback((missionId, isSocial = false) => {
@@ -561,9 +557,6 @@ useEffect(() => {
         duration: 3000 
       });
       playSound('missionComplete');
-      
-      // Sincronizar misiones
-      syncImportantChange('mission_complete', { missions: {...missions, [missionId]: { completed: true, claimed: false }} });
     } else if (!isSocial) {
       toast({ 
         title: "⏳ Misión Incompleta", 
@@ -572,7 +565,7 @@ useEffect(() => {
       });
       playSound('uiClick');
     }
-  }, [gameState, missions, upgrades, toast, playSound, syncImportantChange]);
+  }, [gameState.totalClicks, gameState.totalCoins, gameState.level, missions, upgrades, toast, playSound]);
 
   // 🎁 Reclamar recompensa de misión
   const claimMissionReward = useCallback((missionId) => {
@@ -613,15 +606,7 @@ useEffect(() => {
       duration: 3000 
     });
     playSound('reward');
-    
-    // Sincronizar recompensa
-    syncImportantChange('mission_reward', {
-      coins: Math.floor(gameState.coins + mission.reward.coins),
-      total_coins: gameState.totalCoins + mission.reward.coins,
-      missions: {...missions, [missionId]: { claimed: true }},
-      owned_cards: mission.reward.cardId ? [...ownedCards, mission.reward.cardId] : ownedCards
-    });
-  }, [missions, ownedCards, gameState, toast, playSound, syncImportantChange]);
+  }, [missions, ownedCards, toast, playSound]);
 
   // 📅 Recompensa diaria
   const claimDailyReward = useCallback(() => {
@@ -660,13 +645,6 @@ useEffect(() => {
         duration: 3000 
       });
       playSound('reward');
-      
-      // Sincronizar recompensa diaria
-      syncImportantChange('daily_reward', {
-        coins: Math.floor(gameState.coins + reward),
-        total_coins: gameState.totalCoins + reward,
-        daily_rewards: { lastClaim: now.toISOString(), streak: newStreak, available: false }
-      });
     } else {
        toast({ 
          title: "🤔 Ya Reclamaste Hoy", 
@@ -675,7 +653,7 @@ useEffect(() => {
        });
        playSound('uiClick');
     }
-  }, [dailyRewards, gameState, toast, playSound, syncImportantChange]);
+  }, [dailyRewards, toast, playSound]);
 
   // 🔄 Verificar disponibilidad de recompensa diaria
   useEffect(() => {
@@ -782,13 +760,6 @@ useEffect(() => {
                 playSound('powerUp');
             }
         }
-        
-        // Sincronizar compra
-        syncImportantChange('shop_purchase', {
-          coins: Math.floor(gameState.coins - item.price),
-          owned_items: item.type === 'skin' ? [...ownedItems, itemId] : ownedItems,
-          active_skin: item.type === 'skin' ? itemId : activeSkin
-        });
     } else {
         toast({ 
           title: "💰 Monedas Insuficientes", 
@@ -797,7 +768,7 @@ useEffect(() => {
         });
         playSound('error');
     }
-  }, [gameState.coins, ownedItems, activeSkin, toast, playSound, syncImportantChange]);
+  }, [gameState.coins, ownedItems, activeSkin, toast, playSound]);
 
   // 🏆 Hitos de farmeo
   const claimFarmingMilestone = useCallback((milestoneId) => {
@@ -821,12 +792,6 @@ useEffect(() => {
       playSound('milestone');
       setLastReachedMilestone(milestone);
       setShowMilestoneModal(true);
-      
-      // Sincronizar hito
-      syncImportantChange('farming_milestone', {
-        native_token_balance: gameState.nativeTokenBalance + milestone.tokenReward,
-        farming_milestones: {...farmingMilestonesState, [milestoneId]: { claimed: true }}
-      });
     } else {
       toast({ 
         title: "⏳ Requisito No Cumplido", 
@@ -835,7 +800,7 @@ useEffect(() => {
       });
       playSound('uiClick');
     }
-  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound, setShowMilestoneModal, setLastReachedMilestone, syncImportantChange]);
+  }, [gameState.totalCoins, farmingMilestonesState, toast, playSound, setShowMilestoneModal, setLastReachedMilestone]);
 
   // 🔔 Notificaciones de hitos disponibles
   useEffect(() => {
@@ -874,36 +839,7 @@ useEffect(() => {
       description: "¡Comienza una nueva aventura!", 
       duration: 3000 
     });
-    
-    // Sincronizar reinicio
-    if (user && supabasePlayerData?.syncStatsToSupabase) {
-      const resetData = {
-        coins: 0,
-        croc_tokens: 0,
-        native_token_balance: 0,
-        level: 1,
-        clicks: 0,
-        energy: 100,
-        max_energy: 100,
-        click_power: 1,
-        coins_per_second: 0,
-        experience: 0,
-        total_coins: 0,
-        croc_from_refs: 0,
-        coins_from_refs: 0,
-        referrals_count: 0,
-        upgrades: INITIAL_UPGRADES_STATE,
-        missions: INITIAL_MISSIONS_STATE,
-        owned_cards: [],
-        owned_items: [],
-        active_skin: null,
-        achievements_unlocked: [],
-        daily_rewards: { lastClaim: null, streak: 0, available: true },
-        farming_milestones: INITIAL_FARMING_MILESTONES_STATE,
-      };
-      supabasePlayerData.syncStatsToSupabase(resetData);
-    }
-  }, [toast, INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE, user, supabasePlayerData]);
+  }, [toast, INITIAL_GAME_STATE, INITIAL_UPGRADES_STATE, INITIAL_MISSIONS_STATE, INITIAL_FARMING_MILESTONES_STATE]);
 
   return {
     gameState,

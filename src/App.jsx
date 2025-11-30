@@ -238,49 +238,27 @@ useEffect(() => {
   };
 }, [player?.id, stats, gameState, syncStatsToSupabase, syncAllDataToSupabase]);
 
-// ✅ CORREGIR EFECTO DE REFERIDOS
-// REEMPLAZAR el efecto de referidos:
+
+// ✅ EFECTO SIMPLIFICADO PARA REFERIDOS
 useEffect(() => {
   if (referralStats && user && setGameState) {
-    console.log("🔄 Procesando referidos:", {
-      actual: {
-        croc: gameState.crocFromRefs,
-        coins: gameState.coinsFromRefs,
-        count: gameState.referralsCount
-      },
-      nuevo: referralStats
-    });
-    
-    setGameState(prev => {
-      const currentCroc = prev.crocFromRefs || 0;
-      const newCroc = referralStats.crocFromRefs || 0;
-      const currentCoins = prev.coinsFromRefs || 0;
-      const newCoins = referralStats.coinsFromRefs || 0;
-      const currentCount = prev.referralsCount || 0;
-      const newCount = referralStats.referralsCount || 0;
+    const hasChanges = 
+      (referralStats.crocFromRefs || 0) !== (gameState.crocFromRefs || 0) ||
+      (referralStats.coinsFromRefs || 0) !== (gameState.coinsFromRefs || 0) ||
+      (referralStats.referralsCount || 0) !== (gameState.referralsCount || 0);
+
+    if (hasChanges) {
+      console.log("🔄 Actualizando referidos en gameState");
       
-      // Solo aplicar diferencias positivas
-      const crocDiff = Math.max(0, newCroc - currentCroc);
-      const coinsDiff = Math.max(0, newCoins - currentCoins);
-      
-      if (crocDiff > 0 || coinsDiff > 0 || newCount !== currentCount) {
-        console.log(`🎁 Aplicando: ${crocDiff} CROC, ${coinsDiff} monedas`);
-        
-        return {
-          ...prev,
-          referralsCount: newCount,
-          crocFromRefs: newCroc,
-          coinsFromRefs: newCoins,
-          nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDiff,
-          coins: (prev.coins || 0) + coinsDiff,
-          totalCoins: (prev.totalCoins || 0) + coinsDiff
-        };
-      }
-      
-      return prev;
-    });
+      setGameState(prev => ({
+        ...prev,
+        referralsCount: referralStats.referralsCount || 0,
+        crocFromRefs: referralStats.crocFromRefs || 0,
+        coinsFromRefs: referralStats.coinsFromRefs || 0,
+      }));
+    }
   }
-}, [referralStats, user, setGameState]);
+}, [referralStats, user, setGameState, gameState.crocFromRefs, gameState.coinsFromRefs, gameState.referralsCount]);
 
 
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
