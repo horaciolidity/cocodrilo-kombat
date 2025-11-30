@@ -152,54 +152,62 @@ function App() {
   );
 
   
-// ✅ SINCRONIZACIÓN SIMPLIFICADA EN App.jsx
-// REEMPLAZAR la función syncAllDataToSupabase:
+ // ✅ SINCRONIZACIÓN UNIFICADA Y CORREGIDA
 const syncAllDataToSupabase = useCallback(() => {
   if (!player?.id) {
     console.log("⏸️ Sync pausado: no hay player.id");
     return;
   }
   
-  console.log("🔄 Sincronización manual");
+  console.log("🔄 Sincronización manual iniciada...");
   
   const dataToSync = {
-    // ✅ DATOS BÁSICOS
+    // ✅ DATOS BÁSICOS DEL JUEGO - CORREGIDOS
     coins: Math.floor(gameState.coins),
-    nativeTokenBalance: Math.floor(gameState.nativeTokenBalance || 0),
+    croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
+    native_token_balance: Math.floor(gameState.nativeTokenBalance || 0),
     level: gameState.level,
-    totalClicks: gameState.totalClicks,
+    clicks: gameState.totalClicks,
     energy: gameState.energy,
-    maxEnergy: gameState.maxEnergy,
-    clickPower: gameState.clickPower,
-    coinsPerSecond: gameState.coinsPerSecond,
+    max_energy: gameState.maxEnergy,
+    click_power: gameState.clickPower,
+    coins_per_second: gameState.coinsPerSecond,
     experience: gameState.experience,
-    totalCoins: gameState.totalCoins,
+    total_coins: gameState.totalCoins,
     
-    // ✅ DATOS DE REFERIDOS
-    crocFromRefs: gameState.crocFromRefs || 0,
-    coinsFromRefs: gameState.coinsFromRefs || 0,
-    referralsCount: gameState.referralsCount || 0,
+    // ✅ DATOS DE REFERIDOS - CORREGIDOS
+    croc_from_refs: gameState.crocFromRefs || 0,
+    coins_from_refs: gameState.coinsFromRefs || 0,
+    referrals_count: gameState.referralsCount || 0,
     
     // ✅ DATOS ADICIONALES
-    upgrades: upgrades,
-    missions: missions,
-    owned_cards: ownedCards,
-    owned_items: ownedItems,
-    active_skin: activeSkin,
-    achievements_unlocked: achievementsUnlocked,
-    daily_rewards: dailyRewards,
-    farming_milestones: farmingMilestonesState,
+    upgrades: upgrades || {},
+    missions: missions || {},
+    owned_cards: ownedCards || [],
+    owned_items: ownedItems || [],
+    active_skin: activeSkin || null,
+    achievements_unlocked: achievementsUnlocked || [],
+    daily_rewards: dailyRewards || { streak: 0, available: true, lastClaim: null },
+    farming_milestones: farmingMilestonesState || {},
   };
 
-  console.log("📤 Datos a sincronizar:", {
+  console.log("📤 Enviando datos corregidos a Supabase:", {
     coins: dataToSync.coins,
-    croc: dataToSync.nativeTokenBalance,
-    level: dataToSync.level
+    croc_tokens: dataToSync.croc_tokens,
+    level: dataToSync.level,
+    referrals: dataToSync.referrals_count
   });
 
+  // Sincronizar con Supabase
   if (syncStatsToSupabase) {
     syncStatsToSupabase(dataToSync);
   }
+  
+  toast({
+    title: "🔄 Datos sincronizados",
+    description: "Todos los datos se enviaron correctamente a Supabase",
+    duration: 3000,
+  });
 }, [
   player?.id,
   gameState,
@@ -211,9 +219,12 @@ const syncAllDataToSupabase = useCallback(() => {
   achievementsUnlocked,
   dailyRewards,
   farmingMilestonesState,
-  syncStatsToSupabase
+  syncStatsToSupabase,
+  toast
 ]);
+
   // ✅ SINCRONIZACIÓN AUTOMÁTICA CENTRALIZADA - SOLO UNA VEZ CADA 30 SEGUNDOS
+ // Reemplazar el efecto de sincronización automática:
 useEffect(() => {
   if (!player?.id || !syncStatsToSupabase) return;
 
@@ -238,27 +249,39 @@ useEffect(() => {
   };
 }, [player?.id, stats, gameState, syncStatsToSupabase, syncAllDataToSupabase]);
 
-
-// ✅ EFECTO SIMPLIFICADO PARA REFERIDOS
+// ✅ CORREGIR EFECTO DE REFERIDOS
 useEffect(() => {
   if (referralStats && user && setGameState) {
-    const hasChanges = 
-      (referralStats.crocFromRefs || 0) !== (gameState.crocFromRefs || 0) ||
-      (referralStats.coinsFromRefs || 0) !== (gameState.coinsFromRefs || 0) ||
-      (referralStats.referralsCount || 0) !== (gameState.referralsCount || 0);
-
-    if (hasChanges) {
-      console.log("🔄 Actualizando referidos en gameState");
+    console.log("💰 Aplicando bonificaciones de referidos:", referralStats);
+    
+    setGameState(prev => {
+      const currentCrocFromRefs = prev.crocFromRefs || 0;
+      const newCrocFromRefs = referralStats.crocFromRefs || 0;
+      const currentCoinsFromRefs = prev.coinsFromRefs || 0;
+      const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
       
-      setGameState(prev => ({
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: referralStats.crocFromRefs || 0,
-        coinsFromRefs: referralStats.coinsFromRefs || 0,
-      }));
-    }
+      // Solo actualizar si hay cambios y los nuevos valores son mayores
+      if (newCrocFromRefs > currentCrocFromRefs || newCoinsFromRefs > currentCoinsFromRefs) {
+        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
+        const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
+        
+        console.log(`🎁 Aplicando ${crocDifference} CROC y ${coinsDifference} monedas por referidos`);
+        
+        return {
+          ...prev,
+          referralsCount: referralStats.referralsCount || 0,
+          crocFromRefs: newCrocFromRefs,
+          coinsFromRefs: newCoinsFromRefs,
+          nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDifference,
+          coins: (prev.coins || 0) + coinsDifference,
+          totalCoins: (prev.totalCoins || 0) + coinsDifference
+        };
+      }
+      
+      return prev;
+    });
   }
-}, [referralStats, user, setGameState, gameState.crocFromRefs, gameState.coinsFromRefs, gameState.referralsCount]);
+}, [referralStats, user, setGameState]);
 
 
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
@@ -550,41 +573,6 @@ useEffect(() => {
       </div>
     );
   }
-   // ✅ FUNCIÓN PARA VERIFICAR CONEXIÓN SUPABASE
-const checkSupabaseConnection = useCallback(async () => {
-  if (!player?.id) return false;
-  
-  try {
-    console.log("🔍 Verificando conexión con Supabase...");
-    
-    const { data, error } = await supabase
-      .from('player_stats')
-      .select('player_id, coins, level')
-      .eq('player_id', player.id)
-      .single();
-    
-    if (error) {
-      console.error("❌ Error conectando a Supabase:", error);
-      return false;
-    }
-    
-    console.log("✅ Conexión Supabase exitosa:", data);
-    return true;
-  } catch (error) {
-    console.error("❌ Error en verificación:", error);
-    return false;
-  }
-}, [player?.id]);
-
-// Efecto para verificar conexión al cargar
-useEffect(() => {
-  if (player?.id) {
-    checkSupabaseConnection();
-  }
-}, [player?.id, checkSupabaseConnection]);
-
-
-
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -630,56 +618,42 @@ useEffect(() => {
             </Button>
 
             {/* 🐛 Botón de Debug temporal */}
-            // REEMPLAZAR el botón de debug:
-<Button
-  onClick={() => {
-    const debugInfo = {
-      user: user?.id,
-      player: player?.id,
-      playerExists: !!player,
-      stats: {
-        exists: !!stats,
-        coins: stats?.coins,
-        level: stats?.level,
-        croc_tokens: stats?.croc_tokens,
-        native_token_balance: stats?.native_token_balance,
-        referrals_count: stats?.referrals_count
-      },
-      gameState: {
-        coins: gameState.coins,
-        level: gameState.level,
-        nativeTokenBalance: gameState.nativeTokenBalance,
-        crocFromRefs: gameState.crocFromRefs,
-        coinsFromRefs: gameState.coinsFromRefs,
-        referralsCount: gameState.referralsCount,
-      },
-      referralStats: referralStats,
-      upgrades: {
-        count: Object.keys(upgrades || {}).length,
-        data: upgrades
-      }
-    };
-    
-    console.log("🐛 DEBUG COMPLETO:", debugInfo);
-    
-    // Verificar sincronización
-    if (player?.id && syncStatsToSupabase) {
-      console.log("🔍 Probando conexión Supabase...");
-      syncAllDataToSupabase();
-    }
-    
-    toast({
-      title: "🐛 Debug Info",
-      description: `Coins: ${gameState.coins} | CROC: ${gameState.nativeTokenBalance} | Level: ${gameState.level}`,
-      duration: 5000,
-    });
-  }}
-  variant="outline"
-  size="sm"
-  className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
->
-  🐛 Debug
-</Button>
+            <Button
+              onClick={() => {
+                console.log("🐛 DEBUG INFO:", {
+                  user: user?.id,
+                  player: player?.id,
+                  stats: stats,
+                  referralStats: referralStats,
+                  gameState: {
+                    coins: gameState.coins,
+                    level: gameState.level,
+                    clicks: gameState.totalClicks,
+                    nativeTokenBalance: gameState.nativeTokenBalance,
+                    crocFromRefs: gameState.crocFromRefs,
+                    coinsFromRefs: gameState.coinsFromRefs,
+                    referralsCount: gameState.referralsCount,
+                    energy: gameState.energy,
+                    coinsPerSecond: gameState.coinsPerSecond,
+                    clickPower: gameState.clickPower,
+                    realClickPower: calculateRealClickPower ? calculateRealClickPower() : 'N/A'
+                  },
+                  upgrades: upgrades,
+                  missions: missions,
+                  ownedCards: ownedCards,
+                  ownedItems: ownedItems,
+                  activeSkin: activeSkin,
+                  achievementsUnlocked: achievementsUnlocked,
+                  dailyRewards: dailyRewards,
+                  farmingMilestonesState: farmingMilestonesState
+                });
+              }}
+              variant="outline"
+              size="sm"
+              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
+            >
+              🐛 Debug
+            </Button>
           </div>
         </div>
       </nav>
