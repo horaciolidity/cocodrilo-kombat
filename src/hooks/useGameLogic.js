@@ -41,38 +41,38 @@ export function useGameLogic(
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - CORREGIDO
-useEffect(() => {
-  if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
-    console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabasePlayerData.stats);
-    
-    // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
-    setGameState(prev => ({
-      ...prev,
-      coins: Number(supabasePlayerData.stats.coins) || 0,
-      totalCoins: Number(supabasePlayerData.stats.total_coins) || 0,
-      level: Number(supabasePlayerData.stats.level) || 1,
-      totalClicks: Number(supabasePlayerData.stats.clicks) || 0,
-      energy: Number(supabasePlayerData.stats.energy) || 100,
-      maxEnergy: Number(supabasePlayerData.stats.max_energy) || 100,
-      clickPower: Number(supabasePlayerData.stats.click_power) || 1,
-      coinsPerSecond: Number(supabasePlayerData.stats.coins_per_second) || 0,
-      experience: Number(supabasePlayerData.stats.experience) || 0,
-      nativeTokenBalance: Number(supabasePlayerData.stats.native_token_balance) || 0,
-      // ✅ CARGAR DATOS DE REFERIDOS DESDE SUPABASE
-      crocFromRefs: Number(supabasePlayerData.stats.croc_from_refs) || 0,
-      coinsFromRefs: Number(supabasePlayerData.stats.coins_from_refs) || 0,
-      referralsCount: Number(supabasePlayerData.stats.referrals_count) || 0
-    }));
+  // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - CORREGIDO Y MEJORADO
+  useEffect(() => {
+    if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
+      console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabasePlayerData.stats);
+      
+      // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
+      setGameState(prev => ({
+        ...prev,
+        coins: Number(supabasePlayerData.stats.coins) || 0,
+        totalCoins: Number(supabasePlayerData.stats.total_coins) || 0,
+        level: Number(supabasePlayerData.stats.level) || 1,
+        totalClicks: Number(supabasePlayerData.stats.clicks) || 0,
+        energy: Number(supabasePlayerData.stats.energy) || 100,
+        maxEnergy: Number(supabasePlayerData.stats.max_energy) || 100,
+        clickPower: Number(supabasePlayerData.stats.click_power) || 1,
+        coinsPerSecond: Number(supabasePlayerData.stats.coins_per_second) || 0,
+        experience: Number(supabasePlayerData.stats.experience) || 0,
+        nativeTokenBalance: Number(supabasePlayerData.stats.native_token_balance) || 0,
+        // ✅ CARGAR DATOS DE REFERIDOS DESDE SUPABASE
+        crocFromRefs: Number(supabasePlayerData.stats.croc_from_refs) || 0,
+        coinsFromRefs: Number(supabasePlayerData.stats.coins_from_refs) || 0,
+        referralsCount: Number(supabasePlayerData.stats.referrals_count) || 0
+      }));
 
-    // ✅ CARGAR UPGRADES DESDE SUPABASE - CRÍTICO
-    if (supabasePlayerData.stats.upgrades && typeof supabasePlayerData.stats.upgrades === 'object' && Object.keys(supabasePlayerData.stats.upgrades).length > 0) {
-      console.log("📥 Cargando upgrades desde Supabase:", supabasePlayerData.stats.upgrades);
-      setUpgrades(supabasePlayerData.stats.upgrades);
-    } else {
-      console.log("🆕 No hay upgrades en BD, usando iniciales");
-      setUpgrades(INITIAL_UPGRADES_STATE);
-    }
+      // ✅ CARGAR UPGRADES DESDE SUPABASE - CRÍTICO
+      if (supabasePlayerData.stats.upgrades && typeof supabasePlayerData.stats.upgrades === 'object' && Object.keys(supabasePlayerData.stats.upgrades).length > 0) {
+        console.log("📥 Cargando upgrades desde Supabase:", supabasePlayerData.stats.upgrades);
+        setUpgrades(supabasePlayerData.stats.upgrades);
+      } else {
+        console.log("🆕 No hay upgrades en BD, usando iniciales");
+        setUpgrades(INITIAL_UPGRADES_STATE);
+      }
 
       // 🆕 CARGAR MISSIONS DESDE SUPABASE
       if (supabasePlayerData.stats.missions && Object.keys(supabasePlayerData.stats.missions).length > 0) {
@@ -122,7 +122,7 @@ useEffect(() => {
 
   // 📤 SINCRONIZAR UPGRADES CON SUPABASE CUANDO CAMBIEN - MEJORADO
   useEffect(() => {
-    if (!supabasePlayerData?.loading && user && supabasePlayerData?.syncUpgradesToSupabase) {
+    if (!supabasePlayerData?.loading && user && upgrades && supabasePlayerData?.syncUpgradesToSupabase) {
       const syncTimeout = setTimeout(() => {
         console.log("🔄 Sincronizando upgrades con Supabase:", upgrades);
         supabasePlayerData.syncUpgradesToSupabase(upgrades);
@@ -132,9 +132,9 @@ useEffect(() => {
     }
   }, [upgrades, user, supabasePlayerData?.loading, supabasePlayerData?.syncUpgradesToSupabase]);
 
-  // 📤 SINCRONIZAR GAME STATE CON SUPABASE CUANDO CAMBIEN
+  // 📤 SINCRONIZAR GAME STATE CON SUPABASE CUANDO CAMBIEN - MEJORADO
   useEffect(() => {
-    if (!supabasePlayerData?.loading && user && supabasePlayerData?.syncStatsToSupabase) {
+    if (!supabasePlayerData?.loading && user && gameState && supabasePlayerData?.syncStatsToSupabase) {
       const syncTimeout = setTimeout(() => {
         console.log("🔄 Sincronizando gameState con Supabase");
         
@@ -150,6 +150,9 @@ useEffect(() => {
           experience: gameState.experience,
           total_coins: gameState.totalCoins,
           native_token_balance: gameState.nativeTokenBalance,
+          croc_from_refs: gameState.crocFromRefs || 0,
+          coins_from_refs: gameState.coinsFromRefs || 0,
+          referrals_count: gameState.referralsCount || 0,
         };
         
         supabasePlayerData.syncStatsToSupabase(statsToSync);
@@ -158,6 +161,91 @@ useEffect(() => {
       return () => clearTimeout(syncTimeout);
     }
   }, [gameState, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR MISSIONS CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && missions && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando missions con Supabase:", missions);
+        
+        const statsToSync = {
+          missions: missions
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [missions, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR OWNED CARDS CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && ownedCards && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando owned_cards con Supabase:", ownedCards);
+        
+        const statsToSync = {
+          owned_cards: ownedCards
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [ownedCards, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR OWNED ITEMS CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && ownedItems && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando owned_items con Supabase:", ownedItems);
+        
+        const statsToSync = {
+          owned_items: ownedItems
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [ownedItems, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR ACTIVE SKIN CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && activeSkin !== null && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando active_skin con Supabase:", activeSkin);
+        
+        const statsToSync = {
+          active_skin: activeSkin
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [activeSkin, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
+
+  // 📤 SINCRONIZAR ACHIEVEMENTS CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && achievementsUnlocked && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando achievements_unlocked con Supabase:", achievementsUnlocked);
+        
+        const statsToSync = {
+          achievements_unlocked: achievementsUnlocked
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [achievementsUnlocked, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
 
   // 📤 SINCRONIZAR DAILY REWARDS CON SUPABASE CUANDO CAMBIEN - NUEVO
   useEffect(() => {
@@ -170,6 +258,23 @@ useEffect(() => {
       return () => clearTimeout(syncTimeout);
     }
   }, [dailyRewards, user, supabasePlayerData?.loading, supabasePlayerData?.syncDailyRewardsToSupabase]);
+
+  // 📤 SINCRONIZAR FARMING MILESTONES CON SUPABASE CUANDO CAMBIEN - NUEVO
+  useEffect(() => {
+    if (!supabasePlayerData?.loading && user && farmingMilestonesState && supabasePlayerData?.syncStatsToSupabase) {
+      const syncTimeout = setTimeout(() => {
+        console.log("🔄 Sincronizando farming_milestones con Supabase:", farmingMilestonesState);
+        
+        const statsToSync = {
+          farming_milestones: farmingMilestonesState
+        };
+        
+        supabasePlayerData.syncStatsToSupabase(statsToSync);
+      }, 2000);
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [farmingMilestonesState, user, supabasePlayerData?.loading, supabasePlayerData?.syncStatsToSupabase]);
 
   // ⚡ REGENERACIÓN DE ENERGÍA - SOLUCIÓN DEFINITIVA
   useEffect(() => {
@@ -278,60 +383,60 @@ useEffect(() => {
   }, [gameState, upgrades, missions, achievementsUnlocked, ownedCards, ownedItems, farmingMilestonesState, toast, playSound]);
 
   // 🎯 FUNCIÓN AUXILIAR PARA CALCULAR CLICK POWER REAL - CORREGIDA
-const calculateRealClickPower = useCallback(() => {
-  // Usar gameStateRef.current para obtener el estado más reciente
-  let clickPower = gameStateRef.current.clickPower;
-  
-  console.log(`🎯 Click power base: ${clickPower}`);
-  console.log(`🔧 Upgrades disponibles:`, upgrades);
-  
-  // ✅ APLICAR BONUS DE UPGRADES DE MULTIPLICADOR PRIMERO
-  Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
-    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-    if (upgradeConfig && upgradeData?.level > 0) {
-      console.log(`🔧 Procesando upgrade: ${upgradeConfig.name} nivel ${upgradeData.level}`);
-      
-      if (upgradeConfig.type === 'multiplier') {
-        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-        clickPower = clickPower * (1 + multiplierBonus);
-        console.log(`🔢 Multiplicador ${upgradeConfig.name}: x${(1 + multiplierBonus).toFixed(2)} -> ${clickPower.toFixed(2)}`);
-      } else if (upgradeConfig.type === 'click') {
-        const clickBonus = upgradeConfig.basePower * upgradeData.level;
-        clickPower += clickBonus;
-        console.log(`🔼 Click boost ${upgradeConfig.name}: +${clickBonus} -> ${clickPower.toFixed(2)}`);
+  const calculateRealClickPower = useCallback(() => {
+    // Usar gameStateRef.current para obtener el estado más reciente
+    let clickPower = gameStateRef.current.clickPower;
+    
+    console.log(`🎯 Click power base: ${clickPower}`);
+    console.log(`🔧 Upgrades disponibles:`, upgrades);
+    
+    // ✅ APLICAR BONUS DE UPGRADES DE MULTIPLICADOR PRIMERO
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeData?.level > 0) {
+        console.log(`🔧 Procesando upgrade: ${upgradeConfig.name} nivel ${upgradeData.level}`);
+        
+        if (upgradeConfig.type === 'multiplier') {
+          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+          clickPower = clickPower * (1 + multiplierBonus);
+          console.log(`🔢 Multiplicador ${upgradeConfig.name}: x${(1 + multiplierBonus).toFixed(2)} -> ${clickPower.toFixed(2)}`);
+        } else if (upgradeConfig.type === 'click') {
+          const clickBonus = upgradeConfig.basePower * upgradeData.level;
+          clickPower += clickBonus;
+          console.log(`🔼 Click boost ${upgradeConfig.name}: +${clickBonus} -> ${clickPower.toFixed(2)}`);
+        }
+        // Los upgrades de tipo 'cps' y 'energy' no afectan el click power
       }
-      // Los upgrades de tipo 'cps' y 'energy' no afectan el click power
-    }
-  });
+    });
 
-  // ✅ APLICAR BONUS DE ITEMS (suma plana)
-  ownedItems.forEach(itemId => {
-    const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-    if (item && item.effect.type === 'click_boost') {
-      clickPower += item.effect.value;
-      console.log(`🛍️ Item ${item.name}: +${item.effect.value} -> ${clickPower.toFixed(2)}`);
-    }
-  });
-
-  // ✅ APLICAR BONUS DE CARTAS (suma plana y porcentaje)
-  ownedCards.forEach(cardId => {
-    const card = CARDS_DATA.find(c => c.id === cardId);
-    if (card) {
-      if (card.effect.type === 'click_power_flat') {
-        clickPower += card.effect.value;
-        console.log(`🃏 Carta ${card.name}: +${card.effect.value} -> ${clickPower.toFixed(2)}`);
+    // ✅ APLICAR BONUS DE ITEMS (suma plana)
+    ownedItems.forEach(itemId => {
+      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+      if (item && item.effect.type === 'click_boost') {
+        clickPower += item.effect.value;
+        console.log(`🛍️ Item ${item.name}: +${item.effect.value} -> ${clickPower.toFixed(2)}`);
       }
-      if (card.effect.type === 'click_power_percent') {
-        const percentBonus = clickPower * (card.effect.value / 100);
-        clickPower += percentBonus;
-        console.log(`🃏 Carta ${card.name}: +${card.effect.value}% -> ${clickPower.toFixed(2)}`);
-      }
-    }
-  });
+    });
 
-  console.log(`💰 Click power total calculado: ${clickPower.toFixed(2)}`);
-  return clickPower;
-}, [upgrades, ownedItems, ownedCards]);
+    // ✅ APLICAR BONUS DE CARTAS (suma plana y porcentaje)
+    ownedCards.forEach(cardId => {
+      const card = CARDS_DATA.find(c => c.id === cardId);
+      if (card) {
+        if (card.effect.type === 'click_power_flat') {
+          clickPower += card.effect.value;
+          console.log(`🃏 Carta ${card.name}: +${card.effect.value} -> ${clickPower.toFixed(2)}`);
+        }
+        if (card.effect.type === 'click_power_percent') {
+          const percentBonus = clickPower * (card.effect.value / 100);
+          clickPower += percentBonus;
+          console.log(`🃏 Carta ${card.name}: +${card.effect.value}% -> ${clickPower.toFixed(2)}`);
+        }
+      }
+    });
+
+    console.log(`💰 Click power total calculado: ${clickPower.toFixed(2)}`);
+    return clickPower;
+  }, [upgrades, ownedItems, ownedCards]);
 
   // 👆 FUNCIÓN DE TAP - CORREGIDA CON CÁLCULO EN TIEMPO REAL
   const handleClick = useCallback((event) => {
