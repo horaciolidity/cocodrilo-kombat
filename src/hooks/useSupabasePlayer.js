@@ -15,8 +15,6 @@ export function useSupabasePlayer(user) {
   const syncTimeout = useRef(null);
   const lastSyncRef = useRef(0);
   const pendingSyncRef = useRef(null);
-  const upgradesDataRef = useRef(null);
-  const dailyRewardsDataRef = useRef(null); // ✅ NUEVO: Ref para daily rewards
   const isMounted = useRef(true);
 
   // Generador de nombre aleatorio
@@ -93,53 +91,52 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
- // En useSupabasePlayer.js, modifica la función getReferralStats:
+  // Obtener estadísticas de referidos
+  const getReferralStats = useCallback(async (playerId) => {
+    if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
 
-const getReferralStats = useCallback(async (playerId) => {
-  if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+    try {
+      const { data: referrals, error: refError } = await supabase
+        .from('players')
+        .select('id, created_at')
+        .eq('referred_by', playerId);
 
-  try {
-    const { data: referrals, error: refError } = await supabase
-      .from('players')
-      .select('id, created_at')
-      .eq('referred_by', playerId);
+      if (refError) {
+        console.error("❌ Error contando referidos:", refError);
+        return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
+      }
 
-    if (refError) {
-      console.error("❌ Error contando referidos:", refError);
+      const referralsCount = referrals?.length || 0;
+      
+      // ✅ CORREGIDO: Calcular CROC basado en referidos activos (últimos 30 días)
+      const activeReferrals = referrals?.filter(ref => {
+        const refDate = new Date(ref.created_at);
+        const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
+        return daysSinceRef <= 30;
+      }).length || 0;
+
+      // ✅ 10 CROC por cada referido activo
+      const crocFromRefs = activeReferrals * 10;
+      const coinsFromRefs = activeReferrals * 1000;
+
+      console.log("📊 Stats de referidos CALCULADOS:", { 
+        referralsCount, 
+        activeReferrals,
+        crocFromRefs, 
+        coinsFromRefs 
+      });
+
+      return {
+        referralsCount,
+        crocFromRefs,
+        coinsFromRefs
+      };
+
+    } catch (error) {
+      console.error("❌ Error en getReferralStats:", error);
       return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
     }
-
-    const referralsCount = referrals?.length || 0;
-    
-    // ✅ CORREGIDO: Calcular CROC basado en referidos activos (últimos 30 días)
-    const activeReferrals = referrals?.filter(ref => {
-      const refDate = new Date(ref.created_at);
-      const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysSinceRef <= 30;
-    }).length || 0;
-
-    // ✅ 10 CROC por cada referido activo
-    const crocFromRefs = activeReferrals * 10;
-    const coinsFromRefs = activeReferrals * 1000;
-
-    console.log("📊 Stats de referidos CALCULADOS:", { 
-      referralsCount, 
-      activeReferrals,
-      crocFromRefs, 
-      coinsFromRefs 
-    });
-
-    return {
-      referralsCount,
-      crocFromRefs,
-      coinsFromRefs
-    };
-
-  } catch (error) {
-    console.error("❌ Error en getReferralStats:", error);
-    return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
-  }
-}, []);
+  }, []);
 
   // Actualizar estadísticas de referidos
   const refreshReferralStats = useCallback(async () => {
@@ -204,126 +201,108 @@ const getReferralStats = useCallback(async (playerId) => {
     }
   }, []);
 
- // 🎯 FUNCIÓN DE SINCRONIZACIÓN UNIFICADA Y CORREGIDA
-const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null, dailyRewardsData = null) => {
-  if (!player?.id) {
-    console.log("⏸️ Sync pausado: no hay player.id");
-    return;
-  }
+  // 🎯 FUNCIÓN DE SINCRONIZACIÓN UNIFICADA Y OPTIMIZADA
+  const syncStatsToSupabase = useCallback(async (data = null) => {
+    if (!player?.id) {
+      console.log("⏸️ Sync pausado: no hay player.id");
+      return;
+    }
 
-  const statsToSync = newStats || pendingSyncRef.current || stats;
-  
-  // ✅ MANEJO SEGURO DE UPGRADES DATA
-  let upgradesToSync = null;
-  if (upgradesData !== undefined && upgradesData !== null) {
-    upgradesToSync = upgradesData;
-  } else if (upgradesDataRef.current !== null) {
-    upgradesToSync = upgradesDataRef.current;
-  }
-
-  // ✅ MANEJO SEGURO DE DAILY REWARDS DATA
-  let dailyRewardsToSync = null;
-  if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
-    dailyRewardsToSync = dailyRewardsData;
-  } else if (dailyRewardsDataRef.current !== null) {
-    dailyRewardsToSync = dailyRewardsDataRef.current;
-  }
-  
-  if (!statsToSync && !upgradesToSync && !dailyRewardsToSync) {
-    console.log("⏸️ Sync pausado: no hay datos para sincronizar");
-    return;
-  }
-
-  const now = Date.now();
-  
-  if (now - lastSyncRef.current < 2000) {
-    console.log("⏸️ Sync muy rápido, agendando...");
-    pendingSyncRef.current = statsToSync;
+    // Combinar datos pendientes con nuevos datos
+    const currentPending = pendingSyncRef.current || {};
+    const newData = data || {};
+    const mergedData = { ...currentPending, ...newData };
     
-    if (upgradesData !== undefined && upgradesData !== null) {
-      upgradesDataRef.current = upgradesData;
-    }
-
-    if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
-      dailyRewardsDataRef.current = dailyRewardsData;
-    }
+    const now = Date.now();
     
-    if (syncTimeout.current) clearTimeout(syncTimeout.current);
-    syncTimeout.current = setTimeout(() => {
-      syncStatsToSupabase();
-    }, 2000 - (now - lastSyncRef.current));
-    return;
-  }
-
-  try {
-    const payload = {
-      player_id: player.id,
-      coins: Math.floor(statsToSync?.coins || 0),
-      // ✅ SINCRONIZAR AMBOS CAMPOS DE TOKENS
-      croc_tokens: Math.floor(statsToSync?.nativeTokenBalance || statsToSync?.croc_tokens || 0),
-      native_token_balance: Math.floor(statsToSync?.nativeTokenBalance || statsToSync?.croc_tokens || 0),
-      level: statsToSync?.level || 1,
-      clicks: statsToSync?.clicks || statsToSync?.totalClicks || 0,
-      energy: statsToSync?.energy || 100,
-      max_energy: statsToSync?.max_energy || statsToSync?.maxEnergy || 100,
-      click_power: statsToSync?.click_power || statsToSync?.clickPower || 1,
-      coins_per_second: statsToSync?.coins_per_second || statsToSync?.coinsPerSecond || 0,
-      experience: statsToSync?.experience || 0,
-      total_coins: statsToSync?.total_coins || statsToSync?.totalCoins || 0,
-      // ✅ SINCRONIZAR DATOS DE REFERIDOS
-      croc_from_refs: statsToSync?.crocFromRefs || 0,
-      coins_from_refs: statsToSync?.coinsFromRefs || 0,
-      referrals_count: statsToSync?.referralsCount || 0,
-      last_active: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // ✅ AGREGAR UPGRADES SI ESTÁN DISPONIBLES
-    if (upgradesToSync) {
-      payload.upgrades = upgradesToSync;
-      console.log("🔄 Incluyendo upgrades en la sincronización:", upgradesToSync);
-    }
-
-    // ✅ AGREGAR DAILY REWARDS SI ESTÁN DISPONIBLES
-    if (dailyRewardsToSync) {
-      payload.daily_rewards = dailyRewardsToSync;
-      console.log("🔄 Incluyendo daily rewards en la sincronización:", dailyRewardsToSync);
-    }
-
-    console.log("🔄 Sincronizando stats a Supabase:", payload);
-
-    const { error: updateError } = await supabase
-      .from("player_stats")
-      .update(payload)
-      .eq('player_id', player.id);
-
-    if (updateError) {
-      console.error("❌ Error en update:", updateError);
+    // Throttling: mínimo 3 segundos entre sincronizaciones
+    if (now - lastSyncRef.current < 3000) {
+      console.log("⏸️ Sync throttled, guardando para después...");
+      pendingSyncRef.current = mergedData;
       
-      const { error: upsertError } = await supabase
-        .from("player_stats")
-        .upsert(payload, { onConflict: 'player_id' });
-
-      if (upsertError) {
-        console.error("❌ Error crítico en upsert:", upsertError);
-        throw upsertError;
-      } else {
-        console.log("✅ Stats sincronizados (upsert fallback)");
-      }
-    } else {
-      console.log("✅ Stats actualizados correctamente");
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      syncTimeout.current = setTimeout(() => {
+        syncStatsToSupabase(pendingSyncRef.current);
+      }, 3000 - (now - lastSyncRef.current));
+      return;
     }
 
-    lastSyncRef.current = Date.now();
-    pendingSyncRef.current = null;
-    upgradesDataRef.current = null;
-    dailyRewardsDataRef.current = null;
-    
-  } catch (err) {
-    console.error("🚨 Error en syncStatsToSupabase:", err);
-    setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync, dailyRewardsToSync), 5000);
-  }
-}, [player?.id, stats]);
+    try {
+      // 🎯 PAYLOAD UNIFICADO Y COMPLETO
+      const payload = {
+        player_id: player.id,
+        // ✅ DATOS BÁSICOS DEL JUEGO
+        coins: Math.floor(mergedData.coins || stats?.coins || 0),
+        croc_tokens: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.croc_tokens || 0),
+        native_token_balance: Math.floor(mergedData.nativeTokenBalance || mergedData.croc_tokens || stats?.native_token_balance || 0),
+        level: mergedData.level || stats?.level || 1,
+        clicks: mergedData.clicks || mergedData.totalClicks || stats?.clicks || 0,
+        energy: mergedData.energy || stats?.energy || 100,
+        max_energy: mergedData.max_energy || mergedData.maxEnergy || stats?.max_energy || 100,
+        click_power: mergedData.click_power || mergedData.clickPower || stats?.click_power || 1,
+        coins_per_second: mergedData.coins_per_second || mergedData.coinsPerSecond || stats?.coins_per_second || 0,
+        experience: mergedData.experience || stats?.experience || 0,
+        total_coins: mergedData.total_coins || mergedData.totalCoins || stats?.total_coins || 0,
+        
+        // ✅ DATOS DE REFERIDOS
+        croc_from_refs: Math.floor(mergedData.crocFromRefs || stats?.croc_from_refs || 0),
+        coins_from_refs: Math.floor(mergedData.coinsFromRefs || stats?.coins_from_refs || 0),
+        referrals_count: mergedData.referralsCount || stats?.referrals_count || 0,
+        
+        // ✅ DATOS ADICIONALES
+        upgrades: mergedData.upgrades || stats?.upgrades || {},
+        missions: mergedData.missions || stats?.missions || {},
+        owned_cards: mergedData.owned_cards || mergedData.ownedCards || stats?.owned_cards || [],
+        owned_items: mergedData.owned_items || mergedData.ownedItems || stats?.owned_items || [],
+        active_skin: mergedData.active_skin || mergedData.activeSkin || stats?.active_skin || null,
+        achievements_unlocked: mergedData.achievements_unlocked || mergedData.achievementsUnlocked || stats?.achievements_unlocked || [],
+        daily_rewards: mergedData.daily_rewards || mergedData.dailyRewards || stats?.daily_rewards || { streak: 0, available: true, lastClaim: null },
+        farming_milestones: mergedData.farming_milestones || mergedData.farmingMilestonesState || stats?.farming_milestones || {},
+        
+        last_active: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log("🔄 Sincronizando datos COMPLETOS a Supabase:", {
+        coins: payload.coins,
+        croc_tokens: payload.croc_tokens,
+        upgrades: Object.keys(payload.upgrades).length,
+        referrals: payload.referrals_count
+      });
+
+      // 🎯 USAR UPSERT PARA EVITAR ERRORES DE DUPLICADOS
+      const { error } = await supabase
+        .from("player_stats")
+        .upsert(payload, { 
+          onConflict: 'player_id',
+          ignoreDuplicates: false 
+        });
+
+      if (error) {
+        console.error("❌ Error en upsert:", error);
+        
+        // Fallback: intentar insert
+        const { error: insertError } = await supabase
+          .from("player_stats")
+          .insert(payload);
+          
+        if (insertError) {
+          console.error("❌ Error crítico en insert fallback:", insertError);
+          throw insertError;
+        }
+      } else {
+        console.log("✅ Datos sincronizados correctamente");
+      }
+
+      lastSyncRef.current = Date.now();
+      pendingSyncRef.current = null;
+      
+    } catch (err) {
+      console.error("🚨 Error crítico en syncStatsToSupabase:", err);
+      // Reintentar después de 5 segundos
+      setTimeout(() => syncStatsToSupabase(mergedData), 5000);
+    }
+  }, [player?.id, stats]);
 
   // ✅ FUNCIÓN ESPECÍFICA PARA SINCRONIZAR UPGRADES
   const syncUpgradesToSupabase = useCallback(async (upgradesData) => {
@@ -343,23 +322,11 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
 
       const { error } = await supabase
         .from("player_stats")
-        .update(payload)
-        .eq('player_id', player.id);
+        .upsert(payload, { onConflict: 'player_id' });
 
       if (error) {
         console.error("❌ Error sincronizando upgrades:", error);
-        
-        // Intentar con upsert como fallback
-        const { error: upsertError } = await supabase
-          .from("player_stats")
-          .upsert(payload, { onConflict: 'player_id' });
-
-        if (upsertError) {
-          console.error("❌ Error crítico en upsert de upgrades:", upsertError);
-          throw upsertError;
-        } else {
-          console.log("✅ Upgrades sincronizados (upsert fallback)");
-        }
+        throw error;
       } else {
         console.log("✅ Upgrades sincronizados correctamente");
       }
@@ -370,7 +337,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
     }
   }, [player?.id]);
 
-  // ✅ NUEVA FUNCIÓN ESPECÍFICA PARA SINCRONIZAR DAILY REWARDS
+  // ✅ FUNCIÓN ESPECÍFICA PARA SINCRONIZAR DAILY REWARDS
   const syncDailyRewardsToSupabase = useCallback(async (dailyRewardsData) => {
     if (!player?.id || !dailyRewardsData) {
       console.log("⏸️ Sync daily rewards pausado: no hay player.id o dailyRewards");
@@ -388,23 +355,11 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
 
       const { error } = await supabase
         .from("player_stats")
-        .update(payload)
-        .eq('player_id', player.id);
+        .upsert(payload, { onConflict: 'player_id' });
 
       if (error) {
         console.error("❌ Error sincronizando daily rewards:", error);
-        
-        // Intentar con upsert como fallback
-        const { error: upsertError } = await supabase
-          .from("player_stats")
-          .upsert(payload, { onConflict: 'player_id' });
-
-        if (upsertError) {
-          console.error("❌ Error crítico en upsert de daily rewards:", upsertError);
-          throw upsertError;
-        } else {
-          console.log("✅ Daily rewards sincronizados (upsert fallback)");
-        }
+        throw error;
       } else {
         console.log("✅ Daily rewards sincronizados correctamente");
       }
@@ -438,6 +393,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
     
     setStats(convertedStats);
     
+    // Programar sincronización con throttling
     pendingSyncRef.current = convertedStats;
     
     if (syncTimeout.current) clearTimeout(syncTimeout.current);
@@ -555,16 +511,6 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
         if (cleanStats) {
           console.log("📥 Stats limpias cargadas:", cleanStats);
           setStats(cleanStats);
-
-          // ✅ CARGAR UPGRADES DESDE LA BASE DE DATOS SI EXISTEN
-          if (cleanStats.upgrades && typeof cleanStats.upgrades === 'object') {
-            console.log("🔄 Upgrades cargados desde BD:", cleanStats.upgrades);
-          }
-
-          // ✅ CARGAR DAILY REWARDS DESDE LA BASE DE DATOS SI EXISTEN
-          if (cleanStats.daily_rewards && typeof cleanStats.daily_rewards === 'object') {
-            console.log("🔄 Daily rewards cargados desde BD:", cleanStats.daily_rewards);
-          }
         } else {
           console.log("🆕 Creando stats iniciales...");
 
@@ -628,7 +574,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
       console.log("🎯 Stats cargadas, sincronizando inicial...");
       const initialSync = setTimeout(() => {
         syncStatsToSupabase();
-      }, 1000);
+      }, 2000); // Esperar 2 segundos para la sincronización inicial
       
       return () => clearTimeout(initialSync);
     }
@@ -640,7 +586,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
 
     const interval = setInterval(() => {
       refreshReferralStats();
-    }, 30000);
+    }, 30000); // Cada 30 segundos
 
     return () => clearInterval(interval);
   }, [player?.id, refreshReferralStats]);
@@ -654,9 +600,6 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
       isMounted.current = false;
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);
-        if (pendingSyncRef.current || upgradesDataRef.current || dailyRewardsDataRef.current) {
-          syncStatsToSupabase(pendingSyncRef.current, upgradesDataRef.current, dailyRewardsDataRef.current);
-        }
       }
     };
   }, [loadPlayerData]);
@@ -670,7 +613,7 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
     refresh: loadPlayerData,
     syncStatsToSupabase,
     syncUpgradesToSupabase,
-    syncDailyRewardsToSupabase, // ✅ NUEVA FUNCIÓN PARA DAILY REWARDS
+    syncDailyRewardsToSupabase,
     referralStats,
     refreshReferralStats,
     getReferralLink: () => {
@@ -694,7 +637,10 @@ const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = n
         experience: gameState.experience,
         total_coins: gameState.totalCoins,
         native_token_balance: gameState.nativeTokenBalance,
-        croc_tokens: gameState.nativeTokenBalance
+        croc_tokens: gameState.nativeTokenBalance,
+        croc_from_refs: gameState.crocFromRefs || 0,
+        coins_from_refs: gameState.coinsFromRefs || 0,
+        referrals_count: gameState.referralsCount || 0,
       };
       updateStats(supabaseStats);
     }
