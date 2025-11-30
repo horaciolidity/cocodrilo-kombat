@@ -16,7 +16,6 @@ export function useSupabasePlayer(user) {
   const lastSyncRef = useRef(0);
   const pendingSyncRef = useRef(null);
   const isMounted = useRef(true);
-  const lastAppliedBonusesRef = useRef({ croc: 0, coins: 0 }); // 🛡️ REF PARA EVITAR DUPLICADOS
 
   // Generador de nombre aleatorio
   const generateUsername = useCallback((base = "croc") => {
@@ -92,7 +91,7 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  // 🛡️ FUNCIÓN MEJORADA CON ANTI-DUPLICACIÓN
+  // Obtener estadísticas de referidos
   const getReferralStats = useCallback(async (playerId) => {
     if (!playerId) return { referralsCount: 0, crocFromRefs: 0, coinsFromRefs: 0 };
 
@@ -109,7 +108,7 @@ export function useSupabasePlayer(user) {
 
       const referralsCount = referrals?.length || 0;
       
-      // ✅ CALCULAR BONIFICACIONES BASADAS EN REFERIDOS ACTIVOS (30 días)
+      // ✅ CORREGIDO: Calcular CROC basado en referidos activos (últimos 30 días)
       const activeReferrals = referrals?.filter(ref => {
         const refDate = new Date(ref.created_at);
         const daysSinceRef = (Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -139,145 +138,17 @@ export function useSupabasePlayer(user) {
     }
   }, []);
 
-  // 🛡️ FUNCIÓN MEJORADA PARA APLICAR BONIFICACIONES CON SEGURIDAD
-  const applyReferralBonuses = useCallback(async (playerId, referralStatsData) => {
-    if (!playerId || !referralStatsData) {
-      console.log("⏸️ No se pueden aplicar bonificaciones: datos faltantes");
-      return { success: false, applied: false };
-    }
-
-    try {
-      const { crocFromRefs, coinsFromRefs } = referralStatsData;
-      
-      // 🛡️ VERIFICAR SI YA SE APLICARON ESTAS BONIFICACIONES
-      const currentBonuses = lastAppliedBonusesRef.current;
-      if (currentBonuses.croc >= crocFromRefs && currentBonuses.coins >= coinsFromRefs) {
-        console.log("🛡️ Bonificaciones ya aplicadas anteriormente, evitando duplicado");
-        return { success: true, applied: false, reason: "already_applied" };
-      }
-
-      // 🛡️ VERIFICAR EN LA BASE DE DATOS PARA DOBLE SEGURIDAD
-      const { data: currentStats, error: statsError } = await supabase
-        .from('player_stats')
-        .select('croc_from_refs, coins_from_refs, native_token_balance, coins, total_coins')
-        .eq('player_id', playerId)
-        .single();
-
-      if (statsError) {
-        console.error("❌ Error verificando stats actuales:", statsError);
-        return { success: false, applied: false, error: statsError };
-      }
-
-      // 🛡️ VERIFICAR SI LAS BONIFICACIONES YA FUERON APLICADAS EN LA BD
-      const alreadyAppliedInDB = 
-        (currentStats.croc_from_refs || 0) >= crocFromRefs && 
-        (currentStats.coins_from_refs || 0) >= coinsFromRefs;
-
-      if (alreadyAppliedInDB) {
-        console.log("🛡️ Bonificaciones ya aplicadas en BD, evitando duplicado");
-        lastAppliedBonusesRef.current = { croc: crocFromRefs, coins: coinsFromRefs };
-        return { success: true, applied: false, reason: "already_in_db" };
-      }
-
-      console.log(`💰 Aplicando bonificaciones SEGURAS: ${crocFromRefs} CROC, ${coinsFromRefs} monedas`);
-
-      // 🛡️ APLICAR BONIFICACIONES USANDO RPC PARA TRANSACCIÓN ATÓMICA
-      const { error: updateError } = await supabase
-        .from('player_stats')
-        .update({
-          native_token_balance: supabase.rpc('increment', { 
-            x: crocFromRefs,
-            column: 'native_token_balance'
-          }),
-          coins: supabase.rpc('increment', { 
-            x: coinsFromRefs, 
-            column: 'coins'
-          }),
-          total_coins: supabase.rpc('increment', { 
-            x: coinsFromRefs, 
-            column: 'total_coins'
-          }),
-          croc_from_refs: crocFromRefs,
-          coins_from_refs: coinsFromRefs,
-          updated_at: new Date().toISOString()
-        })
-        .eq('player_id', playerId);
-
-      if (updateError) {
-        console.error("❌ Error aplicando bonificaciones:", updateError);
-        return { success: false, applied: false, error: updateError };
-      }
-
-      // 🛡️ ACTUALIZAR REF DE CONTROL
-      lastAppliedBonusesRef.current = { croc: crocFromRefs, coins: coinsFromRefs };
-      
-      console.log("✅ Bonificaciones aplicadas SEGURAMENTE");
-      return { success: true, applied: true, amounts: { croc: crocFromRefs, coins: coinsFromRefs } };
-
-    } catch (error) {
-      console.error("🚨 Error crítico en applyReferralBonuses:", error);
-      return { success: false, applied: false, error };
-    }
-  }, []);
-
-  // 🛡️ FUNCIÓN MEJORADA PARA ACTUALIZAR ESTADÍSTICAS DE REFERIDOS
-  const refreshReferralStats = useCallback(async (applyBonuses = true) => {
+  // Actualizar estadísticas de referidos
+  const refreshReferralStats = useCallback(async () => {
     if (!player?.id) return;
     
     try {
       const stats = await getReferralStats(player.id);
       setReferralStats(stats);
-
-      // 🛡️ APLICAR BONIFICACIONES AUTOMÁTICAMENTE SI ES NECESARIO
-      if (applyBonuses && (stats.crocFromRefs > 0 || stats.coinsFromRefs > 0)) {
-        const result = await applyReferralBonuses(player.id, stats);
-        if (result.applied) {
-          console.log("🎉 Bonificaciones aplicadas automáticamente");
-          // Forzar recarga de stats después de aplicar bonificaciones
-          setTimeout(() => loadPlayerData(), 1000);
-        }
-      }
     } catch (error) {
       console.error("❌ Error actualizando stats de referidos:", error);
     }
-  }, [player?.id, getReferralStats, applyReferralBonuses, loadPlayerData]);
-
-  // 🛡️ FUNCIÓN PÚBLICA PARA APLICAR BONIFICACIONES MANUALMENTE
-  const applyManualReferralBonuses = useCallback(async () => {
-    if (!player?.id) {
-      console.log("⏸️ No se pueden aplicar bonificaciones manuales: no hay player.id");
-      return { success: false, error: "No player" };
-    }
-
-    try {
-      console.log("🎯 Aplicando bonificaciones manualmente...");
-      
-      // Obtener stats actualizados
-      const currentStats = await getReferralStats(player.id);
-      
-      if (currentStats.crocFromRefs === 0 && currentStats.coinsFromRefs === 0) {
-        console.log("📭 No hay bonificaciones pendientes para aplicar");
-        return { success: true, applied: false, reason: "no_bonuses" };
-      }
-
-      // Aplicar bonificaciones con seguridad anti-duplicación
-      const result = await applyReferralBonuses(player.id, currentStats);
-      
-      if (result.applied) {
-        console.log("✅ Bonificaciones manuales aplicadas correctamente");
-        // Actualizar stats locales
-        setTimeout(() => loadPlayerData(), 1000);
-      } else {
-        console.log("ℹ️ Bonificaciones manuales no aplicadas:", result.reason);
-      }
-      
-      return result;
-
-    } catch (error) {
-      console.error("❌ Error en applyManualReferralBonuses:", error);
-      return { success: false, error: error.message };
-    }
-  }, [player?.id, getReferralStats, applyReferralBonuses, loadPlayerData]);
+  }, [player?.id, getReferralStats]);
 
   // Función para limpiar duplicados en stats
   const cleanDuplicateStats = useCallback(async (playerId) => {
@@ -373,9 +244,9 @@ export function useSupabasePlayer(user) {
         experience: mergedData.experience || stats?.experience || 0,
         total_coins: mergedData.total_coins || mergedData.totalCoins || stats?.total_coins || 0,
         
-        // ✅ DATOS DE REFERIDOS (SIN MODIFICAR PARA EVITAR DUPLICADOS)
-        croc_from_refs: Math.floor(mergedData.crocFromRefs !== undefined ? mergedData.crocFromRefs : (stats?.croc_from_refs || 0)),
-        coins_from_refs: Math.floor(mergedData.coinsFromRefs !== undefined ? mergedData.coinsFromRefs : (stats?.coins_from_refs || 0)),
+        // ✅ DATOS DE REFERIDOS
+        croc_from_refs: Math.floor(mergedData.crocFromRefs || stats?.croc_from_refs || 0),
+        coins_from_refs: Math.floor(mergedData.coinsFromRefs || stats?.coins_from_refs || 0),
         referrals_count: mergedData.referralsCount || stats?.referrals_count || 0,
         
         // ✅ DATOS ADICIONALES
@@ -530,17 +401,6 @@ export function useSupabasePlayer(user) {
       syncStatsToSupabase();
     }, 1000);
   }, [syncStatsToSupabase]);
-
-  // 🛡️ INICIALIZAR CONTROL DE BONIFICACIONES AL CARGAR STATS
-  useEffect(() => {
-    if (stats) {
-      lastAppliedBonusesRef.current = {
-        croc: stats.croc_from_refs || 0,
-        coins: stats.coins_from_refs || 0
-      };
-      console.log("🛡️ Control de bonificaciones inicializado:", lastAppliedBonusesRef.current);
-    }
-  }, [stats]);
 
   // Cargar o crear jugador + estadísticas + referidos
   const loadPlayerData = useCallback(async () => {
@@ -725,7 +585,7 @@ export function useSupabasePlayer(user) {
     if (!player?.id) return;
 
     const interval = setInterval(() => {
-      refreshReferralStats(true); // Aplicar bonificaciones automáticamente
+      refreshReferralStats();
     }, 30000); // Cada 30 segundos
 
     return () => clearInterval(interval);
@@ -756,7 +616,6 @@ export function useSupabasePlayer(user) {
     syncDailyRewardsToSupabase,
     referralStats,
     refreshReferralStats,
-    applyManualReferralBonuses, // 🆕 FUNCIÓN SEGURA PARA BONIFICACIONES MANUALES
     getReferralLink: () => {
       if (!player?.referral_code) {
         console.warn("⚠️ No hay referral_code para el jugador actual");
