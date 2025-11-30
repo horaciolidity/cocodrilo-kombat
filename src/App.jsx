@@ -151,60 +151,49 @@ function App() {
   );
 
   // ✅ FUNCIÓN MEJORADA PARA SUMAR CROC DE REFERIDOS - CORREGIDA
-  const addReferralBonuses = useCallback(() => {
-    if (!referralStats || !setGameState) {
-      console.log("⏸️ No se pueden procesar bonificaciones: datos faltantes");
-      return;
-    }
+const addReferralBonuses = useCallback(() => {
+  if (!referralStats || !setGameState) {
+    console.log("⏸️ No se pueden procesar bonificaciones: datos faltantes");
+    return;
+  }
 
-    console.log("💰 Procesando bonificaciones de referidos:", referralStats);
+  console.log("💰 Procesando bonificaciones de referidos:", referralStats);
+  
+  setGameState(prev => {
+    const currentCrocFromRefs = prev.crocFromRefs || 0;
+    const newCrocFromRefs = referralStats.crocFromRefs || 0;
+    const currentCoinsFromRefs = prev.coinsFromRefs || 0;
+    const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
     
-    setGameState(prev => {
-      const currentCrocFromRefs = prev.crocFromRefs || 0;
-      const newCrocFromRefs = referralStats.crocFromRefs || 0;
-      const currentCoinsFromRefs = prev.coinsFromRefs || 0;
-      const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
+    console.log(`📊 Comparando CROC de referidos: Actual ${currentCrocFromRefs} vs Nuevo ${newCrocFromRefs}`);
+    
+    let newBalance = prev.nativeTokenBalance || 0;
+    let newCoins = prev.coins || 0;
+    
+    // ✅ SIEMPRE ACTUALIZAR SI HAY NUEVOS REFERIDOS
+    if (newCrocFromRefs > currentCrocFromRefs || referralStats.referralsCount > (prev.referralsCount || 0)) {
+      const crocDifference = newCrocFromRefs - currentCrocFromRefs;
+      const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
       
-      console.log(`📊 Comparando CROC de referidos: Actual ${currentCrocFromRefs} vs Nuevo ${newCrocFromRefs}`);
+      newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
+      newCoins = (prev.coins || 0) + coinsDifference;
       
-      let newBalance = prev.nativeTokenBalance || 0;
-      let newCoins = prev.coins || 0;
+      console.log(`🎁 Sumando ${crocDifference} CROC y ${coinsDifference} monedas por referidos. Nuevo balance: ${newBalance} CROC`);
       
-      // ✅ SIEMPRE ACTUALIZAR SI HAY NUEVOS REFERIDOS, INCLUSO SI crocFromRefs ES 0
-      if (newCrocFromRefs > currentCrocFromRefs || referralStats.referralsCount > (prev.referralsCount || 0)) {
-        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-        const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
-        
-        newBalance = (prev.nativeTokenBalance || 0) + crocDifference;
-        newCoins = (prev.coins || 0) + coinsDifference;
-        
-        console.log(`🎁 Sumando ${crocDifference} CROC y ${coinsDifference} monedas por referidos. Nuevo balance: ${newBalance} CROC`);
-        
-        return {
-          ...prev,
-          referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs,
-          coinsFromRefs: newCoinsFromRefs,
-          nativeTokenBalance: newBalance,
-          coins: newCoins,
-          totalCoins: (prev.totalCoins || 0) + coinsDifference
-        };
-      }
-      
-      // ✅ SI NO HAY CAMBIOS EN CROC, PERO SÍ EN REFERIDOS, ACTUALIZAR CONTADORES
-      if (referralStats.referralsCount !== (prev.referralsCount || 0)) {
-        console.log("🔄 Actualizando contadores de referidos sin cambios en CROC");
-        return {
-          ...prev,
-          referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs,
-          coinsFromRefs: newCoinsFromRefs,
-        };
-      }
-      
-      return prev;
-    });
-  }, [referralStats, setGameState]);
+      return {
+        ...prev,
+        referralsCount: referralStats.referralsCount || 0,
+        crocFromRefs: newCrocFromRefs,
+        coinsFromRefs: newCoinsFromRefs,
+        nativeTokenBalance: newBalance,
+        coins: newCoins,
+        totalCoins: (prev.totalCoins || 0) + coinsDifference
+      };
+    }
+    
+    return prev;
+  });
+}, [referralStats, setGameState]);
 
   // ✅ EFECTO MEJORADO PARA PROCESAR BONIFICACIONES DE REFERIDOS - CORREGIDO
   useEffect(() => {

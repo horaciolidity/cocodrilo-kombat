@@ -204,123 +204,126 @@ const getReferralStats = useCallback(async (playerId) => {
     }
   }, []);
 
-  // 🎯 FUNCIÓN SIMPLIFICADA DE SINCRONIZACIÓN - CORREGIDA
-  const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null, dailyRewardsData = null) => {
-    if (!player?.id) {
-      console.log("⏸️ Sync pausado: no hay player.id");
-      return;
-    }
+ // 🎯 FUNCIÓN DE SINCRONIZACIÓN UNIFICADA Y CORREGIDA
+const syncStatsToSupabase = useCallback(async (newStats = null, upgradesData = null, dailyRewardsData = null) => {
+  if (!player?.id) {
+    console.log("⏸️ Sync pausado: no hay player.id");
+    return;
+  }
 
-    const statsToSync = newStats || pendingSyncRef.current || stats;
+  const statsToSync = newStats || pendingSyncRef.current || stats;
+  
+  // ✅ MANEJO SEGURO DE UPGRADES DATA
+  let upgradesToSync = null;
+  if (upgradesData !== undefined && upgradesData !== null) {
+    upgradesToSync = upgradesData;
+  } else if (upgradesDataRef.current !== null) {
+    upgradesToSync = upgradesDataRef.current;
+  }
+
+  // ✅ MANEJO SEGURO DE DAILY REWARDS DATA
+  let dailyRewardsToSync = null;
+  if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
+    dailyRewardsToSync = dailyRewardsData;
+  } else if (dailyRewardsDataRef.current !== null) {
+    dailyRewardsToSync = dailyRewardsDataRef.current;
+  }
+  
+  if (!statsToSync && !upgradesToSync && !dailyRewardsToSync) {
+    console.log("⏸️ Sync pausado: no hay datos para sincronizar");
+    return;
+  }
+
+  const now = Date.now();
+  
+  if (now - lastSyncRef.current < 2000) {
+    console.log("⏸️ Sync muy rápido, agendando...");
+    pendingSyncRef.current = statsToSync;
     
-    // ✅ MANEJO SEGURO DE UPGRADES DATA
-    let upgradesToSync = null;
     if (upgradesData !== undefined && upgradesData !== null) {
-      upgradesToSync = upgradesData;
-    } else if (upgradesDataRef.current !== null) {
-      upgradesToSync = upgradesDataRef.current;
+      upgradesDataRef.current = upgradesData;
     }
 
-    // ✅ MANEJO SEGURO DE DAILY REWARDS DATA
-    let dailyRewardsToSync = null;
     if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
-      dailyRewardsToSync = dailyRewardsData;
-    } else if (dailyRewardsDataRef.current !== null) {
-      dailyRewardsToSync = dailyRewardsDataRef.current;
+      dailyRewardsDataRef.current = dailyRewardsData;
     }
     
-    if (!statsToSync && !upgradesToSync && !dailyRewardsToSync) {
-      console.log("⏸️ Sync pausado: no hay datos para sincronizar");
-      return;
+    if (syncTimeout.current) clearTimeout(syncTimeout.current);
+    syncTimeout.current = setTimeout(() => {
+      syncStatsToSupabase();
+    }, 2000 - (now - lastSyncRef.current));
+    return;
+  }
+
+  try {
+    const payload = {
+      player_id: player.id,
+      coins: Math.floor(statsToSync?.coins || 0),
+      // ✅ SINCRONIZAR AMBOS CAMPOS DE TOKENS
+      croc_tokens: Math.floor(statsToSync?.nativeTokenBalance || statsToSync?.croc_tokens || 0),
+      native_token_balance: Math.floor(statsToSync?.nativeTokenBalance || statsToSync?.croc_tokens || 0),
+      level: statsToSync?.level || 1,
+      clicks: statsToSync?.clicks || statsToSync?.totalClicks || 0,
+      energy: statsToSync?.energy || 100,
+      max_energy: statsToSync?.max_energy || statsToSync?.maxEnergy || 100,
+      click_power: statsToSync?.click_power || statsToSync?.clickPower || 1,
+      coins_per_second: statsToSync?.coins_per_second || statsToSync?.coinsPerSecond || 0,
+      experience: statsToSync?.experience || 0,
+      total_coins: statsToSync?.total_coins || statsToSync?.totalCoins || 0,
+      // ✅ SINCRONIZAR DATOS DE REFERIDOS
+      croc_from_refs: statsToSync?.crocFromRefs || 0,
+      coins_from_refs: statsToSync?.coinsFromRefs || 0,
+      referrals_count: statsToSync?.referralsCount || 0,
+      last_active: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // ✅ AGREGAR UPGRADES SI ESTÁN DISPONIBLES
+    if (upgradesToSync) {
+      payload.upgrades = upgradesToSync;
+      console.log("🔄 Incluyendo upgrades en la sincronización:", upgradesToSync);
     }
 
-    const now = Date.now();
-    
-    if (now - lastSyncRef.current < 2000) {
-      console.log("⏸️ Sync muy rápido, agendando...");
-      pendingSyncRef.current = statsToSync;
-      
-      // ✅ ACTUALIZAR UPGRADES DATA REF SI SE PROVEEN
-      if (upgradesData !== undefined && upgradesData !== null) {
-        upgradesDataRef.current = upgradesData;
-      }
-
-      // ✅ ACTUALIZAR DAILY REWARDS DATA REF SI SE PROVEEN
-      if (dailyRewardsData !== undefined && dailyRewardsData !== null) {
-        dailyRewardsDataRef.current = dailyRewardsData;
-      }
-      
-      if (syncTimeout.current) clearTimeout(syncTimeout.current);
-      syncTimeout.current = setTimeout(() => {
-        syncStatsToSupabase();
-      }, 2000 - (now - lastSyncRef.current));
-      return;
+    // ✅ AGREGAR DAILY REWARDS SI ESTÁN DISPONIBLES
+    if (dailyRewardsToSync) {
+      payload.daily_rewards = dailyRewardsToSync;
+      console.log("🔄 Incluyendo daily rewards en la sincronización:", dailyRewardsToSync);
     }
 
-    try {
-      const payload = {
-        player_id: player.id,
-        coins: Math.floor(statsToSync?.coins || 0),
-        croc_tokens: Math.floor(statsToSync?.croc_tokens || statsToSync?.nativeTokenBalance || 0),
-        level: statsToSync?.level || 1,
-        clicks: statsToSync?.clicks || statsToSync?.totalClicks || 0,
-        energy: statsToSync?.energy || 100,
-        max_energy: statsToSync?.max_energy || statsToSync?.maxEnergy || 100,
-        click_power: statsToSync?.click_power || statsToSync?.clickPower || 1,
-        coins_per_second: statsToSync?.coins_per_second || statsToSync?.coinsPerSecond || 0,
-        experience: statsToSync?.experience || 0,
-        total_coins: statsToSync?.total_coins || statsToSync?.totalCoins || 0,
-        native_token_balance: statsToSync?.native_token_balance || statsToSync?.nativeTokenBalance || 0,
-        last_active: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+    console.log("🔄 Sincronizando stats a Supabase:", payload);
 
-      // ✅ AGREGAR UPGRADES SI ESTÁN DISPONIBLES
-      if (upgradesToSync) {
-        payload.upgrades = upgradesToSync;
-        console.log("🔄 Incluyendo upgrades en la sincronización:", upgradesToSync);
-      }
+    const { error: updateError } = await supabase
+      .from("player_stats")
+      .update(payload)
+      .eq('player_id', player.id);
 
-      // ✅ AGREGAR DAILY REWARDS SI ESTÁN DISPONIBLES
-      if (dailyRewardsToSync) {
-        payload.daily_rewards = dailyRewardsToSync;
-        console.log("🔄 Incluyendo daily rewards en la sincronización:", dailyRewardsToSync);
-      }
-
-      console.log("🔄 Sincronizando stats a Supabase:", payload);
-
-      const { error: updateError } = await supabase
+    if (updateError) {
+      console.error("❌ Error en update:", updateError);
+      
+      const { error: upsertError } = await supabase
         .from("player_stats")
-        .update(payload)
-        .eq('player_id', player.id);
+        .upsert(payload, { onConflict: 'player_id' });
 
-      if (updateError) {
-        console.error("❌ Error en update:", updateError);
-        
-        const { error: upsertError } = await supabase
-          .from("player_stats")
-          .upsert(payload, { onConflict: 'player_id' });
-
-        if (upsertError) {
-          console.error("❌ Error crítico en upsert:", upsertError);
-          throw upsertError;
-        } else {
-          console.log("✅ Stats sincronizados (upsert fallback)");
-        }
+      if (upsertError) {
+        console.error("❌ Error crítico en upsert:", upsertError);
+        throw upsertError;
       } else {
-        console.log("✅ Stats actualizados correctamente");
+        console.log("✅ Stats sincronizados (upsert fallback)");
       }
-
-      lastSyncRef.current = Date.now();
-      pendingSyncRef.current = null;
-      upgradesDataRef.current = null;
-      dailyRewardsDataRef.current = null;
-      
-    } catch (err) {
-      console.error("🚨 Error en syncStatsToSupabase:", err);
-      setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync, dailyRewardsToSync), 5000);
+    } else {
+      console.log("✅ Stats actualizados correctamente");
     }
-  }, [player?.id, stats]);
+
+    lastSyncRef.current = Date.now();
+    pendingSyncRef.current = null;
+    upgradesDataRef.current = null;
+    dailyRewardsDataRef.current = null;
+    
+  } catch (err) {
+    console.error("🚨 Error en syncStatsToSupabase:", err);
+    setTimeout(() => syncStatsToSupabase(statsToSync, upgradesToSync, dailyRewardsToSync), 5000);
+  }
+}, [player?.id, stats]);
 
   // ✅ FUNCIÓN ESPECÍFICA PARA SINCRONIZAR UPGRADES
   const syncUpgradesToSupabase = useCallback(async (upgradesData) => {

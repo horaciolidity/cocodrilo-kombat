@@ -42,33 +42,37 @@ export function useGameLogic(
   }, [gameState]);
 
   // 📥 CARGAR DATOS COMPLETOS DE SUPABASE AL INICIALIZAR - CORREGIDO
-  useEffect(() => {
-    if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
-      console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabasePlayerData.stats);
-      
-      // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
-      setGameState(prev => ({
-        ...prev,
-        coins: Number(supabasePlayerData.stats.coins) || 0,
-        totalCoins: Number(supabasePlayerData.stats.total_coins) || 0,
-        level: Number(supabasePlayerData.stats.level) || 1,
-        totalClicks: Number(supabasePlayerData.stats.clicks) || 0,
-        energy: Number(supabasePlayerData.stats.energy) || 100,
-        maxEnergy: Number(supabasePlayerData.stats.max_energy) || 100,
-        clickPower: Number(supabasePlayerData.stats.click_power) || 1,
-        coinsPerSecond: Number(supabasePlayerData.stats.coins_per_second) || 0,
-        experience: Number(supabasePlayerData.stats.experience) || 0,
-        nativeTokenBalance: Number(supabasePlayerData.stats.native_token_balance) || 0
-      }));
+useEffect(() => {
+  if (supabasePlayerData?.stats && !supabasePlayerData?.loading) {
+    console.log("🔄 Cargando datos COMPLETOS de Supabase:", supabasePlayerData.stats);
+    
+    // ✅ CARGAR TODOS LOS ESTADOS DESDE SUPABASE
+    setGameState(prev => ({
+      ...prev,
+      coins: Number(supabasePlayerData.stats.coins) || 0,
+      totalCoins: Number(supabasePlayerData.stats.total_coins) || 0,
+      level: Number(supabasePlayerData.stats.level) || 1,
+      totalClicks: Number(supabasePlayerData.stats.clicks) || 0,
+      energy: Number(supabasePlayerData.stats.energy) || 100,
+      maxEnergy: Number(supabasePlayerData.stats.max_energy) || 100,
+      clickPower: Number(supabasePlayerData.stats.click_power) || 1,
+      coinsPerSecond: Number(supabasePlayerData.stats.coins_per_second) || 0,
+      experience: Number(supabasePlayerData.stats.experience) || 0,
+      nativeTokenBalance: Number(supabasePlayerData.stats.native_token_balance) || 0,
+      // ✅ CARGAR DATOS DE REFERIDOS DESDE SUPABASE
+      crocFromRefs: Number(supabasePlayerData.stats.croc_from_refs) || 0,
+      coinsFromRefs: Number(supabasePlayerData.stats.coins_from_refs) || 0,
+      referralsCount: Number(supabasePlayerData.stats.referrals_count) || 0
+    }));
 
-      // ✅ CARGAR UPGRADES DESDE SUPABASE - CRÍTICO
-      if (supabasePlayerData.stats.upgrades && typeof supabasePlayerData.stats.upgrades === 'object' && Object.keys(supabasePlayerData.stats.upgrades).length > 0) {
-        console.log("📥 Cargando upgrades desde Supabase:", supabasePlayerData.stats.upgrades);
-        setUpgrades(supabasePlayerData.stats.upgrades);
-      } else {
-        console.log("🆕 No hay upgrades en BD, usando iniciales");
-        setUpgrades(INITIAL_UPGRADES_STATE);
-      }
+    // ✅ CARGAR UPGRADES DESDE SUPABASE - CRÍTICO
+    if (supabasePlayerData.stats.upgrades && typeof supabasePlayerData.stats.upgrades === 'object' && Object.keys(supabasePlayerData.stats.upgrades).length > 0) {
+      console.log("📥 Cargando upgrades desde Supabase:", supabasePlayerData.stats.upgrades);
+      setUpgrades(supabasePlayerData.stats.upgrades);
+    } else {
+      console.log("🆕 No hay upgrades en BD, usando iniciales");
+      setUpgrades(INITIAL_UPGRADES_STATE);
+    }
 
       // 🆕 CARGAR MISSIONS DESDE SUPABASE
       if (supabasePlayerData.stats.missions && Object.keys(supabasePlayerData.stats.missions).length > 0) {
