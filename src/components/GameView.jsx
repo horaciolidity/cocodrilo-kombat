@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { supabase } from "@/lib/supabaseClient";
-import { useSupabasePlayer } from '@/hooks/useSupabasePlayer';
 
 import {
   Coins,
@@ -49,6 +47,7 @@ export function GameView({
   buyUpgrade,
   handleClick,
   floatingNumbers,
+  clickEffect,
   dailyRewards,
   claimDailyReward,
   tutorialStep,
@@ -59,9 +58,8 @@ export function GameView({
   tokenPrice = 0.05,
   referralStats,
   refreshReferralStats,
-  setGameState,
   calculateRealClickPower,
-  getReferralLink, // ✅ Asegurar que esta prop esté disponible
+  getReferralLink,
 }) {
   const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
@@ -72,7 +70,7 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
 
-   // ✅ DEFINIR handleBuyToken - ESTA ES LA SOLUCIÓN AL ERROR PRINCIPAL
+  // ✅ DEFINIR handleBuyToken
   const handleBuyToken = () => {
     toast({
       title: '🚧 Comprar Token CROC',
@@ -81,7 +79,6 @@ export function GameView({
     });
     playSound('uiClick');
   };
-
 
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
@@ -93,21 +90,6 @@ export function GameView({
       return () => clearInterval(interval);
     }
   }, [user, refreshReferralStats]);
-
-  // 🎯 SINCRONIZACIÓN AUTOMÁTICA MEJORADA
-  useEffect(() => {
-    if (!user) return;
-
-    // Sincronizar datos críticos cada 20 segundos
-    const syncInterval = setInterval(() => {
-      console.log("🔄 Sincronización automática desde GameView");
-      
-      // Aquí podrías forzar una sincronización si es necesario
-      // La sincronización principal ya se maneja en useGameLogic
-    }, 20000);
-
-    return () => clearInterval(syncInterval);
-  }, [user]);
 
   // 🎥 Manejo de videos - MEJORADO con mejores fallbacks
   useEffect(() => {
@@ -165,7 +147,6 @@ export function GameView({
   const getCurrentClickPower = () => {
     if (calculateRealClickPower) {
       const power = calculateRealClickPower();
-      console.log(`🎯 Click power calculado: ${power}`);
       return power;
     }
     
@@ -281,7 +262,6 @@ export function GameView({
 
   // 🔥 COMPRAR MEJORA CON MEJOR FEEDBACK
   const handleBuyUpgrade = (upgradeId) => {
-    console.log(`🛒 Intentando comprar upgrade: ${upgradeId}`);
     buyUpgrade(upgradeId);
   };
 
@@ -558,6 +538,55 @@ export function GameView({
           />
         </div>
       </div>
+
+      {/* Inyectar estilos CSS */}
+      <style>{`
+        @keyframes riseUp {
+          0% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -100px) scale(1.5);
+          }
+        }
+
+        @keyframes pulseEnergy {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+
+        .pulse-energy {
+          animation: pulseEnergy 1.5s ease-in-out infinite;
+        }
+
+        .shake {
+          animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+
+        .neon-glow {
+          text-shadow: 
+            0 0 5px currentColor,
+            0 0 10px currentColor,
+            0 0 15px currentColor,
+            0 0 20px currentColor;
+        }
+
+        .progress-bar {
+          background: linear-gradient(90deg, #4ade80, #22c55e, #16a34a);
+        }
+
+        .energy-bar {
+          background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+        }
+      `}</style>
     </div>
   );
 }
@@ -994,61 +1023,3 @@ function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
     </div>
   );
 }
-
-// ✅ ESTILOS CSS PARA ANIMACIONES
-const styles = `
-@keyframes riseUp {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -100px) scale(1.5);
-  }
-}
-
-@keyframes pulseEnergy {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.pulse-energy {
-  animation: pulseEnergy 1.5s ease-in-out infinite;
-}
-
-.shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-}
-
-.neon-glow {
-  text-shadow: 
-    0 0 5px currentColor,
-    0 0 10px currentColor,
-    0 0 15px currentColor,
-    0 0 20px currentColor;
-}
-
-.progress-bar {
-  background: linear-gradient(90deg, #4ade80, #22c55e, #16a34a);
-}
-
-.energy-bar {
-  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
-}
-`;
-
-// Inject styles
-const styleSheet = document.createElement("style");
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);

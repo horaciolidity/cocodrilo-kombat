@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, Lock, Mail, Users, Sparkles } from "lucide-react";
+import { X, Lock, Mail, Sparkles, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -10,7 +10,23 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [mode, setMode] = useState("login");
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+
+  // 🎯 OBTENER Y VALIDAR CÓDIGO DE REFERIDO DE LA URL
+  const getReferralCode = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    // Validar que sea un código seguro (8 chars alfanum en minúscula)
+    if (refCode && /^[a-z0-9]{8}$/.test(refCode)) {
+      return refCode;
+    }
+    
+    return null;
+  };
+
+  const referralCode = getReferralCode();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,26 +39,37 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
       let data, error;
 
       if (mode === "register") {
-        // 🧾 CREAR CUENTA - SOLO AUTH, NO CREAR JUGADOR AQUÍ
-        ({ data, error } = await supabase.auth.signUp({
+        // 🧾 CREAR CUENTA CON REFERIDO EN METADATA
+        const signUpData = {
           email,
           password,
-        }));
+          options: {
+            data: {}
+          }
+        };
+
+        // 🎯 Agregar metadata con código de referido si existe
+        if (referralCode) {
+          signUpData.options.data.referral_code = referralCode;
+          console.log("🎯 Registrando con código de referido en metadata:", referralCode);
+        }
+
+        ({ data, error } = await supabase.auth.signUp(signUpData));
+        
         if (error) throw error;
 
-        console.log("✅ Usuario registrado en Auth, jugador se creará automáticamente");
+        console.log("✅ Usuario registrado en Auth. Metadata:", data.user?.user_metadata);
         
         toast({
           title: "✅ Cuenta creada",
-          description: "Revisa tu correo para confirmar y luego inicia sesión.",
-          duration: 5000,
+          description: "Revisa tu correo para confirmar la cuenta. Luego inicia sesión.",
+          duration: 6000,
         });
         playSound?.("reward");
         
-        // 🎯 IMPORTANTE: Limpiar formulario y cambiar a login
+        setRegistrationSuccess(true);
         setEmail("");
         setPassword("");
-        setMode("login");
         
       } else {
         // 🔐 INICIAR SESIÓN
@@ -55,11 +82,13 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
         const user = data?.user;
         if (user) {
           setUser(user);
-          localStorage.setItem("cocodriloKombatUser", JSON.stringify(user));
+          
+          // 🎯 useGameData.js manejará el código de referido desde user_metadata
+          console.log("🔍 Metadata del usuario al iniciar sesión:", user.user_metadata);
 
           toast({
             title: "🎮 ¡Bienvenido de nuevo!",
-            description: "Sesión iniciada correctamente.",
+            description: "Sesión iniciada correctamente. Tus datos se están sincronizando.",
             duration: 3000,
           });
           playSound?.("reward");
@@ -69,7 +98,6 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
     } catch (err) {
       console.error("❌ Error en AuthModal:", err);
       
-      // Mensajes de error más específicos
       let errorMessage = err.message || "Error al autenticarte";
       if (err.message.includes("Invalid login credentials")) {
         errorMessage = "Correo o contraseña incorrectos";
@@ -77,6 +105,8 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
         errorMessage = "Confirma tu correo electrónico antes de iniciar sesión";
       } else if (err.message.includes("User already registered")) {
         errorMessage = "Este correo ya está registrado";
+      } else if (err.message.includes("Password should be at least 6 characters")) {
+        errorMessage = "La contraseña debe tener al menos 6 caracteres";
       }
       
       toast({
@@ -95,29 +125,9 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
     setShowAuth(false);
     setEmail("");
     setPassword("");
+    setRegistrationSuccess(false);
     playSound?.("uiClose");
   };
-
-  // 🎯 OBTENER Y VALIDAR CÓDIGO DE REFERIDO DE LA URL
-  const getReferralCode = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-    
-    // Validar que sea un código seguro (8 chars alfanum en minúscula)
-    if (refCode && /^[a-z0-9]{8}$/.test(refCode)) {
-      return refCode;
-    }
-    
-    // Si es un UUID (código antiguo), ignorarlo por seguridad
-    if (refCode && refCode.length === 36) {
-      console.warn("⚠️ Código de referido UUID detectado - ignorando por seguridad");
-      return null;
-    }
-    
-    return null;
-  };
-
-  const referralCode = getReferralCode();
 
   if (!showAuth) return null;
 
@@ -127,7 +137,7 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={handleClose} // Cerrar al hacer clic fuera
+      onClick={handleClose}
     >
       <motion.div
         className="modal-content rounded-xl p-6 w-full max-w-md bg-gradient-to-br from-card to-card/80 shadow-2xl border border-border/50"
@@ -135,7 +145,7 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        onClick={(e) => e.stopPropagation()} // Prevenir cierre al hacer clic dentro
+        onClick={(e) => e.stopPropagation()}
       >
         {/* 🔹 Header */}
         <div className="flex items-center justify-between mb-6">
@@ -160,8 +170,29 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
           </Button>
         </div>
 
-        {/* 🎯 BANNER DE REFERIDO MEJORADO */}
-        {mode === "register" && referralCode && (
+        {/* 🎯 BANNER DE REGISTRO EXITOSO */}
+        {mode === "register" && registrationSuccess && (
+          <motion.div 
+            className="mb-4 p-3 bg-gradient-to-r from-green-900/80 to-emerald-800/80 border border-green-500/50 rounded-lg backdrop-blur-sm"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center gap-2 text-green-100 mb-2">
+              <CheckCircle className="w-4 h-4" />
+              <span className="text-sm font-semibold">
+                ¡Registro Exitoso! ✅
+              </span>
+            </div>
+            <p className="text-xs text-green-200">
+              Te enviamos un correo de confirmación a <strong>{email}</strong>. 
+              Revisa tu bandeja de entrada y spam, luego inicia sesión.
+            </p>
+          </motion.div>
+        )}
+
+        {/* 🎯 BANNER DE REFERIDO */}
+        {mode === "register" && referralCode && !registrationSuccess && (
           <motion.div 
             className="mb-4 p-3 bg-gradient-to-r from-green-900/80 to-emerald-800/80 border border-green-500/50 rounded-lg backdrop-blur-sm"
             initial={{ scale: 0.95, opacity: 0 }}
@@ -175,133 +206,155 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
               </span>
             </div>
             <p className="text-xs text-green-200">
-              Estás siendo invitado a jugar. Al registrarte recibirás <strong>bonos exclusivos</strong> por ser referido.
+              Estás siendo invitado por un amigo. Al registrarte recibirás <strong>+10 CROC tokens y +1000 monedas</strong> de bonificación.
             </p>
+            <div className="mt-2 pt-2 border-t border-green-500/30">
+              <p className="text-[10px] text-green-300">
+                Código de referido: <code className="bg-black/30 px-2 py-1 rounded">{referralCode}</code>
+              </p>
+            </div>
           </motion.div>
         )}
 
         {/* 🔹 Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">
-              Correo electrónico
-            </label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tuemail@gmail.com"
-              required
-              disabled={loading}
-              className="w-full bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
-              autoComplete="email"
-            />
-          </div>
+        {!registrationSuccess ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground">
+                Correo electrónico
+              </label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tuemail@gmail.com"
+                required
+                disabled={loading}
+                className="w-full bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
+                autoComplete="email"
+              />
+            </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">
-              Contraseña
-            </label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-              disabled={loading}
-              className="w-full bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-            />
-            {mode === "register" && (
-              <p className="text-xs text-muted-foreground">
-                Mínimo 6 caracteres - recomendamos usar una contraseña segura
-              </p>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 transition-all duration-200"
-            size="lg"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                Procesando...
-              </>
-            ) : mode === "login" ? (
-              <>
-                <Lock className="w-4 h-4 mr-2" /> 
-                Iniciar Sesión
-              </>
-            ) : (
-              <>
-                <Mail className="w-4 h-4 mr-2" /> 
-                Crear Mi Cuenta
-              </>
-            )}
-          </Button>
-
-          {/* 🎯 INFO MEJORADA DE REFERIDOS */}
-          {mode === "register" && (
-            <div className="text-center space-y-2">
-              <p className="text-xs text-muted-foreground">
-                🐊 Al registrarte aceptas nuestros{' '}
-                <button type="button" className="text-primary hover:underline font-medium">
-                  términos y condiciones
-                </button>
-              </p>
-              {referralCode && (
-                <div className="flex items-center justify-center gap-2 text-xs text-green-400">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Bonos de referido activos</span>
-                </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground">
+                Contraseña
+              </label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                disabled={loading}
+                className="w-full bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+              {mode === "register" && (
+                <p className="text-xs text-muted-foreground">
+                  Mínimo 6 caracteres - recomendamos usar una contraseña segura
+                </p>
               )}
             </div>
-          )}
 
-          {/* 🔄 Switch entre Login y Register */}
-          <div className="text-center pt-2 border-t border-border/50">
-            <p className="text-sm text-muted-foreground">
-              {mode === "login" ? (
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 transition-all duration-200"
+              size="lg"
+            >
+              {loading ? (
                 <>
-                  ¿No tenés cuenta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("register");
-                      playSound?.("uiClick");
-                    }}
-                    className="text-primary font-semibold hover:underline transition-all"
-                  >
-                    Registrate
-                  </button>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Procesando...
+                </>
+              ) : mode === "login" ? (
+                <>
+                  <Lock className="w-4 h-4 mr-2" /> 
+                  Iniciar Sesión
                 </>
               ) : (
                 <>
-                  ¿Ya tenés cuenta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("login");
-                      playSound?.("uiClick");
-                    }}
-                    className="text-primary font-semibold hover:underline transition-all"
-                  >
-                    Iniciar sesión
-                  </button>
+                  <Mail className="w-4 h-4 mr-2" /> 
+                  Crear Mi Cuenta
                 </>
               )}
-            </p>
+            </Button>
+
+            {/* 🔄 Switch entre Login y Register */}
+            <div className="text-center pt-2 border-t border-border/50">
+              <p className="text-sm text-muted-foreground">
+                {mode === "login" ? (
+                  <>
+                    ¿No tenés cuenta?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("register");
+                        playSound?.("uiClick");
+                      }}
+                      className="text-primary font-semibold hover:underline transition-all"
+                    >
+                      Registrate
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    ¿Ya tenés cuenta?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("login");
+                        playSound?.("uiClick");
+                      }}
+                      className="text-primary font-semibold hover:underline transition-all"
+                    >
+                      Iniciar sesión
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          </form>
+        ) : (
+          // 🎯 PANTALLA DE REGISTRO EXITOSO
+          <div className="text-center py-4 space-y-4">
+            <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-bold text-green-400 mb-2">¡Cuenta Creada Exitosamente!</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Te hemos enviado un correo de confirmación a <strong>{email}</strong>. 
+                Por favor, verifica tu bandeja de entrada y sigue las instrucciones.
+              </p>
+            </div>
+
+            <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
+              <p className="text-xs text-blue-300">
+                💡 <strong>Importante:</strong> Debes confirmar tu correo antes de poder iniciar sesión.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => {
+                setMode("login");
+                setRegistrationSuccess(false);
+                playSound?.("uiClick");
+              }}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Ir a Iniciar Sesión
+            </Button>
           </div>
-        </form>
+        )}
 
         {/* 🔐 Información de seguridad */}
         <div className="mt-4 pt-4 border-t border-border/30">
           <p className="text-xs text-center text-muted-foreground/70">
-            🔒 Tus datos están protegidos y encriptados
+            🔒 Tus datos están protegidos con encriptación de última generación
           </p>
         </div>
       </motion.div>

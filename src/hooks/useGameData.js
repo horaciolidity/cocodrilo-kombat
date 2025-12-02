@@ -109,82 +109,139 @@ export function useGameData(user) {
     }
   }, [user]);
 
-  // 🎯 FUNCIONES AUXILIARES
-  const getOrCreatePlayer = async (user) => {
-    // Buscar jugador existente
-    const { data: existingPlayer } = await supabase
-      .from('players')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+  // En useGameData.js - función getOrCreatePlayer
+const getOrCreatePlayer = async (user) => {
+  // Buscar jugador existente
+  const { data: existingPlayer } = await supabase
+    .from('players')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
 
-    if (existingPlayer) {
-      return existingPlayer;
-    }
+  if (existingPlayer) {
+    return existingPlayer;
+  }
 
-    // Crear nuevo jugador
-    const username = `croc${Math.floor(Math.random() * 9000 + 1000)}`;
-    const referralCode = Math.random().toString(36).substring(2, 10);
+  // Crear nuevo jugador
+  const username = `croc${Math.floor(Math.random() * 9000 + 1000)}`;
+  const referralCode = Math.random().toString(36).substring(2, 10);
+  
+  // 🎯 OBTENER CÓDIGO DE REFERIDO DESDE METADATA DE SUPABASE
+  const referralCodeFromMetadata = user.user_metadata?.referral_code;
+  let referredBy = null;
+
+  // Buscar jugador que refirió (si hay código)
+  if (referralCodeFromMetadata) {
+    console.log(`🎯 Buscando referidor con código: ${referralCodeFromMetadata}`);
     
-    const { data: newPlayer, error } = await supabase
+    const { data: referrer } = await supabase
       .from('players')
-      .insert([{
-        user_id: user.id,
-        username,
-        avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${username}`,
-        referral_code: referralCode
-      }])
-      .select()
+      .select('id')
+      .eq('referral_code', referralCodeFromMetadata)
       .single();
 
-    if (error) throw error;
-    return newPlayer;
-  };
+    if (referrer) {
+      referredBy = referrer.id;
+      console.log(`✅ Referidor encontrado: ${referrer.id}`);
+    } else {
+      console.warn(`⚠️ Código de referido no válido: ${referralCodeFromMetadata}`);
+    }
+  }
+
+  const { data: newPlayer, error } = await supabase
+    .from('players')
+    .insert([{
+      user_id: user.id,
+      username,
+      avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${username}`,
+      referral_code: referralCode,
+      referred_by: referredBy // 🎯 Guardar quién refirió
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 🎯 APLICAR RECOMPENSAS DE REFERIDO SI HAY REFERIDOR
+  if (referredBy) {
+    try {
+      // 1. Actualizar estadísticas del referidor
+      await supabase
+        .from('player_stats')
+        .update({
+          native_token_balance: supabase.raw('native_token_balance + 10'),
+          coins: supabase.raw('coins + 1000'),
+          coins_from_refs: supabase.raw('coins_from_refs + 1000'),
+          croc_from_refs: supabase.raw('croc_from_refs + 10'),
+          referrals_count: supabase.raw('referrals_count + 1')
+        })
+        .eq('player_id', referredBy);
+
+      console.log(`✅ Recompensas aplicadas al referidor: ${referredBy}`);
+      
+      // 2. Dar bonificación inicial al nuevo jugador por ser referido
+      // Esto se hará en getOrCreatePlayerStats cuando vea que tiene referred_by
+      
+    } catch (refError) {
+      console.error("❌ Error aplicando recompensas de referido:", refError);
+    }
+  }
+
+  return newPlayer;
+};
 
   const getOrCreatePlayerStats = async (playerId) => {
-    const { data: stats } = await supabase
-      .from('player_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .maybeSingle();
+  const { data: stats } = await supabase
+    .from('player_stats')
+    .select('*')
+    .eq('player_id', playerId)
+    .maybeSingle();
 
-    if (stats) return stats;
+  if (stats) return stats;
 
-    // Crear estadísticas iniciales
-    const initialStats = {
-      player_id: playerId,
-      coins: 0,
-      croc_tokens: 0,
-      native_token_balance: 0,
-      level: 1,
-      clicks: 0,
-      energy: 100,
-      max_energy: 100,
-      click_power: 1,
-      coins_per_second: 0,
-      experience: 0,
-      total_coins: 0,
-      croc_from_refs: 0,
-      coins_from_refs: 0,
-      referrals_count: 0,
-      upgrades: INITIAL_UPGRADES_STATE,
-      missions: INITIAL_MISSIONS_STATE,
-      owned_cards: [],
-      owned_items: [],
-      achievements_unlocked: [],
-      daily_rewards: { streak: 0, available: true, lastClaim: null },
-      farming_milestones: INITIAL_FARMING_MILESTONES_STATE
-    };
+  // 🎯 VERIFICAR SI EL JUGADOR FUE REFERIDO
+  const { data: player } = await supabase
+    .from('players')
+    .select('referred_by')
+    .eq('id', playerId)
+    .single();
 
-    const { data: newStats, error } = await supabase
-      .from('player_stats')
-      .insert([initialStats])
-      .select()
-      .single();
+  const isReferred = !!player?.referred_by;
 
-    if (error) throw error;
-    return newStats;
+  // Crear estadísticas iniciales (con bonos si fue referido)
+  const initialStats = {
+    player_id: playerId,
+    coins: isReferred ? 1000 : 0,
+    native_token_balance: isReferred ? 10 : 0,
+    level: 1,
+    clicks: 0,
+    energy: 100,
+    max_energy: 100,
+    click_power: 1,
+    coins_per_second: 0,
+    experience: 0,
+    total_coins: isReferred ? 1000 : 0,
+    croc_from_refs: 0,
+    coins_from_refs: 0,
+    referrals_count: 0,
+    upgrades: INITIAL_UPGRADES_STATE,
+    missions: INITIAL_MISSIONS_STATE,
+    owned_cards: [],
+    owned_items: [],
+    achievements_unlocked: [],
+    daily_rewards: { streak: 0, available: true, lastClaim: null },
+    farming_milestones: INITIAL_FARMING_MILESTONES_STATE
   };
+
+  const { data: newStats, error } = await supabase
+    .from('player_stats')
+    .insert([initialStats])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return newStats;
+};
 
   const getReferralStats = async (playerId) => {
     const { data: referrals } = await supabase

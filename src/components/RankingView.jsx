@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Award,
   Crown,
@@ -7,45 +7,63 @@ import {
   Calendar,
   Globe2,
   Sparkles,
+  RefreshCw,
+  Trophy,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
-export function RankingView({ user, stats }) { // ✅ Añade stats como prop
+export function RankingView({ user, player, gameState, stats }) {
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  const generateAvatarUrl = (seed) =>
-    `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed || "anon"}&backgroundColor=transparent`;
+  const generateAvatarUrl = useCallback((seed) =>
+    `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed || "anon"}&backgroundColor=transparent`
+  , []);
 
-  // 📌 Consulta MEJORADA con más información de depuración
-  const fetchRanking = async (scope = "global") => {
+  // 📌 Función para formatear fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return "Nunca";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // 📌 Consulta MEJORADA con arquitectura centralizada
+  const fetchRanking = useCallback(async (scope = "global") => {
     try {
       setLoading(true);
-      console.log("🔍 Iniciando carga de ranking para user:", user?.id);
-
+      setError(null);
+      
+      console.log("🔍 Cargando ranking para tab:", scope);
+      
       let query = supabase
         .from("player_stats")
-        .select(
-          `
-            player_id,
-            coins,
-            level,
-            clicks,
-            updated_at,
-            players!inner(
+        .select(`
+          player_id,
+          coins,
+          level,
+          clicks,
+          native_token_balance,
+          total_coins,
+          updated_at,
+          players (
             id,
-            user_id,
             username,
             avatar_url,
-            created_at
-            )
-          `
-        )
-        .not('player_id', 'is', null)
+            user_id
+          )
+        `)
         .order("coins", { ascending: false })
         .limit(50);
 
@@ -55,40 +73,42 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
         query = query.gte("updated_at", weekAgo.toISOString());
       }
 
-      const { data, error } = await query;
+      const { data, error: queryError } = await query;
       
-      if (error) {
-        console.error("❌ Error en consulta ranking:", error);
+      if (queryError) {
+        console.error("❌ Error en consulta ranking:", queryError);
+        setError("Error al cargar el ranking");
         setRanking([]);
         return;
       }
 
-      console.log("📊 Datos crudos obtenidos:", data?.length, "registros");
-      
-      if (data && data.length > 0) {
-        console.log("💰 Ejemplo de datos - Primer jugador:", {
-          name: data[0].players?.username,
-          coins: data[0].coins,
-          player_id: data[0].player_id,
-          user_id: data[0].players?.user_id
-        });
+      console.log("📊 Datos obtenidos:", data?.length, "registros");
+
+      if (!data || data.length === 0) {
+        console.warn("⚠️ No se encontraron datos de ranking");
+        setRanking([]);
+        setLastUpdated(new Date().toISOString());
+        return;
       }
 
       // 🎯 PROCESAMIENTO MEJORADO
-      const uniquePlayers = processPlayerData(data || [], user?.id);
-      console.log("🏆 Ranking procesado:", uniquePlayers.length, "jugadores");
+      const processedRanking = processPlayerData(data, user?.id);
       
-      setRanking(uniquePlayers);
+      console.log("🏆 Ranking procesado:", processedRanking.length, "jugadores");
+      
+      setRanking(processedRanking);
+      setLastUpdated(new Date().toISOString());
 
     } catch (err) {
       console.error("❌ Error al cargar ranking:", err);
+      setError("Error inesperado al cargar el ranking");
       setRanking([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  // 🧹 Función para procesar y limpiar datos de jugadores - CORREGIDA
+  // 🧹 Función para procesar datos de jugadores
   const processPlayerData = (rawData, currentUserId) => {
     const playerMap = new Map();
 
@@ -99,90 +119,90 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
       }
 
       const playerId = row.player_id;
+      const playerInfo = row.players;
       
-      // 🚨 Validación exhaustiva de datos
-      if (!row.players.username || row.players.username.trim() === '') {
+      // Validar datos básicos
+      if (!playerInfo.username || playerInfo.username.trim() === '') {
         console.warn('⚠️ Jugador sin username:', playerId);
         return;
       }
 
       const coinsValue = Number(row.coins) || 0;
-      console.log(`💰 Procesando: ${row.players.username} - Coins: ${coinsValue}, UserID: ${row.players.user_id}, CurrentUserID: ${currentUserId}`);
+      const levelValue = Number(row.level) || 1;
+      const tokensValue = Number(row.native_token_balance) || 0;
+      const totalCoinsValue = Number(row.total_coins) || 0;
+      const clicksValue = Number(row.clicks) || 0;
 
-      // 🔄 Mantener solo el registro con más monedas
-      const existingPlayer = playerMap.get(playerId);
+      // ✅ Identificar si es el usuario actual
+      const isCurrentUser = playerInfo.user_id === currentUserId;
       
-      // ✅ CORRECCIÓN IMPORTANTE: Comparar user_id en lugar de player_id
-      const isCurrentUser = row.players.user_id === currentUserId;
+      // Si ya tenemos este jugador, mantener el mejor puntaje
+      const existingPlayer = playerMap.get(playerId);
       
       if (!existingPlayer || coinsValue > existingPlayer.coins) {
         playerMap.set(playerId, {
           id: playerId,
-          name: row.players.username.trim(),
-          avatar: row.players.avatar_url || generateAvatarUrl(row.players.username),
+          name: playerInfo.username.trim(),
+          avatar: playerInfo.avatar_url || generateAvatarUrl(playerInfo.username),
           coins: coinsValue,
-          level: row.level || 1,
-          isCurrentUser: isCurrentUser, // ✅ Usar la comparación correcta
+          level: levelValue,
+          tokens: tokensValue,
+          totalCoins: totalCoinsValue,
+          clicks: clicksValue,
+          isCurrentUser: isCurrentUser,
           lastActive: row.updated_at,
-          user_id: row.players.user_id // ✅ Guardar user_id para referencia
+          user_id: playerInfo.user_id
         });
 
         if (isCurrentUser) {
-          console.log("🎯 JUGADOR ACTUAL IDENTIFICADO:", {
-            name: row.players.username,
+          console.log("🎯 JUGADOR ACTUAL EN RANKING:", {
+            name: playerInfo.username,
             coins: coinsValue,
-            player_id: playerId,
-            user_id: row.players.user_id
+            tokens: tokensValue,
+            level: levelValue
           });
         }
       }
     });
 
-    // 📊 Ordenar por monedas (descendente) y limitar a 20
+    // Ordenar por monedas (descendente) y limitar
     const sortedPlayers = Array.from(playerMap.values())
       .sort((a, b) => b.coins - a.coins)
       .slice(0, 20);
 
-    console.log("📈 Ranking final ordenado:", sortedPlayers.map(p => ({
-      name: p.name,
-      coins: p.coins,
-      isCurrentUser: p.isCurrentUser
-    })));
-
     return sortedPlayers;
   };
 
-  // 🔁 Suscripción realtime MEJORADA
+  // 🔁 Cargar ranking cuando cambia la pestaña
   useEffect(() => {
     fetchRanking(activeTab);
+  }, [activeTab, fetchRanking]);
+
+  // 🔄 Suscripción realtime (opcional - solo si necesitas actualización en tiempo real)
+  useEffect(() => {
+    if (!user) return;
 
     const channel = supabase
-      .channel("realtime-ranking-updates")
+      .channel(`realtime-ranking-${activeTab}`)
       .on(
         "postgres_changes",
         { 
-          event: "*",  // ✅ Escuchar todos los eventos, no solo UPDATE
+          event: "UPDATE",
           schema: "public", 
           table: "player_stats"
         },
         (payload) => {
-          console.log("🔄 Cambio en tiempo real detectado:", payload);
-          fetchRanking(activeTab);
+          console.log("🔄 Cambio en tiempo real en player_stats:", payload);
+          // Recargar ranking suavemente
+          setTimeout(() => fetchRanking(activeTab), 1000);
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('🎯 Suscrito a cambios del ranking');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error en suscripción realtime');
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log('🧹 Limpiando suscripción realtime');
       supabase.removeChannel(channel);
     };
-  }, [activeTab]);
+  }, [activeTab, user, fetchRanking]);
 
   // ⭐ Medallas animadas
   const Medal = ({ type }) => {
@@ -191,45 +211,125 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
       silver: "from-gray-300 to-gray-100",
       bronze: "from-amber-700 to-amber-500",
     };
+    
+    const medalText = {
+      gold: "🥇",
+      silver: "🥈",
+      bronze: "🥉"
+    };
+    
     return (
       <motion.div
-        className={`w-7 h-7 rounded-full bg-gradient-to-br ${colors[type]} flex items-center justify-center shadow-lg ring-2 ring-white/30`}
-        animate={{ scale: [1, 1.2, 1] }}
-        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+        className={`w-10 h-10 rounded-full bg-gradient-to-br ${colors[type]} flex items-center justify-center shadow-lg ring-2 ring-white/30`}
+        animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
       >
-        <Sparkles className="w-3.5 h-3.5 text-white drop-shadow" />
+        <span className="text-lg font-bold">{medalText[type]}</span>
       </motion.div>
     );
   };
 
-  // 🎨 Render del ranking MEJORADO con más información
+  // 🎨 Información de usuario actual
+  const CurrentUserInfo = () => {
+    if (!user) {
+      return (
+        <div className="p-4 bg-gradient-to-r from-blue-900/30 to-blue-800/30 rounded-lg border border-blue-700/30 mb-4">
+          <p className="text-center text-sm">
+            <span className="text-yellow-400">⚠️</span> Inicia sesión para aparecer en el ranking
+          </p>
+        </div>
+      );
+    }
+
+    const currentPlayerInRanking = ranking.find(p => p.isCurrentUser);
+    const currentRank = currentPlayerInRanking 
+      ? ranking.findIndex(p => p.id === currentPlayerInRanking.id) + 1
+      : null;
+
+    return (
+      <motion.div 
+        className="p-4 bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg border border-primary/30 mb-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex flex-col md:flex-row items-center justify-between">
+          <div className="flex items-center mb-3 md:mb-0">
+            <Avatar className="h-12 w-12 mr-3 border-2 border-primary">
+              <AvatarImage src={player?.avatar_url} alt={player?.username} />
+              <AvatarFallback>
+                {player?.username?.substring(0, 2).toUpperCase() || "TU"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-bold text-lg flex items-center">
+                {player?.username || "Tú"} 
+                {currentPlayerInRanking && <Sparkles className="w-4 h-4 ml-2 text-yellow-400" />}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Nivel {gameState?.level || 1} • {gameState?.coins?.toLocaleString() || 0} 💰
+              </p>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary mb-1">
+              {currentRank ? `#${currentRank}` : "No clasificado"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {currentRank ? "Tu posición" : "Juega más para aparecer"}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // 🎨 Render del ranking
   const renderRanking = () => {
     if (loading) {
       return (
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2 text-muted-foreground">Cargando ranking...</span>
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full"
+          />
+          <p className="text-muted-foreground">Cargando ranking...</p>
+          <p className="text-xs text-muted-foreground">Sincronizando con la nube</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
+            <UserCircle2 className="w-8 h-8 text-red-400" />
+          </div>
+          <p className="text-red-400 mb-2">Error al cargar el ranking</p>
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <Button 
+            onClick={() => fetchRanking(activeTab)}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reintentar
+          </Button>
         </div>
       );
     }
 
     if (!ranking.length) {
       return (
-        <div className="text-center py-8">
-          <UserCircle2 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No hay jugadores en el ranking aún</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            ¡Sé el primero en aparecer aquí!
+        <div className="text-center py-12">
+          <Trophy className="w-20 h-20 mx-auto text-muted-foreground mb-4 opacity-50" />
+          <p className="text-muted-foreground text-lg mb-2">¡El ranking está vacío!</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Sé el primero en aparecer aquí. Juega más para acumular monedas y subir en el ranking.
           </p>
-          
-          {/* 🔍 Información de depuración */}
-          <div className="mt-4 p-3 bg-gray-800 rounded text-xs text-left max-w-md mx-auto">
-            <h4 className="font-bold mb-2">Información de Depuración:</h4>
-            <p><strong>Usuario:</strong> {user ? "Conectado" : "No conectado"}</p>
-            <p><strong>User ID:</strong> {user?.id || "N/A"}</p>
-            <p><strong>Stats Coins:</strong> {stats?.coins || "N/A"}</p>
-            <p><strong>Tabla activa:</strong> {activeTab}</p>
-          </div>
         </div>
       );
     }
@@ -237,73 +337,78 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
     return (
       <div className="space-y-3">
         {ranking.map((player, index) => {
-          const medal =
-            index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : null;
+          const medal = index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : null;
+          const isCurrentUser = player.isCurrentUser;
 
           return (
             <motion.div
-              key={player.id}
-              className={`flex items-center p-3 rounded-lg transition-all duration-300 ${
-                player.isCurrentUser
-                  ? "bg-primary/25 border-2 border-primary shadow-lg"
-                  : "glass-effect border border-border"
+              key={`${player.id}-${index}`}
+              className={`relative flex items-center p-4 rounded-xl transition-all duration-300 ${
+                isCurrentUser
+                  ? "bg-gradient-to-r from-primary/25 to-primary/10 border-2 border-primary shadow-xl"
+                  : "glass-effect border border-border/50 hover:border-border/80"
               }`}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.01, y: -2 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
+              transition={{ delay: index * 0.03 }}
             >
-              <div className="flex items-center justify-center w-8 mr-3">
+              {/* Posición */}
+              <div className="flex items-center justify-center w-10 mr-3">
                 {medal ? (
                   <Medal type={medal} />
                 ) : (
-                  <span className={`text-sm font-semibold ${
-                    player.isCurrentUser ? "text-primary" : "text-muted-foreground"
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    isCurrentUser ? "bg-primary/20" : "bg-gray-800/50"
                   }`}>
-                    {index + 1}
-                  </span>
+                    <span className={`font-bold ${
+                      isCurrentUser ? "text-primary" : "text-muted-foreground"
+                    }`}>
+                      {index + 1}
+                    </span>
+                  </div>
                 )}
               </div>
 
-              <Avatar className="h-10 w-10 mr-3 border-2 border-border shadow">
+              {/* Avatar */}
+              <Avatar className="h-12 w-12 mr-3 border-2 border-border shadow-lg">
                 <AvatarImage src={player.avatar} alt={player.name} />
                 <AvatarFallback>
                   {player.name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
+              {/* Información */}
               <div className="flex-grow min-w-0">
-                <p
-                  className={`font-semibold truncate ${
-                    player.isCurrentUser ? "text-primary font-bold" : "text-white"
-                  }`}
-                  title={player.name}
-                >
-                  {player.name} {player.isCurrentUser && " (Tú)"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Nivel {player.level} • {player.coins.toLocaleString()} 💰
-                  {player.isCurrentUser && " • ¡Eres tú!"}
-                </p>
+                <div className="flex items-center">
+                  <p
+                    className={`font-semibold truncate ${
+                      isCurrentUser ? "text-primary font-bold" : "text-white"
+                    }`}
+                    title={player.name}
+                  >
+                    {player.name} {isCurrentUser && <span className="ml-1">⭐</span>}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
+                  <span>Nv. {player.level}</span>
+                  <span>•</span>
+                  <span className="text-yellow-400">{player.coins.toLocaleString()} 💰</span>
+                  {player.tokens > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-emerald-400">{player.tokens.toLocaleString()} CROC</span>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {medal && (
-                <motion.div
-                  className="ml-2"
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ repeat: Infinity, duration: 3 }}
-                >
-                  <Crown
-                    className={`w-6 h-6 ${
-                      medal === "gold"
-                        ? "text-yellow-400"
-                        : medal === "silver"
-                        ? "text-gray-300"
-                        : "text-amber-700"
-                    }`}
-                  />
-                </motion.div>
-              )}
+              {/* Actividad */}
+              <div className="hidden md:block text-right ml-3">
+                <p className="text-xs text-muted-foreground">
+                  {formatDate(player.lastActive)}
+                </p>
+              </div>
             </motion.div>
           );
         })}
@@ -312,71 +417,155 @@ export function RankingView({ user, stats }) { // ✅ Añade stats como prop
   };
 
   return (
-    <div className="min-h-screen game-bg p-4 mobile-padding fade-in">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-center gradient-text flex items-center justify-center">
-          <Award className="w-8 h-8 mr-3 text-yellow-400" /> 
-          Ranking de Jugadores
-        </h1>
-
-        {/* Información del estado actual */}
-        <div className="mb-4 p-3 bg-blue-900/30 rounded-lg text-center">
-          <p className="text-sm">
-            <strong>Usuario:</strong> {user ? user.email : "No conectado"} | 
-            <strong> Tus monedas:</strong> {stats?.coins?.toLocaleString() || "0"} | 
-            <strong> Jugadores en ranking:</strong> {ranking.length}
+    <div className="min-h-screen game-bg p-4 mobile-padding">
+      <div className="max-w-4xl mx-auto">
+        {/* Encabezado */}
+        <div className="text-center mb-8">
+          <motion.h1 
+            className="text-3xl md:text-4xl font-bold mb-3 gradient-text flex items-center justify-center"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Award className="w-8 h-8 mr-3 text-yellow-400" /> 
+            Ranking Global
+          </motion.h1>
+          <p className="text-muted-foreground">
+            Compite con jugadores de todo el mundo y sube en el ranking
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex justify-center gap-2 mb-6">
-          <Button
-            variant={activeTab === "global" ? "default" : "outline"}
-            onClick={() => setActiveTab("global")}
-            className="flex items-center gap-2"
-          >
-            <Globe2 className="w-4 h-4" /> Global
-          </Button>
+        {/* Información del usuario actual */}
+        <CurrentUserInfo />
 
-          <Button
-            variant={activeTab === "weekly" ? "default" : "outline"}
-            onClick={() => setActiveTab("weekly")}
-            className="flex items-center gap-2"
-          >
-            <Calendar className="w-4 h-4" /> Semanal
-          </Button>
+        {/* Controles */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          {/* Tabs */}
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <Button
+              variant={activeTab === "global" ? "default" : "outline"}
+              onClick={() => setActiveTab("global")}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Globe2 className="w-4 h-4" /> Global
+            </Button>
 
-          <Button
-            variant={activeTab === "friends" ? "default" : "outline"}
-            onClick={() => setActiveTab("friends")}
-            className="flex items-center gap-2"
-            disabled
-          >
-            <Users2 className="w-4 h-4" /> Amigos
-          </Button>
+            <Button
+              variant={activeTab === "weekly" ? "default" : "outline"}
+              onClick={() => setActiveTab("weekly")}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Calendar className="w-4 h-4" /> Semanal
+            </Button>
+
+            <Button
+              variant="outline"
+              disabled
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Users2 className="w-4 h-4" /> Amigos (próximamente)
+            </Button>
+          </div>
+
+          {/* Botón de actualización */}
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <p className="text-xs text-muted-foreground">
+                Actualizado: {formatDate(lastUpdated)}
+              </p>
+            )}
+            <Button
+              onClick={() => fetchRanking(activeTab)}
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              Actualizar
+            </Button>
+          </div>
         </div>
 
-        {/* Info del ranking actual */}
-        <div className="text-center mb-4">
-          <p className="text-sm text-muted-foreground">
-            {activeTab === "global" 
-              ? "Ranking global de todos los jugadores" 
-              : activeTab === "weekly" 
-              ? "Ranking semanal - últimos 7 días"
-              : "Próximamente - Sistema de amigos"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Mostrando {ranking.length} jugador{ranking.length !== 1 ? 'es' : ''} real{ranking.length !== 1 ? 'es' : ''}
-          </p>
+        {/* Info del ranking */}
+        <div className="mb-4 p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg border border-border/50">
+          <div className="flex flex-wrap justify-center gap-4 text-center">
+            <div>
+              <p className="text-xs text-muted-foreground">Tipo de ranking</p>
+              <p className="font-semibold">
+                {activeTab === "global" ? "Global (todos los tiempos)" : "Semanal (últimos 7 días)"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Jugadores activos</p>
+              <p className="font-semibold">{ranking.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Monedas mínimas para top 10</p>
+              <p className="font-semibold text-yellow-400">
+                {ranking.length >= 10 ? ranking[9]?.coins?.toLocaleString() || "0" : "0"} 💰
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="stats-card rounded-xl p-4 md:p-6 backdrop-blur-lg overflow-hidden">
+        {/* Ranking */}
+        <motion.div 
+          className="stats-card rounded-xl p-4 md:p-6 backdrop-blur-lg overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold flex items-center">
+              <Crown className="w-5 h-5 mr-2 text-yellow-400" />
+              Top {ranking.length} Jugadores
+            </h3>
+            <div className="text-xs text-muted-foreground">
+              Ordenado por monedas totales
+            </div>
+          </div>
+
           {renderRanking()}
-        </div>
+        </motion.div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          🕹️ El ranking se actualiza en tiempo real. ¡Subí tus monedas y entrá al top!
-        </p>
+        {/* Leyenda y consejos */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
+            <h4 className="font-bold mb-2 text-sm flex items-center">
+              <Sparkles className="w-4 h-4 mr-2 text-yellow-400" />
+              Cómo subir en el ranking
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Haz clic para ganar monedas</li>
+              <li>• Compra mejoras para aumentar tus ganancias</li>
+              <li>• Completa misiones e hitos</li>
+              <li>• Invita amigos para ganar bonos</li>
+            </ul>
+          </div>
+
+          <div className="p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
+            <h4 className="font-bold mb-2 text-sm flex items-center">
+              <Trophy className="w-4 h-4 mr-2 text-yellow-400" />
+              Premios del ranking
+            </h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• 🥇 Oro: Reconocimiento especial</li>
+              <li>• 🥈 Plata: Prestigio en la comunidad</li>
+              <li>• 🥉 Bronze: Mención honorífica</li>
+              <li>• Top 10: Visibilidad destacada</li>
+            </ul>
+          </div>
+
+          <div className="p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
+            <h4 className="font-bold mb-2 text-sm flex items-center">
+              <RefreshCw className="w-4 h-4 mr-2 text-blue-400" />
+              Actualización
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              El ranking se actualiza automáticamente cada 30 segundos y cuando los jugadores realizan acciones importantes.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
