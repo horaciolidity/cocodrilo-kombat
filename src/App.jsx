@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useSupabasePlayer } from "@/hooks/useSupabasePlayer";
+import { useGameData } from "@/hooks/useGameData"; // ✅ NUEVO HOOK CENTRAL
 import { GameView } from "@/components/GameView";
 import { StatsView } from "@/components/StatsView";
 import { SettingsView } from "@/components/SettingsView";
@@ -26,7 +26,6 @@ import { MilestoneReachedModal } from "@/components/MilestoneReachedModal";
 
 import { useGameLogic } from "@/hooks/useGameLogic";
 import { useSound } from "@/hooks/useSound";
-import { buyShopItem, equipSkin } from "@/lib/shopService";
 
 import {
   Home,
@@ -40,12 +39,12 @@ import {
   Rocket,
   FileText,
   Target as TargetIcon,
+  RefreshCw,
+  Bug,
+  Shield,
 } from "lucide-react";
 
 import {
-  INITIAL_GAME_STATE,
-  INITIAL_UPGRADES_STATE,
-  INITIAL_MISSIONS_STATE,
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
   SHOP_ITEMS,
@@ -83,23 +82,32 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  /* 🧠 Hook de jugador (vincula user con Supabase player/stats) */
-  const {
-    player,
-    stats,
-    setStats,
-    referralStats,
-    loading: playerLoading,
-    error: playerError,
-    syncStatsToSupabase,
-    syncUpgradesToSupabase,
-    syncDailyRewardsToSupabase,
-    refreshReferralStats,
-    getReferralLink,
-  } = useSupabasePlayer(user);
+  /* 🎯 HOOK CENTRAL DE DATOS - REEMPLAZA useSupabasePlayer */
+  const gameData = useGameData(user);
 
-  /* ⚙️ Lógica del juego */
+  /* ⚙️ Lógica del juego que usa el hook central */
+  const gameLogic = useGameLogic({
+    gameData,
+    updateGameState: gameData.updateGameState,
+    updateUpgrades: gameData.updateUpgrades,
+    updateMissions: gameData.updateMissions,
+    updateOwnedCards: gameData.updateOwnedCards,
+    updateOwnedItems: gameData.updateOwnedItems,
+    updateActiveSkin: gameData.updateActiveSkin,
+    updateAchievementsUnlocked: gameData.updateAchievementsUnlocked,
+    updateDailyRewards: gameData.updateDailyRewards,
+    updateFarmingMilestones: gameData.updateFarmingMilestones,
+    updateReferralStats: gameData.updateReferralStats,
+    syncGameData: gameData.syncGameData,
+    toast,
+    playSound,
+    setShowMilestoneModal,
+    setLastReachedMilestone
+  });
+
+  // ✅ DESESTRUCTURACIÓN SIMPLIFICADA
   const {
+    // 🎯 DATOS DEL JUEGO
     gameState,
     upgrades,
     missions,
@@ -108,181 +116,39 @@ function App() {
     activeSkin,
     achievementsUnlocked,
     dailyRewards,
-    soundEnabled,
+    farmingMilestonesState,
+    player,
+    referralStats,
+    loading,
+    error,
+    
+    // 🎯 ESTADOS DE UI
     floatingNumbers,
     clickEffect,
-    farmingMilestonesState,
-    setGameState,
-    setUpgrades,
-    setMissions,
-    setOwnedCards,
-    setOwnedItems,
-    setActiveSkin,
-    setAchievementsUnlocked,
-    setDailyRewards,
-    setSoundEnabled,
-    setFloatingNumbers,
-    setClickEffect,
-    setFarmingMilestonesState,
+    soundEnabled,
+    
+    // 🎯 FUNCIONES DEL JUEGO
     handleClick,
     buyUpgrade,
     completeMission,
     claimMissionReward,
     claimDailyReward,
+    buyShopItem,
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
-  } = useGameLogic(
-    INITIAL_GAME_STATE,
-    INITIAL_UPGRADES_STATE,
-    INITIAL_MISSIONS_STATE,
-    toast,
-    playSound,
-    setShowMilestoneModal,
-    setLastReachedMilestone,
-    user,
-    {
-      stats,
-      player,
-      loading: playerLoading,
-      syncUpgradesToSupabase,
-      syncStatsToSupabase,
-      syncDailyRewardsToSupabase
-    }
-  );
-
-  
- // ✅ SINCRONIZACIÓN UNIFICADA Y CORREGIDA
-const syncAllDataToSupabase = useCallback(() => {
-  if (!player?.id) {
-    console.log("⏸️ Sync pausado: no hay player.id");
-    return;
-  }
-  
-  console.log("🔄 Sincronización manual iniciada...");
-  
-  const dataToSync = {
-    // ✅ DATOS BÁSICOS DEL JUEGO - CORREGIDOS
-    coins: Math.floor(gameState.coins),
-    croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-    native_token_balance: Math.floor(gameState.nativeTokenBalance || 0),
-    level: gameState.level,
-    clicks: gameState.totalClicks,
-    energy: gameState.energy,
-    max_energy: gameState.maxEnergy,
-    click_power: gameState.clickPower,
-    coins_per_second: gameState.coinsPerSecond,
-    experience: gameState.experience,
-    total_coins: gameState.totalCoins,
     
-    // ✅ DATOS DE REFERIDOS - CORREGIDOS
-    croc_from_refs: gameState.crocFromRefs || 0,
-    coins_from_refs: gameState.coinsFromRefs || 0,
-    referrals_count: gameState.referralsCount || 0,
+    // 🎯 FUNCIONES DE UI
+    setFloatingNumbers,
+    setClickEffect,
+    setSoundEnabled,
     
-    // ✅ DATOS ADICIONALES
-    upgrades: upgrades || {},
-    missions: missions || {},
-    owned_cards: ownedCards || [],
-    owned_items: ownedItems || [],
-    active_skin: activeSkin || null,
-    achievements_unlocked: achievementsUnlocked || [],
-    daily_rewards: dailyRewards || { streak: 0, available: true, lastClaim: null },
-    farming_milestones: farmingMilestonesState || {},
-  };
+    // 🎯 FUNCIONES DE SINCRONIZACIÓN
+    syncAllData,
+  } = gameLogic;
 
-  console.log("📤 Enviando datos corregidos a Supabase:", {
-    coins: dataToSync.coins,
-    croc_tokens: dataToSync.croc_tokens,
-    level: dataToSync.level,
-    referrals: dataToSync.referrals_count
-  });
-
-  // Sincronizar con Supabase
-  if (syncStatsToSupabase) {
-    syncStatsToSupabase(dataToSync);
-  }
-  
-  toast({
-    title: "🔄 Datos sincronizados",
-    description: "Todos los datos se enviaron correctamente a Supabase",
-    duration: 3000,
-  });
-}, [
-  player?.id,
-  gameState,
-  upgrades,
-  missions,
-  ownedCards,
-  ownedItems,
-  activeSkin,
-  achievementsUnlocked,
-  dailyRewards,
-  farmingMilestonesState,
-  syncStatsToSupabase,
-  toast
-]);
-
-  // ✅ SINCRONIZACIÓN AUTOMÁTICA CENTRALIZADA - SOLO UNA VEZ CADA 30 SEGUNDOS
- // Reemplazar el efecto de sincronización automática:
-useEffect(() => {
-  if (!player?.id || !syncStatsToSupabase) return;
-
-  console.log("🎯 Iniciando sincronización automática corregida");
-  
-  const syncInterval = setInterval(() => {
-    const hasSignificantChanges = 
-      Math.floor(stats?.coins || 0) !== Math.floor(gameState.coins) ||
-      (stats?.level || 1) !== gameState.level ||
-      Math.floor(stats?.croc_tokens || 0) !== Math.floor(gameState.nativeTokenBalance || 0) ||
-      (stats?.referrals_count || 0) !== (gameState.referralsCount || 0);
-
-    if (hasSignificantChanges) {
-      console.log("🔄 Sincronización automática por cambios significativos");
-      syncAllDataToSupabase();
-    }
-  }, 30000); // 30 segundos
-
-  return () => {
-    console.log("🧹 Limpiando sincronización automática");
-    clearInterval(syncInterval);
-  };
-}, [player?.id, stats, gameState, syncStatsToSupabase, syncAllDataToSupabase]);
-
-// ✅ CORREGIR EFECTO DE REFERIDOS
-useEffect(() => {
-  if (referralStats && user && setGameState) {
-    console.log("💰 Aplicando bonificaciones de referidos:", referralStats);
-    
-    setGameState(prev => {
-      const currentCrocFromRefs = prev.crocFromRefs || 0;
-      const newCrocFromRefs = referralStats.crocFromRefs || 0;
-      const currentCoinsFromRefs = prev.coinsFromRefs || 0;
-      const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
-      
-      // Solo actualizar si hay cambios y los nuevos valores son mayores
-      if (newCrocFromRefs > currentCrocFromRefs || newCoinsFromRefs > currentCoinsFromRefs) {
-        const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-        const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
-        
-        console.log(`🎁 Aplicando ${crocDifference} CROC y ${coinsDifference} monedas por referidos`);
-        
-        return {
-          ...prev,
-          referralsCount: referralStats.referralsCount || 0,
-          crocFromRefs: newCrocFromRefs,
-          coinsFromRefs: newCoinsFromRefs,
-          nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDifference,
-          coins: (prev.coins || 0) + coinsDifference,
-          totalCoins: (prev.totalCoins || 0) + coinsDifference
-        };
-      }
-      
-      return prev;
-    });
-  }
-}, [referralStats, user, setGameState]);
-
+  // ✅ REFERIDOS - MANEJO AUTOMÁTICO EN EL HOOK CENTRAL
+  // Ya no necesitamos lógica compleja aquí, el hook central se encarga
 
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
   useEffect(() => {
@@ -290,22 +156,13 @@ useEffect(() => {
 
     const handleBeforeUnload = () => {
       console.log("📤 Sincronizando antes de cerrar...");
-      // Usar sendBeacon para sincronización confiable antes de cerrar
-      if (navigator.sendBeacon) {
-        const data = JSON.stringify({
-          player_id: player.id,
-          coins: Math.floor(gameState.coins),
-          croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-          last_active: new Date().toISOString()
-        });
-        navigator.sendBeacon('/api/sync', data);
-      }
+      syncAllData(); // Usar la función del hook central
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         console.log("📤 Sincronizando al cambiar de pestaña...");
-        syncAllDataToSupabase();
+        syncAllData(); // Usar la función del hook central
       }
     };
 
@@ -316,184 +173,7 @@ useEffect(() => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [player?.id, gameState, syncAllDataToSupabase]);
-
-  // ✅ ACTUALIZAR REFERIDOS PERIÓDICAMENTE
-  useEffect(() => {
-    if (user && refreshReferralStats) {
-      const interval = setInterval(() => {
-        refreshReferralStats();
-      }, 30000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [user, refreshReferralStats]);
-
-
-
-  const processReferralBonuses = useCallback(() => {
-  if (!referralStats || !setGameState) {
-    console.log("⏸️ No se pueden procesar bonificaciones: datos faltantes");
-    return;
-  }
-
-  console.log("💰 Procesando bonificaciones de referidos:", referralStats);
-  
-  setGameState(prev => {
-    const currentCrocFromRefs = prev.crocFromRefs || 0;
-    const newCrocFromRefs = referralStats.crocFromRefs || 0;
-    const currentCoinsFromRefs = prev.coinsFromRefs || 0;
-    const newCoinsFromRefs = referralStats.coinsFromRefs || 0;
-    
-    // Calcular diferencias
-    const crocDifference = newCrocFromRefs - currentCrocFromRefs;
-    const coinsDifference = newCoinsFromRefs - currentCoinsFromRefs;
-    
-    console.log(`🎁 Diferencia: ${crocDifference} CROC y ${coinsDifference} monedas`);
-    
-    // Solo actualizar si hay cambios positivos
-    if (crocDifference > 0 || coinsDifference > 0) {
-      console.log(`🎁 Aplicando ${crocDifference} CROC y ${coinsDifference} monedas por referidos`);
-      
-      return {
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: newCrocFromRefs,
-        coinsFromRefs: newCoinsFromRefs,
-        nativeTokenBalance: (prev.nativeTokenBalance || 0) + crocDifference,
-        coins: (prev.coins || 0) + coinsDifference,
-        totalCoins: (prev.totalCoins || 0) + coinsDifference
-      };
-    }
-    
-    // Si no hay cambios, solo actualizar los contadores
-    if (prev.referralsCount !== referralStats.referralsCount) {
-      return {
-        ...prev,
-        referralsCount: referralStats.referralsCount || 0,
-        crocFromRefs: newCrocFromRefs,
-        coinsFromRefs: newCoinsFromRefs
-      };
-    }
-    
-    return prev;
-  });
-}, [referralStats, setGameState]);
-
-  // ✅ EFECTO PARA APLICAR BONIFICACIONES DE REFERIDOS
-  useEffect(() => {
-    if (referralStats && user) {
-      console.log("🔄 Verificando bonificaciones de referidos...", referralStats);
-      processReferralBonuses();
-    }
-  }, [referralStats, user, processReferralBonuses]);
-
-  // En App.jsx, agregar un efecto para sincronizar después de cargar referralStats
-useEffect(() => {
-  if (referralStats && user && gameState) {
-    console.log("🔄 Sincronizando bonificaciones de referidos...");
-    
-    // Verificar si hay bonificaciones pendientes por aplicar
-    const hasPendingBonuses = 
-      (referralStats.crocFromRefs || 0) > (gameState.crocFromRefs || 0) ||
-      (referralStats.coinsFromRefs || 0) > (gameState.coinsFromRefs || 0);
-    
-    if (hasPendingBonuses) {
-      console.log("🎯 Aplicando bonificaciones pendientes de referidos");
-      processReferralBonuses();
-      
-      // Sincronizar con Supabase después de aplicar bonificaciones
-      setTimeout(() => {
-        syncAllDataToSupabase();
-      }, 2000);
-    }
-  }
-}, [referralStats, user, gameState, processReferralBonuses, syncAllDataToSupabase]);
-
-  // ✅ INICIALIZAR DATOS DE REFERIDOS SI NO EXISTEN
-  useEffect(() => {
-    if (user && gameState && setGameState) {
-      if (gameState.crocFromRefs === undefined || gameState.referralsCount === undefined) {
-        console.log("🆕 Inicializando datos de referidos en el estado del juego");
-        setGameState(prev => ({
-          ...prev,
-          crocFromRefs: 0,
-          coinsFromRefs: 0,
-          referralsCount: 0
-        }));
-      }
-    }
-  }, [user, gameState, setGameState]);
-
-  // ✅ FUNCIÓN DE LIMPIEZA DE DATOS CORRUPTOS
-  const cleanupCorruptedData = useCallback(async () => {
-    if (!player?.id) return;
-    
-    try {
-      console.log("🧹 Iniciando limpieza de datos corruptos...");
-      
-      const cleanData = {
-        coins: Math.floor(gameState.coins),
-        croc_tokens: Math.floor(gameState.nativeTokenBalance || 0),
-        native_token_balance: Math.floor(gameState.nativeTokenBalance || 0),
-        level: gameState.level,
-        clicks: gameState.totalClicks,
-        energy: gameState.energy,
-        max_energy: gameState.maxEnergy,
-        click_power: gameState.clickPower,
-        coins_per_second: gameState.coinsPerSecond,
-        experience: gameState.experience,
-        total_coins: gameState.totalCoins,
-        croc_from_refs: gameState.crocFromRefs || 0,
-        coins_from_refs: gameState.coinsFromRefs || 0,
-        referrals_count: gameState.referralsCount || 0,
-        upgrades: upgrades || {},
-        missions: missions || {},
-        owned_cards: ownedCards || [],
-        owned_items: ownedItems || [],
-        active_skin: activeSkin || null,
-        achievements_unlocked: achievementsUnlocked || [],
-        daily_rewards: dailyRewards || { streak: 0, available: true, lastClaim: null },
-        farming_milestones: farmingMilestonesState || {},
-      };
-      
-      if (setStats) {
-        setStats(cleanData);
-      }
-      
-      if (syncStatsToSupabase) {
-        syncStatsToSupabase(cleanData);
-      }
-      
-      toast({
-        title: "🧹 Datos limpiados",
-        description: "Se han corregido inconsistencias en los datos",
-        duration: 3000,
-      });
-      
-    } catch (error) {
-      console.error("❌ Error en limpieza:", error);
-      toast({
-        title: "❌ Error en limpieza",
-        description: "No se pudieron corregir los datos",
-        duration: 3000,
-      });
-    }
-  }, [
-    player?.id, 
-    gameState, 
-    upgrades, 
-    missions, 
-    ownedCards, 
-    ownedItems, 
-    activeSkin, 
-    achievementsUnlocked, 
-    dailyRewards, 
-    farmingMilestonesState, 
-    setStats, 
-    syncStatsToSupabase, 
-    toast
-  ]);
+  }, [player?.id, syncAllData]);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -504,14 +184,10 @@ useEffect(() => {
     }
   }, []);
 
-  /* 🪙 Fallbacks seguros */
-  const safeCoins = stats?.coins ?? gameState?.coins ?? 0;
-  const safeOwnedItems = Array.isArray(ownedItems) ? ownedItems : [];
-
   /* 🚪 Logout */
   const logout = useCallback(async () => {
     // Sincronizar antes de cerrar sesión
-    syncAllDataToSupabase();
+    syncAllData();
     await supabase.auth.signOut();
     setUser(null);
     toast({
@@ -520,7 +196,7 @@ useEffect(() => {
       duration: 2000,
     });
     playSound("logout");
-  }, [syncAllDataToSupabase, toast, playSound]);
+  }, [syncAllData, toast, playSound]);
 
   /* 🎓 Tutorial */
   const nextTutorialStep = useCallback(() => {
@@ -557,19 +233,49 @@ useEffect(() => {
     { view: "settings", label: "Config", icon: Settings },
   ];
 
+  // ✅ FUNCIÓN PARA COMPRAR ITEMS (COMPATIBILIDAD)
+  const handleBuyShopItem = useCallback((itemId) => {
+    const item = SHOP_ITEMS.find((i) => i.id === itemId);
+    if (!item || !user) return;
+    
+    // Usar la función del hook central
+    buyShopItem(itemId);
+  }, [user, buyShopItem]);
+
+  // ✅ FUNCIÓN PARA EQUIPAR SKIN (COMPATIBILIDAD)
+  const handleEquipSkin = useCallback((skinId) => {
+    if (!user) return;
+    // Actualizar skin activa a través del hook central
+    gameData.updateActiveSkin(skinId);
+    playSound("equip");
+  }, [user, gameData, playSound]);
+
   /* 💡 UI Loading global */
-  if (playerLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-center text-lg text-muted-foreground">
-        🐊 Cargando tu perfil de jugador...
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="text-lg font-semibold gradient-text">🐊 Cargando Cocodrilo Kombat...</div>
+          <div className="text-sm text-muted-foreground">Sincronizando datos con la nube</div>
+        </div>
       </div>
     );
   }
 
-  if (playerError) {
+  if (error) {
     return (
       <div className="flex items-center justify-center h-screen text-center text-red-500">
-        ❌ Error al cargar datos del jugador: {playerError}
+        <div className="bg-red-900/30 p-6 rounded-xl border border-red-700/50 max-w-md">
+          <div className="text-2xl mb-2">❌ Error al cargar datos</div>
+          <div className="text-sm mb-4">{error}</div>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Recargar página
+          </Button>
+        </div>
       </div>
     );
   }
@@ -577,55 +283,65 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 🔝 Barra superior */}
-      <nav className="bg-card/50 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-40">
+      <nav className="bg-card/80 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">
-            🐊 Cocodrilo Kombat
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold gradient-text">
+              🐊 Cocodrilo Kombat
+            </h1>
+            {player && (
+              <div className="hidden md:flex items-center gap-2 text-xs bg-primary/20 px-2 py-1 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-primary font-medium">{player.username}</span>
+              </div>
+            )}
+          </div>
 
-          <div className="flex items-center space-x-0.5 md:space-x-1 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center space-x-1 md:space-x-2 overflow-x-auto scrollbar-hide">
             {navigationItems.map((item) => (
               <Button
                 key={item.view}
                 onClick={() => handleNavigation(item.view)}
                 variant={currentView === item.view ? "default" : "ghost"}
                 size="sm"
-                className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
+                className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 transition-all duration-200"
               >
-                <item.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 md:mr-1" />
+                <item.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 md:mr-1.5" />
                 <span className="hidden sm:inline">{item.label}</span>
               </Button>
             ))}
             
             {/* 🔄 Botón de Sincronización Manual */}
             <Button
-              onClick={syncAllDataToSupabase}
+              onClick={syncAllData}
               variant="outline"
               size="sm"
-              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-blue-500 hover:bg-blue-600"
+              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-blue-700"
+              title="Sincronizar datos con la nube"
             >
-              🔄 Sync
+              <RefreshCw className="w-3 h-3 md:mr-1.5" />
+              <span className="hidden sm:inline">Sync</span>
             </Button>
 
-            {/* 🧹 Botón de Limpieza de Datos */}
+            {/* 🛡️ Botón de Integridad de Datos */}
             <Button
-              onClick={cleanupCorruptedData}
+              onClick={gameData.verifyDataIntegrity}
               variant="outline"
               size="sm"
-              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0 bg-red-500 hover:bg-red-600"
+              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-green-600 hover:bg-green-700 text-white border-green-700"
+              title="Verificar integridad de datos"
             >
-              🧹 Limpiar
+              <Shield className="w-3 h-3 md:mr-1.5" />
+              <span className="hidden sm:inline">Integridad</span>
             </Button>
 
-            {/* 🐛 Botón de Debug temporal */}
+            {/* 🐛 Botón de Debug */}
             <Button
               onClick={() => {
-                console.log("🐛 DEBUG INFO:", {
+                console.log("🐛 DEBUG INFO - Arquitectura Centralizada:", {
                   user: user?.id,
                   player: player?.id,
-                  stats: stats,
-                  referralStats: referralStats,
-                  gameState: {
+                  gameData: {
                     coins: gameState.coins,
                     level: gameState.level,
                     clicks: gameState.totalClicks,
@@ -645,18 +361,38 @@ useEffect(() => {
                   activeSkin: activeSkin,
                   achievementsUnlocked: achievementsUnlocked,
                   dailyRewards: dailyRewards,
-                  farmingMilestonesState: farmingMilestonesState
+                  farmingMilestones: farmingMilestonesState,
+                  referralStats: referralStats,
+                  loading: loading,
+                  error: error
+                });
+                toast({
+                  title: "🐛 Información de Debug",
+                  description: "Datos mostrados en consola",
+                  duration: 3000,
                 });
               }}
               variant="outline"
               size="sm"
-              className="mobile-button px-1 sm:px-1.5 md:px-3 text-xs md:text-sm flex-shrink-0"
+              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-gray-700 hover:bg-gray-800"
             >
-              🐛 Debug
+              <Bug className="w-3 h-3 md:mr-1.5" />
+              <span className="hidden sm:inline">Debug</span>
             </Button>
           </div>
         </div>
       </nav>
+
+      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN */}
+      {user && (
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-1.5 px-4 text-sm">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span>✅ Conectado a la nube - Datos sincronizados automáticamente</span>
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      )}
 
       {/* 🧩 Contenido dinámico */}
       <AnimatePresence mode="sync">
@@ -668,17 +404,20 @@ useEffect(() => {
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="pb-16"
         >
-          <React.Suspense fallback={<div className="text-center p-10">Cargando...</div>}>
+          <React.Suspense fallback={
+            <div className="text-center p-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <div className="mt-4 text-muted-foreground">Cargando vista...</div>
+            </div>
+          }>
             {currentView === "game" && (
               <GameView
-                player={player}
-                stats={stats}
                 gameState={gameState}
                 upgrades={upgrades}
                 buyUpgrade={buyUpgrade}
                 handleClick={handleClick}
-                clickEffect={clickEffect}
                 floatingNumbers={floatingNumbers}
+                clickEffect={clickEffect}
                 dailyRewards={dailyRewards}
                 claimDailyReward={claimDailyReward}
                 tutorialStep={tutorialStep}
@@ -688,10 +427,9 @@ useEffect(() => {
                 user={user}
                 tokenPrice={tokenPrice}
                 referralStats={referralStats}
-                refreshReferralStats={refreshReferralStats}
-                setGameState={setGameState}
+                refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
-                getReferralLink={getReferralLink}
+                getReferralLink={gameData.getReferralLink}
               />
             )}
 
@@ -715,30 +453,51 @@ useEffect(() => {
               />
             )}
 
-            {currentView === "cards" && <CardsView ownedCards={ownedCards} />}
-
-            {currentView === "shop" && (
-              <ShopView
-                coins={safeCoins}
-                ownedItems={safeOwnedItems}
-                activeSkin={activeSkin}
-                buyShopItem={(itemId) => {
-                  const item = SHOP_ITEMS.find((i) => i.id === itemId);
-                  if (!item || !user) return;
-                  buyShopItem(user.id, item.id, item.price, item.type, toast);
-                }}
-                equipSkin={(skinId) => {
-                  if (!user) return;
-                  equipSkin(user.id, skinId, toast);
-                  setActiveSkin(skinId);
-                }}
+            {currentView === "cards" && (
+              <CardsView 
+                ownedCards={ownedCards}
+                allCards={gameData.allCards}
               />
             )}
 
-            {currentView === "ranking" && <RankingView user={user} stats={stats} />}
-            {currentView === "fairlaunch" && <FairlaunchView toast={toast} />}
+            {currentView === "shop" && (
+              <ShopView
+                coins={gameState.coins}
+                ownedItems={ownedItems}
+                activeSkin={activeSkin}
+                buyShopItem={handleBuyShopItem}
+                equipSkin={handleEquipSkin}
+              />
+            )}
+
+            {currentView === "ranking" && (
+              <RankingView 
+                user={user} 
+                player={player}
+                gameState={gameState}
+                stats={gameData.statsForRanking}
+              />
+            )}
+
+            {currentView === "fairlaunch" && (
+              <FairlaunchView 
+                toast={toast} 
+                tokenPrice={tokenPrice}
+                setTokenPrice={setTokenPrice}
+              />
+            )}
+
             {currentView === "whitepaper" && <WhitepaperView />}
-            {currentView === "wallet" && <WalletView toast={toast} playSound={playSound} />}
+            
+            {currentView === "wallet" && (
+              <WalletView 
+                toast={toast} 
+                playSound={playSound}
+                nativeTokenBalance={gameState.nativeTokenBalance}
+                tokenPrice={tokenPrice}
+              />
+            )}
+
             {currentView === "stats" && (
               <StatsView
                 gameState={gameState}
@@ -753,6 +512,7 @@ useEffect(() => {
                 tokenPrice={tokenPrice}
               />
             )}
+
             {currentView === "settings" && (
               <SettingsView
                 user={user}
@@ -763,6 +523,8 @@ useEffect(() => {
                 setShowTutorial={setShowTutorial}
                 resetProgress={resetProgress}
                 playSound={playSound}
+                syncGameData={syncAllData}
+                gameData={gameData}
               />
             )}
           </React.Suspense>
@@ -777,12 +539,14 @@ useEffect(() => {
         toast={toast}
         playSound={playSound}
       />
+      
       <TutorialModal
         showTutorial={showTutorial}
         tutorialStep={tutorialStep}
         nextTutorialStep={nextTutorialStep}
         skipTutorial={skipTutorial}
       />
+      
       <MilestoneReachedModal
         isOpen={showMilestoneModal}
         onClose={() => setShowMilestoneModal(false)}
@@ -790,8 +554,39 @@ useEffect(() => {
       />
 
       {/* 🔻 Footer */}
-      <footer className="relative bg-card/80 backdrop-blur-md border-t border-border p-3 mt-16 z-10">
-        <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
+      <footer className="relative bg-card/90 backdrop-blur-md border-t border-border p-3 md:p-4 mt-16 z-10">
+        <div className="max-w-7xl mx-auto">
+          <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
+          
+          {/* INFORMACIÓN DE SESIÓN */}
+          <div className="mt-3 pt-3 border-t border-border/50 text-center text-xs text-muted-foreground">
+            {user ? (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>Sesión activa: <strong>{player?.username || user.email}</strong></span>
+                </div>
+                <span className="hidden sm:inline">•</span>
+                <span>Tokens CROC: <strong>{gameState.nativeTokenBalance?.toLocaleString() || 0}</strong></span>
+                <span className="hidden sm:inline">•</span>
+                <span>Referidos: <strong>{referralStats?.referralsCount || 0}</strong></span>
+                <span className="hidden sm:inline">•</span>
+                <span>Nivel: <strong>{gameState.level}</strong></span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                <span>Modo invitado - <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-xs text-primary"
+                  onClick={() => setShowAuth(true)}
+                >
+                  Inicia sesión para guardar tu progreso
+                </Button></span>
+              </div>
+            )}
+          </div>
+        </div>
       </footer>
 
       <Toaster />
