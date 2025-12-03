@@ -1,137 +1,374 @@
-
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ListChecks, CheckCircle, Award, Gift, Zap, DollarSign, Star as StarIcon, TrendingUp, CalendarCheck, Share2, UserPlus } from 'lucide-react';
+import { 
+  ListChecks, 
+  CheckCircle, 
+  Award, 
+  Gift, 
+  Zap, 
+  DollarSign, 
+  Star as StarIcon, 
+  TrendingUp, 
+  CalendarCheck, 
+  Share2, 
+  UserPlus,
+  Target,
+  Sparkles,
+  BarChart3
+} from 'lucide-react';
 import { MISSIONS, CARDS_DATA } from '@/config/gameConfig';
 
-export function MissionsView({ missions, completeMission, claimMissionReward, gameState, upgrades, toast, playSound }) {
+export function MissionsView({ 
+  missions, 
+  completeMission, 
+  claimMissionReward, 
+  gameState, 
+  upgrades, 
+  toast, 
+  playSound 
+}) {
+  // 🎯 Obtener progreso de misión - OPTIMIZADO
   const getMissionProgress = (mission) => {
     if (!mission.requirement) return { current: 0, target: 0, percentage: 0 };
     
     let current = 0;
-    const target = mission.requirement.value;
+    const target = mission.requirement.value || 1;
 
     switch(mission.requirement.type) {
-      case 'clicks': current = gameState.totalClicks; break;
-      case 'coins': current = gameState.totalCoins; break;
-      case 'level': current = gameState.level; break;
+      case 'clicks': 
+        current = gameState.totalClicks || 0; 
+        break;
+      case 'coins': 
+        current = gameState.totalCoins || 0; 
+        break;
+      case 'level': 
+        current = gameState.level || 1; 
+        break;
       case 'upgradeLevel': 
-        const targetUpgrade = upgrades[mission.requirement.upgradeId];
-        current = targetUpgrade ? targetUpgrade.level : 0;
+        const targetUpgrade = upgrades?.[mission.requirement.upgradeId];
+        current = targetUpgrade?.level || 0;
         break;
       case 'social_share':
       case 'social_follow':
-        current = missions[mission.id]?.progress || 0; 
+        current = missions?.[mission.id]?.progress || 0; 
         break;
-      default: current = 0; break;
+      default: 
+        current = 0; 
+        break;
     }
-    const percentage = target > 0 ? Math.min(100, (current / target) * 100) : (mission.requirement.type.startsWith('social_') && missions[mission.id]?.completed ? 100 : 0);
+    
+    const percentage = target > 0 ? Math.min(100, (current / target) * 100) : 0;
     return { current, target, percentage };
   };
 
-  const handleSocialMission = (missionId, url) => {
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+  // 🌐 Manejo de misiones sociales - MEJORADO
+  const handleSocialMission = (missionId, url, actionText) => {
+    if (!url) {
+      toast({
+        title: "❌ Enlace no disponible",
+        description: "Esta acción social no está configurada correctamente.",
+        duration: 3000
+      });
+      return;
     }
-    completeMission(missionId, true); 
-    playSound('uiClick');
-    toast({
-      title: "🌐 Acción Social Registrada",
-      description: "¡Gracias por tu apoyo! Verifica el progreso de la misión.",
-      duration: 3000
-    });
+
+    // Abrir enlace en nueva pestaña
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    
+    if (newWindow) {
+      // Marcar como completada después de un breve delay
+      setTimeout(() => {
+        completeMission(missionId, true);
+        playSound('missionComplete');
+        
+        toast({
+          title: "✅ Acción Registrada",
+          description: `¡Gracias por ${actionText?.toLowerCase() || "completar la acción"}!`,
+          duration: 3000
+        });
+      }, 1000);
+    }
   };
 
+  // 📊 Calcular estadísticas de misiones
+  const completedMissions = Object.values(missions || {}).filter(m => m?.completed).length;
+  const claimedMissions = Object.values(missions || {}).filter(m => m?.claimed).length;
+  const totalMissions = MISSIONS.length;
+  const completionRate = totalMissions > 0 ? (completedMissions / totalMissions) * 100 : 0;
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center gradient-text flex items-center justify-center">
-          <ListChecks className="w-8 h-8 mr-3 text-primary" /> Misiones de Cocodrilo
-        </h1>
+      <div className="max-w-4xl mx-auto">
+        {/* 🎯 Encabezado con estadísticas */}
+        <motion.div 
+          className="text-center mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 gradient-text flex items-center justify-center">
+            <ListChecks className="w-8 h-8 mr-3 text-primary" /> 
+            Misiones del Pantano
+          </h1>
+          <p className="text-muted-foreground mb-4">
+            Completa misiones para ganar recompensas especiales y subir de nivel
+          </p>
+          
+          {/* 📊 Barra de progreso general */}
+          <div className="max-w-2xl mx-auto bg-gray-800/50 rounded-xl p-4 border border-border/50">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-green-400" />
+                <span className="text-sm font-semibold">Progreso General</span>
+              </div>
+              <span className="text-green-400 font-bold">
+                {completedMissions}/{totalMissions} ({Math.floor(completionRate)}%)
+              </span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-3">
+              <motion.div 
+                className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${completionRate}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+              />
+            </div>
+            
+            {/* 📈 Estadísticas rápidas */}
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="text-center p-2 bg-green-900/20 rounded-lg border border-green-700/30">
+                <div className="text-lg font-bold text-green-400">{completedMissions}</div>
+                <div className="text-xs text-green-200">Completadas</div>
+              </div>
+              <div className="text-center p-2 bg-yellow-900/20 rounded-lg border border-yellow-700/30">
+                <div className="text-lg font-bold text-yellow-400">{claimedMissions}</div>
+                <div className="text-xs text-yellow-200">Reclamadas</div>
+              </div>
+              <div className="text-center p-2 bg-blue-900/20 rounded-lg border border-blue-700/30">
+                <div className="text-lg font-bold text-blue-400">{totalMissions}</div>
+                <div className="text-xs text-blue-200">Totales</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
+        {/* 🎯 Lista de misiones */}
         <div className="space-y-6">
-          {MISSIONS.map(mission => {
-            const missionState = missions[mission.id];
+          {MISSIONS.map((mission, index) => {
+            const missionState = missions?.[mission.id] || { completed: false, claimed: false, progress: 0 };
             const progress = getMissionProgress(mission);
             const Icon = mission.icon || Award;
-
+            const isSocialMission = mission.requirement?.type?.startsWith('social_');
+            
             return (
-              <div 
-                key={mission.id} 
-                className={`mission-card rounded-xl p-4 md:p-6 shadow-lg transition-all duration-300 ${missionState.completed ? 'completed' : ''}`}
+              <motion.div
+                key={mission.id}
+                className={`mission-card rounded-xl p-4 md:p-6 shadow-lg transition-all duration-300 backdrop-blur-sm ${
+                  missionState.completed 
+                    ? missionState.claimed 
+                      ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50' 
+                      : 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50'
+                    : 'bg-card/80 border border-border/50 hover:border-primary/50'
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.01 }}
               >
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3">
-                  <div className="flex items-center mb-2 md:mb-0">
-                    <Icon className={`w-8 h-8 mr-3 ${missionState.completed ? 'text-green-400' : 'text-primary'}`} />
-                    <div>
-                      <h3 className="text-lg md:text-xl font-semibold">{mission.name}</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">{mission.description}</p>
+                  {/* 🎯 Información de la misión */}
+                  <div className="flex items-start mb-2 md:mb-0 flex-1">
+                    <div className={`p-3 rounded-lg mr-3 ${
+                      missionState.completed 
+                        ? 'bg-green-700/50' 
+                        : 'bg-gray-700/50'
+                    }`}>
+                      <Icon className={`w-6 h-6 ${
+                        missionState.completed ? 'text-green-300' : 'text-primary'
+                      }`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg md:text-xl font-semibold">{mission.name}</h3>
+                        {mission.category && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-primary/20 text-primary">
+                            {mission.category}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">{mission.description}</p>
+                      
+                      {/* 📊 Barra de progreso para misiones no sociales */}
+                      {!missionState.completed && !isSocialMission && mission.requirement && (
+                        <div className="mt-2 max-w-md">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Progreso: {Math.floor(progress.current).toLocaleString()} / {progress.target.toLocaleString()}</span>
+                            <span>{Math.floor(progress.percentage)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2">
+                            <motion.div 
+                              className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress.percentage}%` }}
+                              transition={{ duration: 0.5 }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {missionState.completed && !missionState.claimed && (
-                    <Button 
-                      onClick={() => claimMissionReward(mission.id)} 
-                      size="sm" 
-                      className="bg-yellow-500 hover:bg-yellow-600 text-black mobile-button sparkle-effect mt-2 md:mt-0"
-                    >
-                      <Gift className="w-4 h-4 mr-2" /> Reclamar Recompensa
-                    </Button>
-                  )}
-                  {missionState.completed && missionState.claimed && (
-                    <div className="flex items-center text-green-400 text-sm mt-2 md:mt-0">
-                      <CheckCircle className="w-4 h-4 mr-1" /> Reclamada
-                    </div>
-                  )}
-                  {!missionState.completed && (
-                    mission.requirement.type.startsWith('social_') ? (
-                       <Button 
-                        onClick={() => handleSocialMission(mission.id, mission.requirement.url)} 
-                        size="sm" 
-                        className="bg-blue-500 hover:bg-blue-600 text-white mobile-button mt-2 md:mt-0"
+
+                  {/* 🎁 Botones de acción */}
+                  <div className="flex flex-col gap-2 min-w-[180px]">
+                    {missionState.completed && !missionState.claimed && (
+                      <motion.div
+                        initial={{ scale: 0.9 }}
+                        animate={{ scale: 1 }}
+                        whileHover={{ scale: 1.05 }}
                       >
-                        {mission.requirement.type === 'social_share' ? <Share2 className="w-4 h-4 mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-                        {mission.requirement.actionText || "Realizar Acción"}
-                      </Button>
-                    ) : (
-                       <Button 
-                        onClick={() => completeMission(mission.id)} 
-                        size="sm" 
-                        variant="outline"
-                        className="mobile-button mt-2 md:mt-0"
-                      >
-                        Verificar Progreso
-                      </Button>
-                    )
-                  )}
+                        <Button 
+                          onClick={() => claimMissionReward(mission.id)} 
+                          size="sm" 
+                          className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-bold sparkle-effect"
+                        >
+                          <Gift className="w-4 h-4 mr-2" /> 
+                          Reclamar Recompensa
+                        </Button>
+                      </motion.div>
+                    )}
+                    
+                    {missionState.completed && missionState.claimed && (
+                      <div className="flex items-center justify-center text-green-400 text-sm p-2 bg-green-900/30 rounded-lg">
+                        <CheckCircle className="w-4 h-4 mr-1" /> 
+                        Reclamada
+                      </div>
+                    )}
+                    
+                    {!missionState.completed && (
+                      isSocialMission ? (
+                        <Button 
+                          onClick={() => handleSocialMission(
+                            mission.id, 
+                            mission.requirement.url,
+                            mission.requirement.actionText
+                          )} 
+                          size="sm" 
+                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                        >
+                          {mission.requirement.type === 'social_share' ? 
+                            <Share2 className="w-4 h-4 mr-2" /> : 
+                            <UserPlus className="w-4 h-4 mr-2" />
+                          }
+                          {mission.requirement.actionText || "Realizar Acción"}
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => completeMission(mission.id)} 
+                          size="sm" 
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Verificar Progreso
+                        </Button>
+                      )
+                    )}
+                  </div>
                 </div>
 
-                {!missionState.completed && mission.requirement && !mission.requirement.type.startsWith('social_') && mission.requirement.type !== 'custom' && (
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Progreso: {Math.floor(progress.current).toLocaleString()} / {progress.target.toLocaleString()}</span>
-                      <span>{Math.floor(progress.percentage)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2.5">
-                      <div 
-                        className="progress-bar h-2.5 rounded-full" 
-                        style={{ width: `${progress.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
+                {/* 💰 Recompensa */}
                 {mission.reward && (
-                  <div className="mt-3 pt-3 border-t border-border/50 text-xs md:text-sm text-muted-foreground">
-                    Recompensa: {mission.reward.coins}💰
-                    {mission.reward.xp && `, ${mission.reward.xp} XP`}
-                    {mission.reward.cardId && CARDS_DATA.find(c => c.id === mission.reward.cardId) && `, 🃏 ${CARDS_DATA.find(c => c.id === mission.reward.cardId).name}`}
-                  </div>
+                  <motion.div 
+                    className="mt-3 pt-3 border-t border-border/50"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="font-semibold text-yellow-400 flex items-center">
+                        <Gift className="w-4 h-4 mr-1" />
+                        Recompensa:
+                      </span>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {mission.reward.coins > 0 && (
+                          <span className="px-2 py-1 bg-yellow-900/30 rounded-lg flex items-center gap-1">
+                            <DollarSign className="w-3 h-3 text-yellow-400" />
+                            <span className="text-yellow-300 font-bold">+{mission.reward.coins} 💰</span>
+                          </span>
+                        )}
+                        
+                        {mission.reward.xp && mission.reward.xp > 0 && (
+                          <span className="px-2 py-1 bg-purple-900/30 rounded-lg flex items-center gap-1">
+                            <StarIcon className="w-3 h-3 text-purple-400" />
+                            <span className="text-purple-300 font-bold">+{mission.reward.xp} XP</span>
+                          </span>
+                        )}
+                        
+                        {mission.reward.cardId && CARDS_DATA.find(c => c.id === mission.reward.cardId) && (
+                          <span className="px-2 py-1 bg-indigo-900/30 rounded-lg flex items-center gap-1">
+                            <span className="text-indigo-300">🃏</span>
+                            <span className="text-indigo-300 font-bold">
+                              {CARDS_DATA.find(c => c.id === mission.reward.cardId).name}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
+
+        {/* ℹ️ Información adicional */}
+        <motion.div 
+          className="mt-8 p-4 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl border border-border/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-yellow-400" />
+            <h3 className="font-bold text-lg">💡 Consejos para Misiones</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-start gap-2 p-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
+              <div>
+                <span className="font-semibold">Misiones Sociales:</span>
+                <p className="text-muted-foreground">Sigue nuestras redes sociales y comparte el juego para completarlas rápidamente.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2 p-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
+              <div>
+                <span className="font-semibold">Recompensas Diarias:</span>
+                <p className="text-muted-foreground">Reclama recompensas diarias para obtener bonos adicionales.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2 p-2">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2"></div>
+              <div>
+                <span className="font-semibold">Cartas Coleccionables:</span>
+                <p className="text-muted-foreground">Algunas misiones otorgan cartas especiales que mejoran tu juego.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2 p-2">
+              <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
+              <div>
+                <span className="font-semibold">Sincronización:</span>
+                <p className="text-muted-foreground">Tu progreso en misiones se guarda automáticamente en la nube.</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
