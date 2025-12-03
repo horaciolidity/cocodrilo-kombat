@@ -200,11 +200,11 @@ import {
   // 🆕 ICONOS FALTANTES - IMPORTADOS CORRECTAMENTE
   MessageSquare,
   Music,
-  Alien,
   Github,
   Clock,
   Ticket,
-  SquareStack // ✅ REEMPLAZO PARA Cards (icono similar)
+  Globe as GlobeIcon, // ✅ REEMPLAZO PARA Alien (icono similar)
+  Layers as LayersIcon, // ✅ REEMPLAZO PARA Cards (icono similar)
 } from "lucide-react";
 
 /* =====================================================
@@ -568,7 +568,7 @@ export const ACHIEVEMENTS = [
     description: "Colecciona todas las cartas", 
     requirement: CARDS_DATA.length, 
     type: "cards", 
-    icon: SquareStack, // ✅ REEMPLAZO: SquareStack en lugar de Cards
+    icon: LayersIcon, // ✅ REEMPLAZO: LayersIcon en lugar de Cards
     rarity: "legendary",
     rewardPoints: 500,
     rewardCoins: 100000
@@ -874,7 +874,7 @@ export const SOCIAL_LINKS_DATA = [
   },
   { 
     name: "Reddit", 
-    icon: Alien, 
+    icon: GlobeIcon, // ✅ REEMPLAZO: GlobeIcon en lugar de Alien
     url: "https://reddit.com/r/cocodrilokombat",
     description: "Discusiones y memes"
   },
