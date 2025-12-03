@@ -202,9 +202,9 @@ import {
   Music,
   Alien,
   Github,
-  Cards,
   Clock,
-  Ticket
+  Ticket,
+  SquareStack // ✅ REEMPLAZO PARA Cards (icono similar)
 } from "lucide-react";
 
 /* =====================================================
@@ -568,7 +568,7 @@ export const ACHIEVEMENTS = [
     description: "Colecciona todas las cartas", 
     requirement: CARDS_DATA.length, 
     type: "cards", 
-    icon: Cards,
+    icon: SquareStack, // ✅ REEMPLAZO: SquareStack en lugar de Cards
     rarity: "legendary",
     rewardPoints: 500,
     rewardCoins: 100000
