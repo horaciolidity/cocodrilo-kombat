@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useGameData } from "@/hooks/useGameData"; // ✅ NUEVO HOOK CENTRAL
+import { useGameData } from "@/hooks/useGameData";
 import { GameView } from "@/components/GameView";
 import { StatsView } from "@/components/StatsView";
 import { SettingsView } from "@/components/SettingsView";
@@ -82,7 +81,7 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  /* 🎯 HOOK CENTRAL DE DATOS - REEMPLAZA useSupabasePlayer */
+  /* 🎯 HOOK CENTRAL DE DATOS */
   const gameData = useGameData(user);
 
   /* ⚙️ Lógica del juego que usa el hook central */
@@ -148,7 +147,6 @@ function App() {
   } = gameLogic;
 
   // ✅ REFERIDOS - MANEJO AUTOMÁTICO EN EL HOOK CENTRAL
-  // Ya no necesitamos lógica compleja aquí, el hook central se encarga
 
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
   useEffect(() => {
@@ -156,13 +154,13 @@ function App() {
 
     const handleBeforeUnload = () => {
       console.log("📤 Sincronizando antes de cerrar...");
-      syncAllData(); // Usar la función del hook central
+      syncAllData();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         console.log("📤 Sincronizando al cambiar de pestaña...");
-        syncAllData(); // Usar la función del hook central
+        syncAllData();
       }
     };
 
@@ -186,7 +184,6 @@ function App() {
 
   /* 🚪 Logout */
   const logout = useCallback(async () => {
-    // Sincronizar antes de cerrar sesión
     syncAllData();
     await supabase.auth.signOut();
     setUser(null);
@@ -233,19 +230,17 @@ function App() {
     { view: "settings", label: "Config", icon: Settings },
   ];
 
-  // ✅ FUNCIÓN PARA COMPRAR ITEMS (COMPATIBILIDAD)
+  // ✅ FUNCIÓN PARA COMPRAR ITEMS
   const handleBuyShopItem = useCallback((itemId) => {
     const item = SHOP_ITEMS.find((i) => i.id === itemId);
     if (!item || !user) return;
     
-    // Usar la función del hook central
     buyShopItem(itemId);
   }, [user, buyShopItem]);
 
-  // ✅ FUNCIÓN PARA EQUIPAR SKIN (COMPATIBILIDAD)
+  // ✅ FUNCIÓN PARA EQUIPAR SKIN
   const handleEquipSkin = useCallback((skinId) => {
     if (!user) return;
-    // Actualizar skin activa a través del hook central
     gameData.updateActiveSkin(skinId);
     playSound("equip");
   }, [user, gameData, playSound]);
@@ -471,11 +466,15 @@ function App() {
             )}
 
             {currentView === "ranking" && (
+              // 🎯 CORREGIDO: RankingView actualizado con arquitectura centralizada
               <RankingView 
                 user={user} 
                 player={player}
-                gameState={gameState}
-                stats={gameData.statsForRanking}
+                tokenPrice={tokenPrice}
+                // 🎯 NUEVAS PROPS desde useGameData centralizado
+                loadRanking={gameData.loadRanking}
+                refreshRanking={gameData.refreshRanking}
+                gameDataState={gameState}
               />
             )}
 

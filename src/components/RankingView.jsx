@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Award,
   Crown,
@@ -27,7 +27,6 @@ import {
   ArrowUpDown,
   UserCheck
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +37,11 @@ export function RankingView({
   user, 
   player, 
   tokenPrice = 0.05,
-  refreshInterval = 30000 
+  refreshInterval = 30000,
+  // 🎯 NUEVAS PROPS - Centralizadas desde useGameData
+  loadRanking,
+  refreshRanking,
+  gameDataState
 }) {
   const { toast } = useToast();
   
@@ -57,10 +60,15 @@ export function RankingView({
     recentActivity: 0
   });
 
-  // 📊 Generar avatar URL
-  const generateAvatarUrl = useCallback((seed) =>
-    `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed || "anon"}&backgroundColor=transparent`
-  , []);
+  // 🎯 DATOS DEL USUARIO ACTUAL DESDE EL ESTADO CENTRALIZADO
+  const userGameData = useMemo(() => gameDataState || {
+    coins: 0,
+    level: 1,
+    nativeTokenBalance: 0,
+    totalCoins: 0,
+    clicks: 0,
+    lastActive: null
+  }, [gameDataState]);
 
   // 📅 Formatear fecha
   const formatDate = (dateString) => {
@@ -129,83 +137,30 @@ export function RankingView({
     });
   }, []);
 
-  // 🔄 Cargar ranking desde Supabase
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
   const fetchRanking = useCallback(async (scope = "global") => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log("🏆 Cargando ranking:", scope);
+      console.log("🏆 Cargando ranking desde fuente centralizada:", scope);
       
-      // Construir consulta base
-      let query = supabase
-        .from("player_stats")
-        .select(`
-          player_id,
-          coins,
-          level,
-          clicks,
-          native_token_balance,
-          total_coins,
-          experience,
-          max_energy,
-          energy,
-          updated_at,
-          players!inner (
-            id,
-            username,
-            avatar_url,
-            user_id,
-            referral_code,
-            created_at
-          )
-        `)
-        .order("coins", { ascending: false })
-        .limit(100);
-
-      // Filtrar por período
-      if (scope === "weekly") {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        query = query.gte("updated_at", weekAgo.toISOString());
-      } else if (scope === "monthly") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-        query = query.gte("updated_at", monthAgo.toISOString());
+      // 🎯 USAR LA FUNCIÓN loadRanking DEL HOOK CENTRAL
+      if (!loadRanking) {
+        throw new Error("Función loadRanking no disponible");
       }
-
-      const { data, error: queryError } = await query;
       
-      if (queryError) throw queryError;
-
-      if (!data || data.length === 0) {
+      const rankingData = await loadRanking(scope);
+      
+      if (!rankingData || rankingData.length === 0) {
         setRanking([]);
         setLastUpdated(new Date().toISOString());
         setLoading(false);
         return;
       }
 
-      // Procesar datos
-      const processedData = data.map(row => ({
-        id: row.player_id,
-        name: row.players.username || `Jugador_${row.player_id.slice(0, 6)}`,
-        avatar: row.players.avatar_url || generateAvatarUrl(row.players.username),
-        coins: Number(row.coins) || 0,
-        level: Number(row.level) || 1,
-        tokens: Number(row.native_token_balance) || 0,
-        totalCoins: Number(row.total_coins) || 0,
-        clicks: Number(row.clicks) || 0,
-        experience: Number(row.experience) || 0,
-        energy: Number(row.energy) || 100,
-        maxEnergy: Number(row.max_energy) || 100,
-        isCurrentUser: row.players.user_id === user?.id,
-        lastActive: row.updated_at,
-        user_id: row.players.user_id,
-        joinedDate: row.players.created_at
-      }));
-
-      // Ordenar datos
-      const sortedData = processedData.sort((a, b) => {
+      // Ordenar datos localmente según criterios de UI
+      const sortedData = rankingData.sort((a, b) => {
         let valueA = a[sortBy] || 0;
         let valueB = b[sortBy] || 0;
         
@@ -220,23 +175,74 @@ export function RankingView({
       calculateStats(sortedData);
       setLastUpdated(new Date().toISOString());
 
-      console.log("✅ Ranking cargado:", sortedData.length, "jugadores");
+      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking:", err);
+      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
       setRanking([]);
+      toast({
+        title: "❌ Error de conexión",
+        description: "No se pudo cargar el ranking. Verifica tu conexión.",
+        duration: 3000,
+      });
     } finally {
       setLoading(false);
     }
-  }, [user, sortBy, sortDirection, calculateStats, generateAvatarUrl]);
+  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
+
+  // 🔄 Refrescar ranking (ignorando caché)
+  const refreshRankingData = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log("🔄 Refrescando ranking (ignorando caché)...");
+      
+      if (!refreshRanking) {
+        throw new Error("Función refreshRanking no disponible");
+      }
+      
+      const rankingData = await refreshRanking(activeTab);
+      
+      if (rankingData && rankingData.length > 0) {
+        const sortedData = rankingData.sort((a, b) => {
+          let valueA = a[sortBy] || 0;
+          let valueB = b[sortBy] || 0;
+          
+          if (sortDirection === "desc") {
+            return valueB - valueA;
+          } else {
+            return valueA - valueB;
+          }
+        });
+        
+        setRanking(sortedData);
+        calculateStats(sortedData);
+        setLastUpdated(new Date().toISOString());
+        
+        toast({
+          title: "✅ Ranking actualizado",
+          description: "Los datos del ranking han sido refrescados.",
+          duration: 2000,
+        });
+      }
+    } catch (err) {
+      console.error("❌ Error al refrescar ranking:", err);
+      toast({
+        title: "⚠️ Error al actualizar",
+        description: "No se pudo actualizar el ranking. Usando datos en caché.",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
 
   // 🔄 Cargar ranking inicial
   useEffect(() => {
     fetchRanking(activeTab);
   }, [activeTab, fetchRanking]);
 
-  // 🕐 Actualización automática
+  // 🕐 Actualización automática periódica
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -247,7 +253,7 @@ export function RankingView({
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, fetchRanking]);
 
-  // 👤 Info del usuario actual
+  // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
   const CurrentUserCard = () => {
     if (!user || !player) {
       return (
@@ -275,10 +281,10 @@ export function RankingView({
     const currentRank = getCurrentUserRank();
     const userData = ranking.find(p => p.isCurrentUser) || {
       name: player.username,
-      coins: 0,
-      level: 1,
-      tokens: 0,
-      lastActive: new Date().toISOString()
+      coins: userGameData.coins || 0,
+      level: userGameData.level || 1,
+      tokens: userGameData.nativeTokenBalance || 0,
+      lastActive: userGameData.lastActive || new Date().toISOString()
     };
 
     return (
@@ -844,8 +850,9 @@ export function RankingView({
                   <span className="hidden sm:inline">Ordenar</span>
                 </Button>
                 
+                {/* 🎯 BOTÓN ACTUALIZADO: Usa refreshRankingData en lugar de fetchRanking */}
                 <Button
-                  onClick={() => fetchRanking(activeTab)}
+                  onClick={refreshRankingData}
                   variant="outline"
                   disabled={loading}
                   className="flex items-center gap-2"
@@ -874,6 +881,9 @@ export function RankingView({
                   <div className="text-sm font-semibold">
                     {lastUpdated ? formatDate(lastUpdated) : "Cargando..."}
                   </div>
+                </div>
+                <div className="hidden md:block text-xs text-gray-500 px-2 py-1 bg-gray-800/50 rounded">
+                  🎯 Datos centralizados
                 </div>
               </div>
             </div>
