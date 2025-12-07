@@ -81,7 +81,7 @@ export function useGameLogic({
           energy: Math.min(gameState.maxEnergy, gameState.energy + 1)
         });
       }
-    }, DIFFICULTY_SETTINGS.ENERGY_REGEN_RATE); // 🆕 USAR TIEMPO CONFIGURABLE
+    }, DIFFICULTY_CONFIG.ENERGY_REGEN_RATE); // 🆕 USAR TIEMPO CONFIGURABLE
 
     return () => {
       if (energyIntervalRef.current) {
@@ -101,13 +101,13 @@ export function useGameLogic({
     }
 
     coinsIntervalRef.current = setInterval(() => {
-      let effectiveCPS = gameState.coinsPerSecond * DIFFICULTY_SETTINGS.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
+      let effectiveCPS = gameState.coinsPerSecond * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
       
       // Aplicar boosts de items
       ownedItems.forEach(itemId => {
         const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
         if (item && item.effect.type === 'cps_boost') {
-          effectiveCPS += item.effect.value * DIFFICULTY_SETTINGS.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
+          effectiveCPS += item.effect.value * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
         }
       });
 
@@ -260,15 +260,15 @@ export function useGameLogic({
 
     const currentClickPower = calculateRealClickPower();
     // Aplicar multiplicador de dificultad al clic
-    const coinsEarned = Math.floor(currentClickPower * DIFFICULTY_SETTINGS.BASE_CLICK_MULTIPLIER);
+    const coinsEarned = Math.floor(currentClickPower * DIFFICULTY_CONFIG.BASE_CLICK_MULTIPLIER);
 
     // Actualizar estado del juego
     const newState = {
       coins: gameState.coins + coinsEarned,
       totalCoins: gameState.totalCoins + coinsEarned,
       totalClicks: gameState.totalClicks + 1,
-      energy: Math.max(0, gameState.energy - DIFFICULTY_SETTINGS.ENERGY_PER_CLICK),
-      experience: gameState.experience + DIFFICULTY_SETTINGS.EXPERIENCE_PER_CLICK
+      energy: Math.max(0, gameState.energy - DIFFICULTY_CONFIG.ENERGY_PER_CLICK),
+      experience: gameState.experience + DIFFICULTY_CONFIG.EXPERIENCE_PER_CLICK
     };
     
     updateGameState(newState);
@@ -288,8 +288,8 @@ export function useGameLogic({
     }
 
     // 🆕 NUEVA FÓRMULA DE NIVELES (usando la configuración de dificultad)
-    const experienceNeeded = DIFFICULTY_SETTINGS.LEVEL_FORMULA(gameState.level);
-    const newLevel = Math.floor((gameState.experience + DIFFICULTY_SETTINGS.EXPERIENCE_PER_CLICK) / experienceNeeded) + 1;
+    const experienceNeeded = DIFFICULTY_CONFIG.LEVEL_FORMULA(gameState.level);
+    const newLevel = Math.floor((gameState.experience + DIFFICULTY_CONFIG.EXPERIENCE_PER_CLICK) / experienceNeeded) + 1;
     if (newLevel > gameState.level) {
       updateGameState({ level: newLevel });
       toast({ 
@@ -371,7 +371,7 @@ export function useGameLogic({
     const newGameState = { coins: gameState.coins - price };
     
     // 🆕 APLICAR MULTIPLICADOR DE DIFICULTAD A LA PRODUCCIÓN
-    const effectivePower = upgrade.basePower * DIFFICULTY_SETTINGS.BASE_CPS_MULTIPLIER;
+    const effectivePower = upgrade.basePower * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER;
     
     switch (upgrade.type) {
       case 'click':
