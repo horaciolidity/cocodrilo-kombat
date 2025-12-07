@@ -425,6 +425,7 @@ function App() {
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={gameData.getReferralLink}
+                canBuyUpgrade={gameLogic.canBuyUpgrade}
               />
             )}
 
