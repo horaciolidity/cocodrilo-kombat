@@ -85,24 +85,61 @@ function App() {
   const gameData = useGameData(user);
 
   /* ⚙️ Lógica del juego que usa el hook central */
-  const gameLogic = useGameLogic({
-    gameData,
-    updateGameState: gameData.updateGameState,
-    updateUpgrades: gameData.updateUpgrades,
-    updateMissions: gameData.updateMissions,
-    updateOwnedCards: gameData.updateOwnedCards,
-    updateOwnedItems: gameData.updateOwnedItems,
-    updateActiveSkin: gameData.updateActiveSkin,
-    updateAchievementsUnlocked: gameData.updateAchievementsUnlocked,
-    updateDailyRewards: gameData.updateDailyRewards,
-    updateFarmingMilestones: gameData.updateFarmingMilestones,
-    updateReferralStats: gameData.updateReferralStats,
-    syncGameData: gameData.syncGameData,
-    toast,
-    playSound,
-    setShowMilestoneModal,
-    setLastReachedMilestone
-  });
+const gameLogic = useGameLogic({
+  gameData,
+  updateGameState: gameData.updateGameState,
+  updateUpgrades: gameData.updateUpgrades,
+  updateMissions: gameData.updateMissions,
+  updateOwnedCards: gameData.updateOwnedCards,
+  updateOwnedItems: gameData.updateOwnedItems,
+  updateActiveSkin: gameData.updateActiveSkin,
+  updateAchievementsUnlocked: gameData.updateAchievementsUnlocked,
+  updateDailyRewards: gameData.updateDailyRewards,
+  updateFarmingMilestones: gameData.updateFarmingMilestones,
+  updateReferralStats: gameData.updateReferralStats,
+  syncGameData: gameData.syncGameData,
+  toast,
+  playSound,
+  setShowMilestoneModal,
+  setLastReachedMilestone
+});
+
+// ✅ ACTUALIZACIÓN DE ENERGÍA EN TIEMPO REAL
+useEffect(() => {
+  if (!gameData.player?.id || gameData.loading) return;
+  
+  // Verificar energía del servidor cada 10 segundos
+  const energyCheckInterval = setInterval(async () => {
+    try {
+      const { data: serverStats } = await supabase
+        .from('player_stats')
+        .select('energy, max_energy')
+        .eq('player_id', gameData.player.id)
+        .single();
+      
+      if (serverStats) {
+        const serverEnergy = Number(serverStats.energy);
+        const localEnergy = gameState.energy;
+        
+        // Sincronizar si hay diferencia > 2
+        if (Math.abs(serverEnergy - localEnergy) > 2) {
+          console.log(`⚡ Sincronizando energía: local=${localEnergy}, servidor=${serverEnergy}`);
+          gameData.updateGameState({ 
+            energy: serverEnergy,
+            maxEnergy: serverStats.max_energy
+          });
+        }
+      }
+    } catch (error) {
+      console.log("⚠️ Error verificando energía del servidor:", error.message);
+    }
+  }, 10000);
+  
+  return () => clearInterval(energyCheckInterval);
+}, [gameData.player?.id, gameData.loading, gameState.energy, gameData.updateGameState]);
+
+
+
 
   // ✅ DESESTRUCTURACIÓN SIMPLIFICADA
   const {
@@ -146,32 +183,18 @@ function App() {
     syncAllData,
   } = gameLogic;
 
-  // ✅ REFERIDOS - MANEJO AUTOMÁTICO EN EL HOOK CENTRAL
-
-  // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
+  // ✅ SINCRONIZACIÓN - CONFÍA EN useGameData (ELIMINADA DUPLICACIÓN)
+  // useGameData ya maneja auto-save, verificación de energía y sincronización periódica
   useEffect(() => {
-    if (!player?.id) return;
-
-    const handleBeforeUnload = () => {
-      console.log("📤 Sincronizando antes de cerrar...");
-      syncAllData();
-    };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        console.log("📤 Sincronizando al cambiar de pestaña...");
-        syncAllData();
+        console.log("🔄 App: Cambio a pestaña oculta - useGameData manejará el auto-save");
       }
     };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [player?.id, syncAllData]);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   /* 🎓 Tutorial primera vez */
   useEffect(() => {
@@ -184,6 +207,7 @@ function App() {
 
   /* 🚪 Logout */
   const logout = useCallback(async () => {
+    // syncAllData ya sincroniza todos los datos pendientes
     syncAllData();
     await supabase.auth.signOut();
     setUser(null);
@@ -466,12 +490,10 @@ function App() {
             )}
 
             {currentView === "ranking" && (
-              // 🎯 CORREGIDO: RankingView actualizado con arquitectura centralizada
               <RankingView 
                 user={user} 
                 player={player}
                 tokenPrice={tokenPrice}
-                // 🎯 NUEVAS PROPS desde useGameData centralizado
                 loadRanking={gameData.loadRanking}
                 refreshRanking={gameData.refreshRanking}
                 gameDataState={gameState}
