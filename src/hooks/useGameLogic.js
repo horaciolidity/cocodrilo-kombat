@@ -57,76 +57,38 @@ export function useGameLogic({
   const upgradesRef = useRef(upgrades);
   const syncTimeoutRef = useRef(null);
 
- // 🔄 ACTUALIZAR REFS CUANDO CAMBIAN LOS DATOS - MEJORADO
-useEffect(() => {
-  gameStateRef.current = {
-    ...gameStateRef.current,
-    ...gameState,
-    energy: gameState.energy,
-    maxEnergy: gameState.maxEnergy
-  };
-}, [gameState]);
+  // 🔄 ACTUALIZAR REFS CUANDO CAMBIAN LOS DATOS
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
-useEffect(() => {
-  upgradesRef.current = upgrades;
-}, [upgrades]);
+  useEffect(() => {
+    upgradesRef.current = upgrades;
+  }, [upgrades]);
 
-
-// ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN OPTIMIZADA
-useEffect(() => {
-  console.log("⚡ Iniciando sistema de regeneración de energía");
-  
-  // Limpiar cualquier intervalo existente
-  if (energyIntervalRef.current) {
-    clearInterval(energyIntervalRef.current);
-    energyIntervalRef.current = null;
-  }
-  
-  // Configurar el intervalo de regeneración
-  energyIntervalRef.current = setInterval(() => {
-    // Obtener valores actuales del ref
-    const { energy, maxEnergy } = gameStateRef.current;
+  // ⚡ REGENERACIÓN DE ENERGÍA
+  useEffect(() => {
+    console.log("⚡ Iniciando regeneración de energía...");
     
-    // Verificar si necesita regeneración
-    if (energy < maxEnergy) {
-      const newEnergy = Math.min(maxEnergy, energy + 1);
-      
-      console.log(`⚡ Regenerando: ${energy} → ${newEnergy}/${maxEnergy}`);
-      
-      // Actualizar el ref inmediatamente
-      gameStateRef.current.energy = newEnergy;
-      
-      // Actualizar el estado de React
-      updateGameState({ energy: newEnergy });
-      
-      // Programar sincronización con debounce
-      const syncEnergy = () => {
-        syncGameData({ energy: newEnergy });
-      };
-      
-      // Limpiar timeout anterior si existe
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-      
-      // Establecer nuevo timeout para sincronizar
-      syncTimeoutRef.current = setTimeout(syncEnergy, 1000);
-    }
-  }, 3000); // Cada 3 segundos
-
-  // Limpieza al desmontar
-  return () => {
     if (energyIntervalRef.current) {
       clearInterval(energyIntervalRef.current);
-      energyIntervalRef.current = null;
     }
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-      syncTimeoutRef.current = null;
-    }
-  };
-}, [gameState.maxEnergy, updateGameState, syncGameData]);
 
+    energyIntervalRef.current = setInterval(() => {
+      if (gameState.energy < gameState.maxEnergy) {
+        updateGameState({
+          energy: Math.min(gameState.maxEnergy, gameState.energy + 1)
+        });
+      }
+    }, 3000);
+
+    return () => {
+      if (energyIntervalRef.current) {
+        clearInterval(energyIntervalRef.current);
+        energyIntervalRef.current = null;
+      }
+    };
+  }, [gameState.energy, gameState.maxEnergy, updateGameState]);
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
   useEffect(() => {

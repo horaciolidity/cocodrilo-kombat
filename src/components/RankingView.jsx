@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Award,
   Crown,
@@ -33,160 +33,6 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
-// 🎯 Componente memoizado para elementos de ranking
-const RankingItem = React.memo(({ player, rank, isCurrentUser, stats, formatDate }) => {
-  const playerValue = (player.coins + (player.tokens * 1000));
-  
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
-      className={`group relative flex items-center p-4 rounded-xl transition-all duration-300 ${
-        isCurrentUser
-          ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
-          : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
-      }`}
-      whileHover={{ 
-        scale: 1.01, 
-        y: -2,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
-      }}
-    >
-      {/* Posición */}
-      <div className="flex items-center justify-center w-10 mr-3">
-        <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${
-          rank <= 10 
-            ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20' 
-            : 'bg-gray-800/50'
-        }`}>
-          <span className={`font-bold text-sm ${
-            rank <= 10 ? 'text-blue-400' : 'text-gray-400'
-          }`}>
-            {rank}
-          </span>
-          
-          {rank <= 10 && (
-            <motion.div 
-              className="absolute inset-0 rounded-full border border-blue-500/30"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Avatar */}
-      <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 group-hover:border-gray-600 shadow-lg">
-        <AvatarImage src={player.avatar} alt={player.name} />
-        <AvatarFallback className="bg-gray-800 text-gray-300">
-          {player.name.substring(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Información */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <p
-              className={`font-semibold truncate ${
-                isCurrentUser ? 'text-primary' : 'text-white'
-              }`}
-              title={player.name}
-            >
-              {player.name} {isCurrentUser && "⭐"}
-            </p>
-            
-            {/* Insignias */}
-            {rank <= 3 && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-                TOP {rank}
-              </span>
-            )}
-            
-            {player.level >= 50 && (
-              <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
-                MAESTRO
-              </span>
-            )}
-          </div>
-          
-          <div className="hidden md:flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
-                <Coins className="w-3 h-3" />
-                {player.coins.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-400">
-                ${(player.coins * 0.001).toFixed(2)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Estadísticas secundarias */}
-        <div className="flex flex-wrap gap-3 mt-2 text-xs">
-          <div className="flex items-center gap-1 text-gray-400">
-            <Trophy className="w-3 h-3" />
-            <span>Nv. {player.level}</span>
-          </div>
-          
-          <div className="flex items-center gap-1 text-green-400">
-            <Zap className="w-3 h-3" />
-            <span>{player.tokens.toLocaleString()} CROC</span>
-          </div>
-          
-          <div className="flex items-center gap-1 text-blue-400">
-            <Target className="w-3 h-3" />
-            <span>{player.clicks.toLocaleString()} clics</span>
-          </div>
-          
-          <div className="flex items-center gap-1 text-gray-500">
-            <Clock className="w-3 h-3" />
-            <span>{formatDate(player.lastActive)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Valor total (móvil) */}
-      <div className="md:hidden ml-3">
-        <div className="text-right">
-          <div className="text-sm font-bold text-yellow-400">
-            {player.coins.toLocaleString()}
-          </div>
-          <div className="text-xs text-gray-400">monedas</div>
-        </div>
-      </div>
-
-      {/* Indicador de progreso */}
-      {!isCurrentUser && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-900/50 rounded-b-xl overflow-hidden">
-          <motion.div 
-            className="h-full bg-gradient-to-r from-primary/50 to-primary"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, (playerValue / (stats.topPlayer?.coins || 1)) * 100)}%` }}
-            transition={{ duration: 1, delay: 0.5 }}
-          />
-        </div>
-      )}
-    </motion.div>
-  );
-}, (prevProps, nextProps) => {
-  // Comparación personalizada para evitar re-renders innecesarios
-  return (
-    prevProps.player.id === nextProps.player.id &&
-    prevProps.rank === nextProps.rank &&
-    prevProps.isCurrentUser === nextProps.isCurrentUser &&
-    prevProps.player.coins === nextProps.player.coins &&
-    prevProps.player.level === nextProps.player.level &&
-    prevProps.player.tokens === nextProps.player.tokens
-  );
-});
-
-RankingItem.displayName = 'RankingItem';
-
 export function RankingView({ 
   user, 
   player, 
@@ -214,9 +60,6 @@ export function RankingView({
     recentActivity: 0
   });
 
-  const fetchRankingRef = useRef(null);
-  const [isFetching, setIsFetching] = useState(false);
-
   // 🎯 DATOS DEL USUARIO ACTUAL DESDE EL ESTADO CENTRALIZADO
   const userGameData = useMemo(() => gameDataState || {
     coins: 0,
@@ -228,7 +71,7 @@ export function RankingView({
   }, [gameDataState]);
 
   // 📅 Formatear fecha
-  const formatDate = useCallback((dateString) => {
+  const formatDate = (dateString) => {
     if (!dateString) return "Nunca";
     const date = new Date(dateString);
     const now = new Date();
@@ -244,7 +87,7 @@ export function RankingView({
       hour: '2-digit',
       minute: '2-digit'
     });
-  }, []);
+  };
 
   // 🔍 Buscar jugador por nombre
   const handleSearch = (e) => {
@@ -294,18 +137,15 @@ export function RankingView({
     });
   }, []);
 
-  // 🔄 CARGAR RANKING - VERSIÓN OPTIMIZADA SIN PARPADEO
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
   const fetchRanking = useCallback(async (scope = "global") => {
     try {
-      // Evitar múltiples llamadas simultáneas
-      if (loading || isFetching) return;
-      
-      setIsFetching(true);
       setLoading(true);
       setError(null);
       
       console.log("🏆 Cargando ranking desde fuente centralizada:", scope);
       
+      // 🎯 USAR LA FUNCIÓN loadRanking DEL HOOK CENTRAL
       if (!loadRanking) {
         throw new Error("Función loadRanking no disponible");
       }
@@ -313,51 +153,45 @@ export function RankingView({
       const rankingData = await loadRanking(scope);
       
       if (!rankingData || rankingData.length === 0) {
-        requestAnimationFrame(() => {
-          setRanking([]);
-          setLastUpdated(new Date().toISOString());
-          setLoading(false);
-          setIsFetching(false);
-        });
+        setRanking([]);
+        setLastUpdated(new Date().toISOString());
+        setLoading(false);
         return;
       }
 
-      // Ordenar datos localmente
-      const sortedData = [...rankingData].sort((a, b) => {
+      // Ordenar datos localmente según criterios de UI
+      const sortedData = rankingData.sort((a, b) => {
         let valueA = a[sortBy] || 0;
         let valueB = b[sortBy] || 0;
         
-        return sortDirection === "desc" ? valueB - valueA : valueA - valueB;
+        if (sortDirection === "desc") {
+          return valueB - valueA;
+        } else {
+          return valueA - valueB;
+        }
       });
 
-      // Actualizar todo en un solo batch
-      requestAnimationFrame(() => {
-        setRanking(sortedData);
-        calculateStats(sortedData);
-        setLastUpdated(new Date().toISOString());
-        setLoading(false);
-        setIsFetching(false);
-      });
+      setRanking(sortedData);
+      calculateStats(sortedData);
+      setLastUpdated(new Date().toISOString());
+
+      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking:", err);
-      
-      requestAnimationFrame(() => {
-        setError("Error al cargar el ranking. Intenta nuevamente.");
-        setRanking([]);
-        setLoading(false);
-        setIsFetching(false);
-      });
-      
+      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
+      setError("Error al cargar el ranking. Intenta nuevamente.");
+      setRanking([]);
       toast({
         title: "❌ Error de conexión",
         description: "No se pudo cargar el ranking. Verifica tu conexión.",
         duration: 3000,
       });
+    } finally {
+      setLoading(false);
     }
-  }, [loadRanking, sortBy, sortDirection, calculateStats, toast, loading, isFetching]);
+  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
 
-  // 🔄 Refrescar ranking (ignorando caché) - OPTIMIZADO
+  // 🔄 Refrescar ranking (ignorando caché)
   const refreshRankingData = useCallback(async () => {
     try {
       setLoading(true);
@@ -370,85 +204,54 @@ export function RankingView({
       const rankingData = await refreshRanking(activeTab);
       
       if (rankingData && rankingData.length > 0) {
-        // Ordenar localmente sin mutar el array original
-        const sortedData = [...rankingData].sort((a, b) => {
+        const sortedData = rankingData.sort((a, b) => {
           let valueA = a[sortBy] || 0;
           let valueB = b[sortBy] || 0;
           
-          return sortDirection === "desc" ? valueB - valueA : valueA - valueB;
+          if (sortDirection === "desc") {
+            return valueB - valueA;
+          } else {
+            return valueA - valueB;
+          }
         });
         
-        requestAnimationFrame(() => {
-          setRanking(sortedData);
-          calculateStats(sortedData);
-          setLastUpdated(new Date().toISOString());
-          setLoading(false);
-        });
+        setRanking(sortedData);
+        calculateStats(sortedData);
+        setLastUpdated(new Date().toISOString());
         
         toast({
           title: "✅ Ranking actualizado",
           description: "Los datos del ranking han sido refrescados.",
           duration: 2000,
         });
-      } else {
-        setLoading(false);
       }
     } catch (err) {
       console.error("❌ Error al refrescar ranking:", err);
-      setLoading(false);
-      
       toast({
         title: "⚠️ Error al actualizar",
         description: "No se pudo actualizar el ranking. Usando datos en caché.",
         duration: 3000,
       });
+    } finally {
+      setLoading(false);
     }
   }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
 
-  // 🔄 Cargar ranking inicial con debounce
+  // 🔄 Cargar ranking inicial
   useEffect(() => {
-    if (fetchRankingRef.current) {
-      clearTimeout(fetchRankingRef.current);
-    }
-    
-    fetchRankingRef.current = setTimeout(() => {
-      fetchRanking(activeTab);
-    }, 300);
-    
-    return () => {
-      if (fetchRankingRef.current) {
-        clearTimeout(fetchRankingRef.current);
-      }
-    };
+    fetchRanking(activeTab);
   }, [activeTab, fetchRanking]);
 
-  // 🕐 Actualización automática periódica - OPTIMIZADO
+  // 🕐 Actualización automática periódica
   useEffect(() => {
-    if (!user) return;
-    
-    let mounted = true;
-    let intervalId = null;
-    
-    const safeFetch = () => {
-      if (mounted && document.visibilityState === 'visible' && !loading && !isFetching) {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
         fetchRanking(activeTab);
       }
-    };
-    
-    // Esperar 2 segundos antes de iniciar el intervalo
-    const initialDelay = setTimeout(() => {
-      if (mounted) {
-        safeFetch();
-        intervalId = setInterval(safeFetch, refreshInterval);
-      }
-    }, 2000);
-    
-    return () => {
-      mounted = false;
-      clearTimeout(initialDelay);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [activeTab, refreshInterval, fetchRanking, user, loading, isFetching]);
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [activeTab, refreshInterval, fetchRanking]);
 
   // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
   const CurrentUserCard = () => {
@@ -766,16 +569,144 @@ export function RankingView({
           {rankingToShow.map((player, index) => {
             const rank = index + 4;
             const isCurrentUser = player.isCurrentUser;
+            const playerValue = (player.coins + (player.tokens * 1000));
             
             return (
-              <RankingItem
-                key={player._stableKey || player.id}
-                player={player}
-                rank={rank}
-                isCurrentUser={isCurrentUser}
-                stats={stats}
-                formatDate={formatDate}
-              />
+              <motion.div
+                key={player.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ delay: index * 0.02 }}
+                className={`group relative flex items-center p-4 rounded-xl transition-all duration-300 ${
+                  isCurrentUser
+                    ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
+                    : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
+                }`}
+                whileHover={{ 
+                  scale: 1.01, 
+                  y: -2,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                }}
+              >
+                {/* Posición */}
+                <div className="flex items-center justify-center w-10 mr-3">
+                  <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${
+                    rank <= 10 
+                      ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20' 
+                      : 'bg-gray-800/50'
+                  }`}>
+                    <span className={`font-bold text-sm ${
+                      rank <= 10 ? 'text-blue-400' : 'text-gray-400'
+                    }`}>
+                      {rank}
+                    </span>
+                    
+                    {rank <= 10 && (
+                      <motion.div 
+                        className="absolute inset-0 rounded-full border border-blue-500/30"
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Avatar */}
+                <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 group-hover:border-gray-600 shadow-lg">
+                  <AvatarImage src={player.avatar} alt={player.name} />
+                  <AvatarFallback className="bg-gray-800 text-gray-300">
+                    {player.name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Información */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <p
+                        className={`font-semibold truncate ${
+                          isCurrentUser ? 'text-primary' : 'text-white'
+                        }`}
+                        title={player.name}
+                      >
+                        {player.name} {isCurrentUser && "⭐"}
+                      </p>
+                      
+                      {/* Insignias */}
+                      {rank <= 3 && (
+                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                          TOP {rank}
+                        </span>
+                      )}
+                      
+                      {player.level >= 50 && (
+                        <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                          MAESTRO
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="hidden md:flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
+                          <Coins className="w-3 h-3" />
+                          {player.coins.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          ${(player.coins * 0.001).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Estadísticas secundarias */}
+                  <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <Trophy className="w-3 h-3" />
+                      <span>Nv. {player.level}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-green-400">
+                      <Zap className="w-3 h-3" />
+                      <span>{player.tokens.toLocaleString()} CROC</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-blue-400">
+                      <Target className="w-3 h-3" />
+                      <span>{player.clicks.toLocaleString()} clics</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatDate(player.lastActive)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Valor total (móvil) */}
+                <div className="md:hidden ml-3">
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-yellow-400">
+                      {player.coins.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-400">monedas</div>
+                  </div>
+                </div>
+
+                {/* Indicador de progreso */}
+                {!isCurrentUser && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-900/50 rounded-b-xl overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-gradient-to-r from-primary/50 to-primary"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (playerValue / (stats.topPlayer?.coins || 1)) * 100)}%` }}
+                      transition={{ duration: 1, delay: 0.5 }}
+                    />
+                  </div>
+                )}
+              </motion.div>
             );
           })}
         </AnimatePresence>
@@ -919,6 +850,7 @@ export function RankingView({
                   <span className="hidden sm:inline">Ordenar</span>
                 </Button>
                 
+                {/* 🎯 BOTÓN ACTUALIZADO: Usa refreshRankingData en lugar de fetchRanking */}
                 <Button
                   onClick={refreshRankingData}
                   variant="outline"
