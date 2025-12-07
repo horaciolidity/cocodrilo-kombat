@@ -9,8 +9,7 @@ import {
   INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE, 
   INITIAL_UPGRADES_STATE as DEFAULT_INITIAL_UPGRADES_STATE, 
   INITIAL_MISSIONS_STATE as DEFAULT_INITIAL_MISSIONS_STATE, 
-  INITIAL_FARMING_MILESTONES_STATE,
-  DIFFICULTY_CONFIG
+  INITIAL_FARMING_MILESTONES_STATE 
 } from '@/config/gameConfig';
 
 export function useGameLogic({
@@ -67,7 +66,7 @@ export function useGameLogic({
     upgradesRef.current = upgrades;
   }, [upgrades]);
 
-    // ⚡ REGENERACIÓN DE ENERGÍA
+  // ⚡ REGENERACIÓN DE ENERGÍA
   useEffect(() => {
     console.log("⚡ Iniciando regeneración de energía...");
     
@@ -81,7 +80,7 @@ export function useGameLogic({
           energy: Math.min(gameState.maxEnergy, gameState.energy + 1)
         });
       }
-    }, DIFFICULTY_CONFIG.ENERGY_REGEN_RATE); // 🆕 USAR TIEMPO CONFIGURABLE
+    }, 3000);
 
     return () => {
       if (energyIntervalRef.current) {
@@ -91,8 +90,7 @@ export function useGameLogic({
     };
   }, [gameState.energy, gameState.maxEnergy, updateGameState]);
 
-
-   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
+  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
   useEffect(() => {
     console.log("💰 Iniciando generación de monedas...");
     
@@ -101,13 +99,13 @@ export function useGameLogic({
     }
 
     coinsIntervalRef.current = setInterval(() => {
-      let effectiveCPS = gameState.coinsPerSecond * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
+      let effectiveCPS = gameState.coinsPerSecond;
       
       // Aplicar boosts de items
       ownedItems.forEach(itemId => {
         const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
         if (item && item.effect.type === 'cps_boost') {
-          effectiveCPS += item.effect.value * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER; // 🆕 APLICAR MULTIPLICADOR
+          effectiveCPS += item.effect.value;
         }
       });
 
@@ -135,7 +133,6 @@ export function useGameLogic({
       }
     };
   }, [gameState, ownedItems, ownedCards, updateGameState]);
-
 
   // 🏆 SISTEMA DE LOGROS
   useEffect(() => {
@@ -245,7 +242,8 @@ export function useGameLogic({
     return Math.max(1, clickPower);
   }, [gameState.clickPower, upgrades, ownedItems, ownedCards]);
 
-   const handleClick = useCallback((event) => {
+  // 👆 FUNCIÓN DE CLIC - OPTIMIZADA
+  const handleClick = useCallback((event) => {
     if (gameState.energy <= 0) {
       toast({ 
         title: "⚡ Sin Energía", 
@@ -259,16 +257,15 @@ export function useGameLogic({
     playSound('click');
 
     const currentClickPower = calculateRealClickPower();
-    // Aplicar multiplicador de dificultad al clic
-    const coinsEarned = Math.floor(currentClickPower * DIFFICULTY_CONFIG.BASE_CLICK_MULTIPLIER);
+    const coinsEarned = Math.floor(currentClickPower);
 
     // Actualizar estado del juego
     const newState = {
       coins: gameState.coins + coinsEarned,
       totalCoins: gameState.totalCoins + coinsEarned,
       totalClicks: gameState.totalClicks + 1,
-      energy: Math.max(0, gameState.energy - DIFFICULTY_CONFIG.ENERGY_PER_CLICK),
-      experience: gameState.experience + DIFFICULTY_CONFIG.EXPERIENCE_PER_CLICK
+      energy: Math.max(0, gameState.energy - 1),
+      experience: gameState.experience + 1
     };
     
     updateGameState(newState);
@@ -287,14 +284,13 @@ export function useGameLogic({
       setTimeout(() => setFloatingNumbers(prev => prev.filter(num => num.id !== id)), 1000);
     }
 
-    // 🆕 NUEVA FÓRMULA DE NIVELES (usando la configuración de dificultad)
-    const experienceNeeded = DIFFICULTY_CONFIG.LEVEL_FORMULA(gameState.level);
-    const newLevel = Math.floor((gameState.experience + DIFFICULTY_CONFIG.EXPERIENCE_PER_CLICK) / experienceNeeded) + 1;
+    // Sistema de niveles
+    const newLevel = Math.floor((gameState.experience + 1) / 100) + 1;
     if (newLevel > gameState.level) {
       updateGameState({ level: newLevel });
       toast({ 
         title: "🎉 ¡Nivel Subido!", 
-        description: `¡Ahora eres nivel ${newLevel}! Se necesitan ${Math.ceil(experienceNeeded)} XP para el siguiente.`, 
+        description: `¡Ahora eres nivel ${newLevel}!`, 
         duration: 3000 
       });
       playSound('levelUp');
@@ -304,125 +300,78 @@ export function useGameLogic({
     }
   }, [gameState, calculateRealClickPower, updateGameState, toast, playSound, syncGameData]);
 
-   // 🆕 FUNCIÓN PARA VERIFICAR SI SE PUEDE COMPRAR UN UPGRADE
-  const canBuyUpgrade = useCallback((upgradeId) => {
-    const upgrade = UPGRADES.find(u => u.id === upgradeId);
-    if (!upgrade) return { canBuy: false, reason: "Upgrade no encontrado" };
-    
-    const currentLevel = upgrades[upgradeId]?.level || 0;
-    
-    // Verificar nivel requerido
-    if (gameState.level < (upgrade.requiredLevel || 1)) {
-      return { 
-        canBuy: false, 
-        reason: `Requiere nivel ${upgrade.requiredLevel}`, 
-        requiredLevel: upgrade.requiredLevel 
-      };
-    }
-    
-    // Verificar nivel máximo
-    if (currentLevel >= (upgrade.maxLevel || 999)) {
-      return { 
-        canBuy: false, 
-        reason: `Límite máximo (nivel ${upgrade.maxLevel}) alcanzado`, 
-        maxLevel: upgrade.maxLevel 
-      };
-    }
-    
-    // Calcular precio con multiplicador
-    const priceMultiplier = upgrade.priceMultiplier || 2.0;
-    const price = Math.floor(upgrade.basePrice * Math.pow(priceMultiplier, currentLevel));
-    
-    if (gameState.coins < price) {
-      return { 
-        canBuy: false, 
-        reason: `Necesitas ${price - gameState.coins} monedas más`,
-        price 
-      };
-    }
-    
-    return { canBuy: true, price };
-  }, [gameState, upgrades]);
-  
-  
-   const buyUpgrade = useCallback((upgradeId) => {
+  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES
+  const buyUpgrade = useCallback((upgradeId) => {
     const upgrade = UPGRADES.find(u => u.id === upgradeId);
     if (!upgrade) {
       console.error('Upgrade not found:', upgradeId);
       return;
     }
 
-    const checkResult = canBuyUpgrade(upgradeId);
-    
-    if (!checkResult.canBuy) {
+    const currentLevel = upgrades[upgradeId]?.level || 0;
+    const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
+
+    if (gameState.coins >= price) {
+      // Crear nueva versión del estado del juego
+      const newGameState = { coins: gameState.coins - price };
+      
+      switch (upgrade.type) {
+        case 'click':
+          newGameState.clickPower = gameState.clickPower + upgrade.basePower;
+          break;
+        case 'cps':
+          newGameState.coinsPerSecond = gameState.coinsPerSecond + upgrade.basePower;
+          break;
+        case 'multiplier':
+          newGameState.clickPower = Math.floor(gameState.clickPower * upgrade.basePower);
+          break;
+        case 'energy':
+          newGameState.maxEnergy = gameState.maxEnergy + upgrade.basePower;
+          newGameState.energy = newGameState.maxEnergy;
+          break;
+        default:
+          console.warn('Unknown upgrade type:', upgrade.type);
+      }
+      
+      // Actualizar gameState
+      updateGameState(newGameState);
+
+      // ✅ ACTUALIZAR UPGRADES
+      const newUpgrades = {
+        ...upgrades,
+        [upgradeId]: { 
+          level: (upgrades[upgradeId]?.level || 0) + 1, 
+          owned: (upgrades[upgradeId]?.owned || 0) + 1 
+        }
+      };
+      
+      updateUpgrades(newUpgrades);
+
+      // 🔥 SINCRONIZAR INMEDIATAMENTE
+      syncGameData({
+        coins: newGameState.coins,
+        click_power: newGameState.clickPower || gameState.clickPower,
+        coins_per_second: newGameState.coinsPerSecond || gameState.coinsPerSecond,
+        max_energy: newGameState.maxEnergy || gameState.maxEnergy,
+        energy: newGameState.energy || gameState.energy,
+        upgrades: newUpgrades
+      });
+
       toast({ 
-        title: "❌ No disponible", 
-        description: checkResult.reason, 
+        title: "✅ Mejora Comprada", 
+        description: `${upgrade.name} nivel ${currentLevel + 1}`, 
+        duration: 2000 
+      });
+      playSound('upgrade');
+    } else {
+      toast({ 
+        title: "💰 Monedas Insuficientes", 
+        description: `Necesitas ${price - gameState.coins} monedas más`, 
         duration: 2000 
       });
       playSound('error');
-      return;
     }
-
-    const currentLevel = upgrades[upgradeId]?.level || 0;
-    const price = checkResult.price;
-
-    // Crear nueva versión del estado del juego
-    const newGameState = { coins: gameState.coins - price };
-    
-    // 🆕 APLICAR MULTIPLICADOR DE DIFICULTAD A LA PRODUCCIÓN
-    const effectivePower = upgrade.basePower * DIFFICULTY_CONFIG.BASE_CPS_MULTIPLIER;
-    
-    switch (upgrade.type) {
-      case 'click':
-        newGameState.clickPower = gameState.clickPower + effectivePower;
-        break;
-      case 'cps':
-        newGameState.coinsPerSecond = gameState.coinsPerSecond + effectivePower;
-        break;
-      case 'multiplier':
-        newGameState.clickPower = Math.floor(gameState.clickPower * effectivePower);
-        break;
-      case 'energy':
-        newGameState.maxEnergy = gameState.maxEnergy + effectivePower;
-        newGameState.energy = newGameState.maxEnergy;
-        break;
-      default:
-        console.warn('Unknown upgrade type:', upgrade.type);
-    }
-    
-    // Actualizar gameState
-    updateGameState(newGameState);
-
-    // Actualizar upgrades
-    const newUpgrades = {
-      ...upgrades,
-      [upgradeId]: { 
-        level: (upgrades[upgradeId]?.level || 0) + 1, 
-        owned: (upgrades[upgradeId]?.owned || 0) + 1 
-      }
-    };
-    
-    updateUpgrades(newUpgrades);
-
-    // Sincronizar
-    syncGameData({
-      coins: newGameState.coins,
-      click_power: newGameState.clickPower || gameState.clickPower,
-      coins_per_second: newGameState.coinsPerSecond || gameState.coinsPerSecond,
-      max_energy: newGameState.maxEnergy || gameState.maxEnergy,
-      energy: newGameState.energy || gameState.energy,
-      upgrades: newUpgrades
-    });
-
-    toast({ 
-      title: "✅ Mejora Comprada", 
-      description: `${upgrade.name} nivel ${currentLevel + 1}`, 
-      duration: 2000 
-    });
-    playSound('upgrade');
-  }, [gameState, upgrades, canBuyUpgrade, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
-
+  }, [gameState, upgrades, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
 
   // 🎯 MISIONES
   const completeMission = useCallback((missionId, isSocial = false) => {
@@ -931,7 +880,6 @@ export function useGameLogic({
     referralStats,
     player,
     
-    
     // 🎯 ESTADOS DE UI
     floatingNumbers,
     clickEffect,
@@ -941,7 +889,6 @@ export function useGameLogic({
     setFloatingNumbers,
     setClickEffect,
     setSoundEnabled,
-    canBuyUpgrade,
     
     // 🎯 FUNCIONES DEL JUEGO
     handleClick,
