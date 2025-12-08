@@ -462,80 +462,162 @@ export function RankingView({
     );
   };
 
-  // 👑 Top 3 Players - ANIMACIONES CSS EN LUGAR DE FRAMER
-  const TopThreePlayers = () => {
-    if (ranking.length < 3) return null;
+ // src/components/RankingView.jsx - Solo la parte del Podium (reemplaza TopThreePlayers)
+const TopThreePlayers = memo(() => {
+  const [topThree, setTopThree] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // 🔄 Sincronizar topThree cuando ranking cambia, pero con debounce
+  useEffect(() => {
+    if (ranking.length >= 3) {
+      const newTopThree = [ranking[1], ranking[0], ranking[2]];
+      
+      // Comparar si realmente cambió el top 3
+      const hasChanged = topThree.length === 0 || 
+        !topThree[0] || 
+        !topThree[1] || 
+        !topThree[2] ||
+        topThree[0]?.id !== newTopThree[0]?.id ||
+        topThree[1]?.id !== newTopThree[1]?.id ||
+        topThree[2]?.id !== newTopThree[2]?.id;
+      
+      if (hasChanged) {
+        // Solo actualizar si realmente cambió
+        setTimeout(() => {
+          setTopThree(newTopThree);
+          if (!isInitialized) setIsInitialized(true);
+        }, 100); // Pequeño delay para evitar parpadeo
+      }
+    }
+  }, [ranking, topThree, isInitialized]);
 
+  if (topThree.length < 3 && !isInitialized) {
     return (
-      <div className="mb-8 animate-fadeIn">
+      <div className="mb-8">
         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Crown className="w-6 h-6 text-yellow-400 animate-bounce" />
+          <Crown className="w-6 h-6 text-yellow-400" />
           Podium del Ranking
         </h3>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[ranking[1], ranking[0], ranking[2]].map((player, idx) => {
-            if (!player) return null;
-            
-            const position = [2, 1, 3][idx];
-            const isTop = position === 1;
-            
-            return (
-              <div
-                key={player.id}
-                className={`relative rounded-xl p-4 border-2 transition-all duration-500 hover:scale-105 ${
-                  isTop 
-                    ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl hover:shadow-yellow-500/50' 
-                    : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30 hover:border-gray-600/50'
-                }`}
-              >
-                {/* Posición */}
-                <div className="absolute top-4 right-4">
-                  <AnimatedMedal rank={position} />
+          {[1, 2, 3].map((position) => (
+            <div
+              key={position}
+              className={`relative rounded-xl p-4 border-2 ${
+                position === 2 // El #1 en medio
+                  ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl' 
+                  : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
+              }`}
+            >
+              {/* Placeholder */}
+              <div className="flex flex-col items-center text-center">
+                <div className={`h-20 w-20 mb-3 rounded-full border-4 ${
+                  position === 2 ? 'border-yellow-500' : 'border-gray-600'
+                } bg-gray-800 animate-pulse`} />
+                <div className={`h-6 w-24 mb-2 rounded ${
+                  position === 2 ? 'bg-yellow-900/30' : 'bg-gray-700'
+                } animate-pulse`} />
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-gray-700 rounded animate-pulse" />
+                  <div className="h-3 w-16 bg-gray-800 rounded animate-pulse" />
                 </div>
-
-                {/* Avatar */}
-                <div className="flex flex-col items-center text-center">
-                  <Avatar className={`h-20 w-20 mb-3 border-4 transition-all duration-300 hover:scale-110 ${
-                    isTop ? 'border-yellow-500' : 'border-gray-600'
-                  }`}>
-                    <AvatarImage src={player.avatar} alt={player.name} />
-                    <AvatarFallback className={`${isTop ? 'bg-yellow-500/20' : 'bg-gray-600/20'}`}>
-                      {player.name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <h4 className={`font-bold transition-all duration-300 hover:scale-105 ${
-                    isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
-                  }`}>
-                    {player.name}
-                  </h4>
-                  
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <Coins className="w-3 h-3 text-yellow-400" />
-                      <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Insignia especial para el #1 */}
-                {isTop && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                    🏆 REY DEL PANTANO
-                  </div>
-                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     );
-  };
+  }
+
+  if (topThree.length < 3) return null;
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <Crown className="w-6 h-6 text-yellow-400" />
+        Podium del Ranking
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {topThree.map((player, idx) => {
+          if (!player) return null;
+          
+          const position = [2, 1, 3][idx];
+          const isTop = position === 1;
+          
+          return (
+            <div
+              key={`${player.id}-${position}`} // Key único con posición
+              className={`relative rounded-xl p-4 border-2 transition-all duration-500 ${
+                isTop 
+                  ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl' 
+                  : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
+              }`}
+              style={{
+                animation: `fadeInUp 0.5s ease-out ${idx * 0.1}s both`
+              }}
+            >
+              {/* Posición */}
+              <div className="absolute top-4 right-4">
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${
+                  position === 1 ? 'from-yellow-400 to-yellow-300 shadow-yellow-500/30' :
+                  position === 2 ? 'from-gray-300 to-gray-200 shadow-gray-400/30' :
+                  'from-amber-500 to-amber-400 shadow-amber-600/30'
+                } flex items-center justify-center shadow-lg ring-2 ring-white/20 animate-pulse`}>
+                  <span className="text-2xl">
+                    {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Avatar */}
+              <div className="flex flex-col items-center text-center">
+                <div className={`h-20 w-20 mb-3 border-4 ${
+                  isTop ? 'border-yellow-500' : 'border-gray-600'
+                } rounded-full overflow-hidden transition-all duration-300 hover:scale-110`}>
+                  <img 
+                    src={player.avatar} 
+                    alt={player.name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.name || 'player'}`;
+                    }}
+                  />
+                </div>
+                
+                <h4 className={`font-bold ${
+                  isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
+                }`}>
+                  {player.name || "Jugador"}
+                </h4>
+                
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <Coins className="w-3 h-3 text-yellow-400" />
+                    <span className="font-semibold">{(player.coins || 0).toLocaleString()} 💰</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                    <Trophy className="w-3 h-3" />
+                    <span>Nv. {player.level || 1}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Insignia especial para el #1 */}
+              {isTop && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                  🏆 REY DEL PANTANO
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+TopThreePlayers.displayName = "TopThreePlayers";
+
 
   // 📋 Renderizar lista de ranking
   const renderRankingList = () => {
