@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   Award,
   Crown,
@@ -33,6 +33,39 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
+// 🏆 Memoizar componentes internos para evitar re-renders innecesarios
+const AnimatedMedal = memo(({ rank }) => {
+  const medals = {
+    1: { emoji: "🥇", color: "from-yellow-400 to-yellow-300", shadow: "shadow-yellow-500/30" },
+    2: { emoji: "🥈", color: "from-gray-300 to-gray-200", shadow: "shadow-gray-400/30" },
+    3: { emoji: "🥉", color: "from-amber-500 to-amber-400", shadow: "shadow-amber-600/30" }
+  };
+
+  const medal = medals[rank];
+
+  if (!medal) return null;
+
+  return (
+    <motion.div
+      className={`w-12 h-12 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg ${medal.shadow} ring-2 ring-white/20`}
+      animate={{ 
+        scale: [1, 1.1, 1],
+        rotate: [0, 5, -5, 0],
+        y: [0, -3, 0]
+      }}
+      transition={{ 
+        repeat: Infinity, 
+        duration: 3, 
+        ease: "easeInOut" 
+      }}
+    >
+      <span className="text-2xl">{medal.emoji}</span>
+    </motion.div>
+  );
+});
+
+AnimatedMedal.displayName = "AnimatedMedal";
+
 export function RankingView({ 
   user, 
   player, 
@@ -47,7 +80,7 @@ export function RankingView({
   
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
-  const [loading, setLoading] = useState(false); // Cambiado a false inicialmente
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -116,9 +149,17 @@ export function RankingView({
     return userRank >= 0 ? userRank + 1 : null;
   }, [ranking, user, player]);
 
-  // 📊 Calcular estadísticas del ranking
+  // 📊 Calcular estadísticas del ranking - MEMOIZADO
   const calculateStats = useCallback((data) => {
-    if (!data || data.length === 0) return;
+    if (!data || data.length === 0) {
+      setStats({
+        totalPlayers: 0,
+        averageCoins: 0,
+        topPlayer: null,
+        recentActivity: 0
+      });
+      return;
+    }
     
     const totalCoins = data.reduce((sum, player) => sum + (player.coins || 0), 0);
     const recentPlayers = data.filter(p => {
@@ -137,7 +178,44 @@ export function RankingView({
     });
   }, []);
 
-  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
+  // 🎯 Memoizar stats para evitar re-renders
+  const memoizedStats = useMemo(() => stats, [
+    stats.totalPlayers, 
+    stats.averageCoins, 
+    stats.topPlayer?.id, 
+    stats.recentActivity
+  ]);
+
+  // 🔄 Actualizar datos del ranking SIN parpadeo
+  const updateRankingData = useCallback((rankingData) => {
+    if (!rankingData || rankingData.length === 0) {
+      setRanking([]);
+      return;
+    }
+
+    // Ordenar datos localmente según criterios de UI
+    const sortedData = [...rankingData].sort((a, b) => {
+      let valueA = a[sortBy] || 0;
+      let valueB = b[sortBy] || 0;
+      
+      if (sortDirection === "desc") {
+        return valueB - valueA;
+      } else {
+        return valueA - valueB;
+      }
+    });
+
+    // Solo actualizar si los datos realmente cambiaron
+    const hasChanged = JSON.stringify(sortedData) !== JSON.stringify(ranking);
+    if (hasChanged) {
+      setRanking(sortedData);
+      calculateStats(sortedData);
+    }
+    
+    setLastUpdated(new Date().toISOString());
+  }, [sortBy, sortDirection, calculateStats, ranking]);
+
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA SIN PARPADEO
   const fetchRanking = useCallback(async (scope = "global", showLoading = false) => {
     try {
       if (showLoading) {
@@ -151,33 +229,16 @@ export function RankingView({
       
       const rankingData = await loadRanking(scope);
       
-      if (!rankingData || rankingData.length === 0) {
-        // Si no hay datos, mantener los existentes
-        setLastUpdated(new Date().toISOString());
-        if (showLoading) setLoading(false);
-        return;
+      if (rankingData && rankingData.length > 0) {
+        updateRankingData(rankingData);
+      } else {
+        setRanking([]);
       }
-
-      // Ordenar datos localmente según criterios de UI
-      const sortedData = rankingData.sort((a, b) => {
-        let valueA = a[sortBy] || 0;
-        let valueB = b[sortBy] || 0;
-        
-        if (sortDirection === "desc") {
-          return valueB - valueA;
-        } else {
-          return valueA - valueB;
-        }
-      });
-
-      setRanking(sortedData);
-      calculateStats(sortedData);
-      setLastUpdated(new Date().toISOString());
-
-      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
+      
+      console.log("✅ Ranking actualizado sin parpadeo:", rankingData?.length || 0, "jugadores");
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
+      console.error("❌ Error al cargar ranking:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
       toast({
         title: "❌ Error de conexión",
@@ -189,7 +250,7 @@ export function RankingView({
         setLoading(false);
       }
     }
-  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
+  }, [loadRanking, updateRankingData, toast]);
 
   // 🔄 Refrescar ranking (ignorando caché) SIN PARPADEO
   const refreshRankingData = useCallback(async () => {
@@ -203,20 +264,7 @@ export function RankingView({
       const rankingData = await refreshRanking(activeTab);
       
       if (rankingData && rankingData.length > 0) {
-        const sortedData = rankingData.sort((a, b) => {
-          let valueA = a[sortBy] || 0;
-          let valueB = b[sortBy] || 0;
-          
-          if (sortDirection === "desc") {
-            return valueB - valueA;
-          } else {
-            return valueA - valueB;
-          }
-        });
-        
-        setRanking(sortedData);
-        calculateStats(sortedData);
-        setLastUpdated(new Date().toISOString());
+        updateRankingData(rankingData);
         
         toast({
           title: "✅ Ranking actualizado",
@@ -232,13 +280,12 @@ export function RankingView({
         duration: 3000,
       });
     }
-  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
+  }, [refreshRanking, activeTab, updateRankingData, toast]);
 
   // 🔄 Cargar ranking inicial SOLO al montar o cambiar pestaña
   useEffect(() => {
-    // Solo cargar si no hay datos o si cambia la pestaña
     fetchRanking(activeTab, true);
-  }, [activeTab]); // Solo dependencia de activeTab
+  }, [activeTab, fetchRanking]);
 
   // 🕐 Actualización automática periódica SIN PARPADEO
   useEffect(() => {
@@ -252,8 +299,30 @@ export function RankingView({
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, fetchRanking]);
 
+  // 🔄 Reordenar ranking localmente cuando cambia el criterio de ordenación
+  useEffect(() => {
+    if (ranking.length > 0) {
+      const sortedData = [...ranking].sort((a, b) => {
+        let valueA = a[sortBy] || 0;
+        let valueB = b[sortBy] || 0;
+        
+        if (sortDirection === "desc") {
+          return valueB - valueA;
+        } else {
+          return valueA - valueB;
+        }
+      });
+      
+      // Solo actualizar si realmente cambió el orden
+      const hasChanged = JSON.stringify(sortedData) !== JSON.stringify(ranking);
+      if (hasChanged) {
+        setRanking(sortedData);
+      }
+    }
+  }, [sortBy, sortDirection]);
+
   // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
-  const CurrentUserCard = () => {
+  const CurrentUserCard = memo(() => {
     if (!user || !player) {
       return (
         <motion.div 
@@ -334,7 +403,7 @@ export function RankingView({
             </div>
           </div>
 
-          {/* Estadísticas rápidas */}
+          {/* Estadísticas rápidas - MEMOIZADO */}
           <div className="p-4 bg-gradient-to-r from-gray-800/30 to-gray-900/30 rounded-xl border border-gray-700/30">
             <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
               <Activity className="w-5 h-5 text-green-400" />
@@ -351,7 +420,7 @@ export function RankingView({
               <div className="text-center">
                 <div className="text-xs text-gray-400 mb-1">Valor CROC</div>
                 <div className="text-lg font-bold text-green-400">
-                  ${(userData.tokens * tokenPrice).toFixed(2)}
+                  ${((userData.tokens || 0) * tokenPrice).toFixed(2)}
                 </div>
               </div>
               <div className="text-center">
@@ -365,42 +434,15 @@ export function RankingView({
         </div>
       </motion.div>
     );
-  };
+  });
 
-  // 🥇 Medallas animadas
-  const AnimatedMedal = ({ type, rank }) => {
-    const medals = {
-      1: { emoji: "🥇", color: "from-yellow-400 to-yellow-300", shadow: "shadow-yellow-500/30" },
-      2: { emoji: "🥈", color: "from-gray-300 to-gray-200", shadow: "shadow-gray-400/30" },
-      3: { emoji: "🥉", color: "from-amber-500 to-amber-400", shadow: "shadow-amber-600/30" }
-    };
+  CurrentUserCard.displayName = "CurrentUserCard";
 
-    const medal = medals[rank];
-
-    if (!medal) return null;
-
-    return (
-      <motion.div
-        className={`w-12 h-12 rounded-full bg-gradient-to-br ${medal.color} flex items-center justify-center shadow-lg ${medal.shadow} ring-2 ring-white/20`}
-        animate={{ 
-          scale: [1, 1.1, 1],
-          rotate: [0, 5, -5, 0],
-          y: [0, -3, 0]
-        }}
-        transition={{ 
-          repeat: Infinity, 
-          duration: 3, 
-          ease: "easeInOut" 
-        }}
-      >
-        <span className="text-2xl">{medal.emoji}</span>
-      </motion.div>
-    );
-  };
-
-  // 👑 Top 3 Players
-  const TopThreePlayers = () => {
+  // 👑 Top 3 Players - MEMOIZADO
+  const TopThreePlayers = memo(() => {
     if (ranking.length < 3) return null;
+
+    const topThree = [ranking[1], ranking[0], ranking[2]];
 
     return (
       <motion.div 
@@ -415,7 +457,7 @@ export function RankingView({
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[ranking[1], ranking[0], ranking[2]].map((player, idx) => {
+          {topThree.map((player, idx) => {
             if (!player) return null;
             
             const position = [2, 1, 3][idx];
@@ -436,7 +478,7 @@ export function RankingView({
               >
                 {/* Posición */}
                 <div className="absolute top-4 right-4">
-                  <AnimatedMedal type={position === 1 ? "gold" : position === 2 ? "silver" : "bronze"} rank={position} />
+                  <AnimatedMedal rank={position} />
                 </div>
 
                 {/* Avatar */}
@@ -444,22 +486,22 @@ export function RankingView({
                   <Avatar className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'}`}>
                     <AvatarImage src={player.avatar} alt={player.name} />
                     <AvatarFallback className={`${isTop ? 'bg-yellow-500/20' : 'bg-gray-600/20'}`}>
-                      {player.name.substring(0, 2).toUpperCase()}
+                      {player.name?.substring(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>
                   </Avatar>
                   
                   <h4 className={`font-bold ${isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'}`}>
-                    {player.name}
+                    {player.name || "Jugador"}
                   </h4>
                   
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-center gap-2 text-sm">
                       <Coins className="w-3 h-3 text-yellow-400" />
-                      <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
+                      <span className="font-semibold">{(player.coins || 0).toLocaleString()} 💰</span>
                     </div>
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                       <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level}</span>
+                      <span>Nv. {player.level || 1}</span>
                     </div>
                   </div>
                 </div>
@@ -480,11 +522,12 @@ export function RankingView({
         </div>
       </motion.div>
     );
-  };
+  });
+
+  TopThreePlayers.displayName = "TopThreePlayers";
 
   // 📋 Renderizar lista de ranking
   const renderRankingList = () => {
-    // Si está cargando y no hay datos, mostrar spinner
     if (loading && ranking.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -499,7 +542,6 @@ export function RankingView({
       );
     }
 
-    // Si hay error y no hay datos, mostrar error
     if (error && ranking.length === 0) {
       return (
         <div className="text-center py-12">
@@ -522,7 +564,6 @@ export function RankingView({
       );
     }
 
-    // Si no hay datos (ni error ni loading)
     if (ranking.length === 0) {
       return (
         <div className="text-center py-12">
@@ -549,8 +590,8 @@ export function RankingView({
 
     // Filtrar por búsqueda
     const filteredRanking = ranking.filter(player =>
-      player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.id.toLowerCase().includes(searchQuery.toLowerCase())
+      player?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      player?.id?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (filteredRanking.length === 0) {
@@ -571,7 +612,8 @@ export function RankingView({
           {rankingToShow.map((player, index) => {
             const rank = index + 4;
             const isCurrentUser = player.isCurrentUser;
-            const playerValue = (player.coins + (player.tokens * 1000));
+            const playerValue = (player.coins || 0) + ((player.tokens || 0) * 1000);
+            const topPlayerCoins = memoizedStats.topPlayer?.coins || 1;
             
             return (
               <motion.div
@@ -619,7 +661,7 @@ export function RankingView({
                 <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 group-hover:border-gray-600 shadow-lg">
                   <AvatarImage src={player.avatar} alt={player.name} />
                   <AvatarFallback className="bg-gray-800 text-gray-300">
-                    {player.name.substring(0, 2).toUpperCase()}
+                    {player.name?.substring(0, 2).toUpperCase() || "??"}
                   </AvatarFallback>
                 </Avatar>
 
@@ -633,7 +675,7 @@ export function RankingView({
                         }`}
                         title={player.name}
                       >
-                        {player.name} {isCurrentUser && "⭐"}
+                        {player.name || "Jugador"} {isCurrentUser && "⭐"}
                       </p>
                       
                       {/* Insignias */}
@@ -643,7 +685,7 @@ export function RankingView({
                         </span>
                       )}
                       
-                      {player.level >= 50 && (
+                      {(player.level || 0) >= 50 && (
                         <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
                           MAESTRO
                         </span>
@@ -654,10 +696,10 @@ export function RankingView({
                       <div className="text-right">
                         <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
                           <Coins className="w-3 h-3" />
-                          {player.coins.toLocaleString()}
+                          {(player.coins || 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-400">
-                          ${(player.coins * 0.001).toFixed(2)}
+                          ${((player.coins || 0) * 0.001).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -667,17 +709,17 @@ export function RankingView({
                   <div className="flex flex-wrap gap-3 mt-2 text-xs">
                     <div className="flex items-center gap-1 text-gray-400">
                       <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level}</span>
+                      <span>Nv. {player.level || 1}</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-green-400">
                       <Zap className="w-3 h-3" />
-                      <span>{player.tokens.toLocaleString()} CROC</span>
+                      <span>{(player.tokens || 0).toLocaleString()} CROC</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-blue-400">
                       <Target className="w-3 h-3" />
-                      <span>{player.clicks.toLocaleString()} clics</span>
+                      <span>{(player.clicks || 0).toLocaleString()} clics</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-gray-500">
@@ -691,7 +733,7 @@ export function RankingView({
                 <div className="md:hidden ml-3">
                   <div className="text-right">
                     <div className="text-sm font-bold text-yellow-400">
-                      {player.coins.toLocaleString()}
+                      {(player.coins || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-400">monedas</div>
                   </div>
@@ -703,7 +745,7 @@ export function RankingView({
                     <motion.div 
                       className="h-full bg-gradient-to-r from-primary/50 to-primary"
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (playerValue / (stats.topPlayer?.coins || 1)) * 100)}%` }}
+                      animate={{ width: `${Math.min(100, (playerValue / topPlayerCoins) * 100)}%` }}
                       transition={{ duration: 1, delay: 0.5 }}
                     />
                   </div>
@@ -742,7 +784,7 @@ export function RankingView({
         {/* 👤 Información del usuario actual */}
         <CurrentUserCard />
 
-        {/* 📊 Estadísticas del ranking */}
+        {/* 📊 Estadísticas del ranking - MEMOIZADO */}
         <motion.div 
           className="mb-8"
           initial={{ opacity: 0, y: -10 }}
@@ -753,7 +795,7 @@ export function RankingView({
             <div className="stats-card rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Users2 className="w-5 h-5 text-blue-400" />
-                <span className="text-2xl font-bold text-blue-400">{stats.totalPlayers}</span>
+                <span className="text-2xl font-bold text-blue-400">{memoizedStats.totalPlayers}</span>
               </div>
               <div className="text-xs text-gray-400">Jugadores Totales</div>
             </div>
@@ -762,7 +804,7 @@ export function RankingView({
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Coins className="w-5 h-5 text-yellow-400" />
                 <span className="text-2xl font-bold text-yellow-400">
-                  {Math.floor(stats.averageCoins / 1000)}k
+                  {Math.floor(memoizedStats.averageCoins / 1000)}k
                 </span>
               </div>
               <div className="text-xs text-gray-400">Promedio de Monedas</div>
@@ -771,7 +813,7 @@ export function RankingView({
             <div className="stats-card rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Activity className="w-5 h-5 text-green-400" />
-                <span className="text-2xl font-bold text-green-400">{stats.recentActivity}%</span>
+                <span className="text-2xl font-bold text-green-400">{memoizedStats.recentActivity}%</span>
               </div>
               <div className="text-xs text-gray-400">Actividad (7 días)</div>
             </div>
@@ -780,7 +822,7 @@ export function RankingView({
               <div className="flex items-center justify-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-purple-400" />
                 <span className="text-2xl font-bold text-purple-400">
-                  {stats.topPlayer ? (stats.topPlayer.coins / 1000).toFixed(0) + 'k' : '0'}
+                  {memoizedStats.topPlayer ? (memoizedStats.topPlayer.coins / 1000).toFixed(0) + 'k' : '0'}
                 </span>
               </div>
               <div className="text-xs text-gray-400">Récord Actual</div>
@@ -788,7 +830,7 @@ export function RankingView({
           </div>
         </motion.div>
 
-        {/* 🥇 Top 3 */}
+        {/* 🥇 Top 3 - MEMOIZADO */}
         <TopThreePlayers />
 
         {/* 🎯 Controles del ranking */}
@@ -905,7 +947,7 @@ export function RankingView({
             {/* Paginación (simulada) */}
             <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-700/30">
               <div className="text-sm text-gray-400">
-                Mostrando {Math.min(ranking.length, 20)} de {stats.totalPlayers} jugadores
+                Mostrando {Math.min(ranking.length, 20)} de {memoizedStats.totalPlayers} jugadores
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled>
