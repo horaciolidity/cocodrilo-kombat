@@ -441,3 +441,19 @@ button, .btn, [role="button"] {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Agregar en el CSS global */
+.ranking-row {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.ranking-container {
+  contain: content;
+}
+
+/* Prevenir flashes */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
