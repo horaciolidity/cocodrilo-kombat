@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Award,
   Crown,
@@ -89,22 +89,10 @@ export function RankingView({
     });
   };
 
-  // 🔍 Búsqueda con debouncing
-const [searchTimeout, setSearchTimeout] = useState(null);
-
-const handleSearch = (e) => {
-  const value = e.target.value;
-  
-  // Limpiar timeout anterior
-  if (searchTimeout) clearTimeout(searchTimeout);
-  
-  // Establecer nuevo timeout para buscar
-  const newTimeout = setTimeout(() => {
-    setSearchQuery(value);
-  }, 300); // 300ms de debounce
-  
-  setSearchTimeout(newTimeout);
-};
+  // 🔍 Buscar jugador por nombre
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
 
   // 📈 Ordenar ranking
   const handleSort = (column) => {

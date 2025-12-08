@@ -599,46 +599,50 @@ export function useGameData(user) {
     };
   }, [loadGameData]);
 
- // 🔄 SINCRONIZACIÓN PERIÓDICA Y VERIFICACIÓN DE ENERGÍA
-useEffect(() => {
-  if (!gameData.player?.id) return;
+  // 🔄 SINCRONIZACIÓN PERIÓDICA Y VERIFICACIÓN DE ENERGÍA
+  useEffect(() => {
+    if (!gameData.player?.id) return;
 
-  const interval = setInterval(async () => {
-    try {
-      // 1. Verificar energía en servidor
-      const { data: serverStats } = await supabase
-        .from('player_stats')
-        .select('energy, max_energy')
-        .eq('player_id', gameData.player.id)
-        .single();
+    const interval = setInterval(async () => {
+      try {
+        // 1. Verificar energía en servidor
+        const { data: serverStats } = await supabase
+          .from('player_stats')
+          .select('energy, max_energy')
+          .eq('player_id', gameData.player.id)
+          .single();
 
-      if (serverStats) {
-        const serverEnergy = Number(serverStats.energy);
-        const localEnergy = gameData.gameState.energy;
-        
-        // Solo sincronizar si hay diferencia significativa
-        if (Math.abs(serverEnergy - localEnergy) > 10) {
-          console.log(`⚡ Sincronizando energía: local=${localEnergy}, servidor=${serverEnergy}`);
-          updateGameState({ 
-            energy: serverEnergy,
-            maxEnergy: serverStats.max_energy
-          });
+        if (serverStats) {
+          const serverEnergy = Number(serverStats.energy);
+          const localEnergy = gameData.gameState.energy;
+          
+          // Si hay desincronización mayor a 5 puntos, corregir
+          if (Math.abs(serverEnergy - localEnergy) > 5) {
+            console.warn(`⚡ Desincronización de energía detectada: local=${localEnergy}, servidor=${serverEnergy}`);
+            updateGameState({ 
+              energy: serverEnergy,
+              maxEnergy: serverStats.max_energy
+            });
+          }
         }
+
+        // 2. Sincronizar datos pendientes
+        if (Object.keys(pendingSyncRef.current).length > 0) {
+          syncGameData(pendingSyncRef.current);
+        }
+
+        // 3. Verificar integridad cada 5 minutos
+        if (Math.random() < 0.2) { // ~20% de probabilidad cada 30 segundos
+          verifyDataIntegrity();
+        }
+
+      } catch (error) {
+        console.error('❌ Error en sincronización periódica:', error);
       }
+    }, 30000); // Cada 30 segundos
 
-      // 2. Sincronizar datos pendientes (solo si hay cambios importantes)
-      if (Object.keys(pendingSyncRef.current).length > 5) {
-        syncGameData(pendingSyncRef.current);
-      }
-
-    } catch (error) {
-      console.error('❌ Error en sincronización periódica:', error);
-    }
-  }, 60000); // Aumentar a 60 segundos (era 30)
-
-  return () => clearInterval(interval);
-}, [gameData.player?.id, gameData.gameState.energy, syncGameData, updateGameData]);
-
+    return () => clearInterval(interval);
+  }, [gameData.player?.id, gameData.gameState.energy, syncGameData, verifyDataIntegrity, updateGameState]);
 
   return {
     // 🎯 DATOS COMPLETOS
