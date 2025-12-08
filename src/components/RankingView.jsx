@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   Award,
   Crown,
@@ -38,16 +38,16 @@ export function RankingView({
   player, 
   tokenPrice = 0.05,
   refreshInterval = 30000,
+  // 🎯 NUEVAS PROPS - Centralizadas desde useGameData
   loadRanking,
   refreshRanking,
   gameDataState
 }) {
   const { toast } = useToast();
   
-  // 🎯 ESTADOS CON OPTIMIZACIÓN
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
-  const [loading, setLoading] = useState(false); // Cambiado a false inicial
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,68 +60,65 @@ export function RankingView({
     recentActivity: 0
   });
 
-  // 🎯 REFS PARA OPTIMIZACIÓN
-  const isLoadingRef = useRef(false);
-  const rankingCacheRef = useRef({});
-  const abortControllerRef = useRef(null);
-
-  // 🎯 DATOS DEL USUARIO ACTUAL - OPTIMIZADO
-  const userGameData = useMemo(() => {
-    return gameDataState || {
-      coins: 0,
-      level: 1,
-      nativeTokenBalance: 0,
-      totalCoins: 0,
-      clicks: 0,
-      lastActive: null
-    };
+  // 🎯 DATOS DEL USUARIO ACTUAL DESDE EL ESTADO CENTRALIZADO
+  const userGameData = useMemo(() => gameDataState || {
+    coins: 0,
+    level: 1,
+    nativeTokenBalance: 0,
+    totalCoins: 0,
+    clicks: 0,
+    lastActive: null
   }, [gameDataState]);
 
-  // 📅 Formatear fecha - OPTIMIZADO
-  const formatDate = useCallback((dateString) => {
+  // 📅 Formatear fecha
+  const formatDate = (dateString) => {
     if (!dateString) return "Nunca";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
     
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      
-      if (diffMins < 60) return `Hace ${diffMins} min`;
-      if (diffMins < 1440) return `Hace ${Math.floor(diffMins / 60)}h`;
-      
-      return date.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (e) {
-      return "Nunca";
-    }
-  }, []);
-
-  // 🔍 Buscar jugador por nombre - OPTIMIZADO
-  const handleSearch = useCallback((e) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  // 📈 Ordenar ranking - OPTIMIZADO
-  const handleSort = useCallback((column) => {
-    setSortBy(prevSortBy => {
-      if (prevSortBy === column) {
-        setSortDirection(prevDir => prevDir === "desc" ? "asc" : "desc");
-        return column;
-      } else {
-        setSortDirection("desc");
-        return column;
-      }
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffMins < 1440) return `Hace ${Math.floor(diffMins / 60)}h`;
+    
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     });
-  }, []);
+  };
 
-  // 🏆 Obtener posición del usuario actual - OPTIMIZADO
+  // 🔍 Búsqueda con debouncing
+const [searchTimeout, setSearchTimeout] = useState(null);
+
+const handleSearch = (e) => {
+  const value = e.target.value;
+  
+  // Limpiar timeout anterior
+  if (searchTimeout) clearTimeout(searchTimeout);
+  
+  // Establecer nuevo timeout para buscar
+  const newTimeout = setTimeout(() => {
+    setSearchQuery(value);
+  }, 300); // 300ms de debounce
+  
+  setSearchTimeout(newTimeout);
+};
+
+  // 📈 Ordenar ranking
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+    } else {
+      setSortBy(column);
+      setSortDirection("desc");
+    }
+  };
+
+  // 🏆 Obtener posición del usuario actual
   const getCurrentUserRank = useCallback(() => {
-    if (!user || !player || !ranking.length) return null;
+    if (!user || !player) return null;
     
     const userRank = ranking.findIndex(p => 
       p.user_id === user.id || 
@@ -131,122 +128,71 @@ export function RankingView({
     return userRank >= 0 ? userRank + 1 : null;
   }, [ranking, user, player]);
 
-  // 📊 Calcular estadísticas del ranking - OPTIMIZADO
+  // 📊 Calcular estadísticas del ranking
   const calculateStats = useCallback((data) => {
-    if (!data || data.length === 0) {
-      setStats({
-        totalPlayers: 0,
-        averageCoins: 0,
-        topPlayer: null,
-        recentActivity: 0
-      });
-      return;
-    }
+    if (!data || data.length === 0) return;
     
     const totalCoins = data.reduce((sum, player) => sum + (player.coins || 0), 0);
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
     const recentPlayers = data.filter(p => {
       if (!p.lastActive) return false;
-      try {
-        const lastActive = new Date(p.lastActive);
-        return lastActive > weekAgo;
-      } catch {
-        return false;
-      }
+      const lastActive = new Date(p.lastActive);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return lastActive > weekAgo;
     }).length;
     
     setStats({
       totalPlayers: data.length,
-      averageCoins: Math.floor(totalCoins / data.length) || 0,
+      averageCoins: Math.floor(totalCoins / data.length),
       topPlayer: data[0] || null,
-      recentActivity: data.length > 0 ? Math.floor((recentPlayers / data.length) * 100) : 0
+      recentActivity: Math.floor((recentPlayers / data.length) * 100)
     });
   }, []);
 
-  // 🔄 Cargar ranking - OPTIMIZADO CON ABORT CONTROLLER
-  const fetchRanking = useCallback(async (scope = "global", forceRefresh = false) => {
-    if (isLoadingRef.current) return;
-    
-    // Cancelar petición anterior
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    abortControllerRef.current = new AbortController();
-    
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
+  const fetchRanking = useCallback(async (scope = "global") => {
     try {
-      isLoadingRef.current = true;
       setLoading(true);
       setError(null);
       
-      console.log("🏆 Cargando ranking:", scope, forceRefresh ? "(forzado)" : "");
+      console.log("🏆 Cargando ranking desde fuente centralizada:", scope);
       
-      // Verificar caché (excepto si es forceRefresh)
-      const cacheKey = `${scope}_${sortBy}_${sortDirection}`;
-      if (!forceRefresh && rankingCacheRef.current[cacheKey]) {
-        const cached = rankingCacheRef.current[cacheKey];
-        const now = Date.now();
-        const CACHE_TTL = 30000; // 30 segundos
-        
-        if (now - cached.timestamp < CACHE_TTL) {
-          console.log("🏆 Usando caché:", cacheKey);
-          const sortedData = sortRankingData(cached.data);
-          setRanking(sortedData);
-          calculateStats(sortedData);
-          setLastUpdated(new Date(cached.timestamp).toISOString());
-          setLoading(false);
-          isLoadingRef.current = false;
-          return;
-        }
-      }
-      
+      // 🎯 USAR LA FUNCIÓN loadRanking DEL HOOK CENTRAL
       if (!loadRanking) {
         throw new Error("Función loadRanking no disponible");
       }
       
       const rankingData = await loadRanking(scope);
       
-      if (!rankingData || !Array.isArray(rankingData)) {
+      if (!rankingData || rankingData.length === 0) {
         setRanking([]);
         setLastUpdated(new Date().toISOString());
         setLoading(false);
-        isLoadingRef.current = false;
         return;
       }
 
-      // Actualizar caché
-      rankingCacheRef.current[cacheKey] = {
-        data: rankingData,
-        timestamp: Date.now()
-      };
+      // Ordenar datos localmente según criterios de UI
+      const sortedData = rankingData.sort((a, b) => {
+        let valueA = a[sortBy] || 0;
+        let valueB = b[sortBy] || 0;
+        
+        if (sortDirection === "desc") {
+          return valueB - valueA;
+        } else {
+          return valueA - valueB;
+        }
+      });
 
-      const sortedData = sortRankingData(rankingData);
-      
-      // 🎯 OPTIMIZACIÓN: Solo actualizar si los datos realmente cambiaron
-      const hasChanged = JSON.stringify(sortedData) !== JSON.stringify(ranking);
-      if (hasChanged) {
-        setRanking(sortedData);
-        calculateStats(sortedData);
-      }
-      
+      setRanking(sortedData);
+      calculateStats(sortedData);
       setLastUpdated(new Date().toISOString());
-      console.log("✅ Ranking cargado:", sortedData.length, "jugadores");
+
+      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
 
     } catch (err) {
-      if (err.name === 'AbortError') {
-        console.log("🔄 Petición de ranking cancelada");
-        return;
-      }
-      
-      console.error("❌ Error al cargar ranking:", err);
+      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
-      
-      if (!ranking.length) {
-        setRanking([]);
-      }
-      
+      setRanking([]);
       toast({
         title: "❌ Error de conexión",
         description: "No se pudo cargar el ranking. Verifica tu conexión.",
@@ -254,42 +200,14 @@ export function RankingView({
       });
     } finally {
       setLoading(false);
-      isLoadingRef.current = false;
     }
-  }, [loadRanking, sortBy, sortDirection, calculateStats, toast, ranking]);
-
-  // 🎯 FUNCIÓN PARA ORDENAR DATOS LOCALMENTE
-  const sortRankingData = useCallback((data) => {
-    if (!data || !Array.isArray(data)) return [];
-    
-    return [...data].sort((a, b) => {
-      let valueA = a[sortBy] || 0;
-      let valueB = b[sortBy] || 0;
-      
-      // Manejar tipos de datos
-      valueA = Number(valueA) || 0;
-      valueB = Number(valueB) || 0;
-      
-      if (sortDirection === "desc") {
-        return valueB - valueA;
-      } else {
-        return valueA - valueB;
-      }
-    });
-  }, [sortBy, sortDirection]);
+  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
 
   // 🔄 Refrescar ranking (ignorando caché)
   const refreshRankingData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("🔄 Refrescando ranking...");
-      
-      // Limpiar caché para esta pestaña
-      Object.keys(rankingCacheRef.current).forEach(key => {
-        if (key.startsWith(activeTab)) {
-          delete rankingCacheRef.current[key];
-        }
-      });
+      console.log("🔄 Refrescando ranking (ignorando caché)...");
       
       if (!refreshRanking) {
         throw new Error("Función refreshRanking no disponible");
@@ -297,15 +215,17 @@ export function RankingView({
       
       const rankingData = await refreshRanking(activeTab);
       
-      if (rankingData && Array.isArray(rankingData) && rankingData.length > 0) {
-        const sortedData = sortRankingData(rankingData);
-        
-        // Actualizar caché
-        const cacheKey = `${activeTab}_${sortBy}_${sortDirection}`;
-        rankingCacheRef.current[cacheKey] = {
-          data: rankingData,
-          timestamp: Date.now()
-        };
+      if (rankingData && rankingData.length > 0) {
+        const sortedData = rankingData.sort((a, b) => {
+          let valueA = a[sortBy] || 0;
+          let valueB = b[sortBy] || 0;
+          
+          if (sortDirection === "desc") {
+            return valueB - valueA;
+          } else {
+            return valueA - valueB;
+          }
+        });
         
         setRanking(sortedData);
         calculateStats(sortedData);
@@ -327,55 +247,26 @@ export function RankingView({
     } finally {
       setLoading(false);
     }
-  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast, sortRankingData]);
+  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
 
-  // 🔄 Cargar ranking inicial - OPTIMIZADO
+  // 🔄 Cargar ranking inicial
   useEffect(() => {
     fetchRanking(activeTab);
-    
-    // Limpiar al desmontar
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      isLoadingRef.current = false;
-    };
   }, [activeTab, fetchRanking]);
 
-  // 🕐 Actualización automática periódica - OPTIMIZADO (más lento)
+  // 🕐 Actualización automática periódica
   useEffect(() => {
-    let interval;
-    
-    const updateIfVisible = () => {
-      if (document.visibilityState === 'visible' && !isLoadingRef.current) {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
         fetchRanking(activeTab);
       }
-    };
-    
-    // Esperar 2 segundos antes del primer intervalo
-    const timeout = setTimeout(() => {
-      interval = setInterval(updateIfVisible, 60000); // 60 segundos en lugar de 30
-    }, 2000);
-    
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [activeTab, fetchRanking]);
+    }, refreshInterval);
 
-  // 🎯 EFECTO PARA ORDENAR LOCALMENTE CUANDO CAMBIA EL ORDEN
-  useEffect(() => {
-    if (ranking.length > 0) {
-      const sortedData = sortRankingData(ranking);
-      setRanking(sortedData);
-    }
-  }, [sortBy, sortDirection, sortRankingData]);
+    return () => clearInterval(interval);
+  }, [activeTab, refreshInterval, fetchRanking]);
 
-  // 👤 Info del usuario actual - OPTIMIZADO CON useMemo
-  const CurrentUserCard = useMemo(() => {
+  // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
+  const CurrentUserCard = () => {
     if (!user || !player) {
       return (
         <motion.div 
@@ -473,7 +364,7 @@ export function RankingView({
               <div className="text-center">
                 <div className="text-xs text-gray-400 mb-1">Valor CROC</div>
                 <div className="text-lg font-bold text-green-400">
-                  ${((userData.tokens || 0) * tokenPrice).toFixed(2)}
+                  ${(userData.tokens * tokenPrice).toFixed(2)}
                 </div>
               </div>
               <div className="text-center">
@@ -487,10 +378,10 @@ export function RankingView({
         </div>
       </motion.div>
     );
-  }, [user, player, getCurrentUserRank, ranking, userGameData, tokenPrice, formatDate]);
+  };
 
-  // 🥇 Medallas animadas - OPTIMIZADO
-  const AnimatedMedal = useCallback(({ type, rank }) => {
+  // 🥇 Medallas animadas
+  const AnimatedMedal = ({ type, rank }) => {
     const medals = {
       1: { emoji: "🥇", color: "from-yellow-400 to-yellow-300", shadow: "shadow-yellow-500/30" },
       2: { emoji: "🥈", color: "from-gray-300 to-gray-200", shadow: "shadow-gray-400/30" },
@@ -518,13 +409,11 @@ export function RankingView({
         <span className="text-2xl">{medal.emoji}</span>
       </motion.div>
     );
-  }, []);
+  };
 
-  // 👑 Top 3 Players - OPTIMIZADO
-  const TopThreePlayers = useMemo(() => {
+  // 👑 Top 3 Players
+  const TopThreePlayers = () => {
     if (ranking.length < 3) return null;
-
-    const topThree = [ranking[1], ranking[0], ranking[2]].filter(Boolean);
 
     return (
       <motion.div 
@@ -539,7 +428,7 @@ export function RankingView({
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {topThree.map((player, idx) => {
+          {[ranking[1], ranking[0], ranking[2]].map((player, idx) => {
             if (!player) return null;
             
             const position = [2, 1, 3][idx];
@@ -547,7 +436,7 @@ export function RankingView({
             
             return (
               <motion.div
-                key={player.id || player.user_id}
+                key={player.id}
                 className={`relative rounded-xl p-4 border-2 ${
                   isTop 
                     ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl' 
@@ -568,22 +457,22 @@ export function RankingView({
                   <Avatar className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'}`}>
                     <AvatarImage src={player.avatar} alt={player.name} />
                     <AvatarFallback className={`${isTop ? 'bg-yellow-500/20' : 'bg-gray-600/20'}`}>
-                      {player.name?.substring(0, 2).toUpperCase() || "??"}
+                      {player.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   
                   <h4 className={`font-bold ${isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'}`}>
-                    {player.name || "Jugador"}
+                    {player.name}
                   </h4>
                   
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-center gap-2 text-sm">
                       <Coins className="w-3 h-3 text-yellow-400" />
-                      <span className="font-semibold">{(player.coins || 0).toLocaleString()} 💰</span>
+                      <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
                     </div>
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                       <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level || 1}</span>
+                      <span>Nv. {player.level}</span>
                     </div>
                   </div>
                 </div>
@@ -604,11 +493,11 @@ export function RankingView({
         </div>
       </motion.div>
     );
-  }, [ranking, AnimatedMedal]);
+  };
 
-  // 📋 Renderizar lista de ranking - OPTIMIZADO
-  const renderRankingList = useCallback(() => {
-    if (loading && ranking.length === 0) {
+  // 📋 Renderizar lista de ranking
+  const renderRankingList = () => {
+    if (loading) {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <motion.div
@@ -622,7 +511,7 @@ export function RankingView({
       );
     }
 
-    if (error && ranking.length === 0) {
+    if (error) {
       return (
         <div className="text-center py-12">
           <div className="w-20 h-20 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
@@ -633,7 +522,7 @@ export function RankingView({
             No se pudo cargar el ranking. Verifica tu conexión a internet.
           </p>
           <Button 
-            onClick={() => fetchRanking(activeTab, true)}
+            onClick={() => fetchRanking(activeTab)}
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -654,14 +543,24 @@ export function RankingView({
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             Aún no hay jugadores en el ranking. ¡Sé el primero en aparecer aquí!
           </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button variant="default" className="flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              Comenzar a Jugar
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Ver Tutorial
+            </Button>
+          </div>
         </div>
       );
     }
 
     // Filtrar por búsqueda
     const filteredRanking = ranking.filter(player =>
-      player.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.id?.toLowerCase().includes(searchQuery.toLowerCase())
+      player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      player.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (filteredRanking.length === 0) {
@@ -682,12 +581,11 @@ export function RankingView({
           {rankingToShow.map((player, index) => {
             const rank = index + 4;
             const isCurrentUser = player.isCurrentUser;
-            const playerValue = (player.coins || 0) + ((player.tokens || 0) * 1000);
-            const topPlayerValue = (stats.topPlayer?.coins || 0) + ((stats.topPlayer?.tokens || 0) * 1000);
+            const playerValue = (player.coins + (player.tokens * 1000));
             
             return (
               <motion.div
-                key={player.id || player.user_id}
+                key={player.id}
                 layout
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -731,7 +629,7 @@ export function RankingView({
                 <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 group-hover:border-gray-600 shadow-lg">
                   <AvatarImage src={player.avatar} alt={player.name} />
                   <AvatarFallback className="bg-gray-800 text-gray-300">
-                    {player.name?.substring(0, 2).toUpperCase() || "??"}
+                    {player.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
@@ -745,7 +643,7 @@ export function RankingView({
                         }`}
                         title={player.name}
                       >
-                        {player.name || "Jugador"} {isCurrentUser && "⭐"}
+                        {player.name} {isCurrentUser && "⭐"}
                       </p>
                       
                       {/* Insignias */}
@@ -766,10 +664,10 @@ export function RankingView({
                       <div className="text-right">
                         <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
                           <Coins className="w-3 h-3" />
-                          {(player.coins || 0).toLocaleString()}
+                          {player.coins.toLocaleString()}
                         </div>
                         <div className="text-xs text-gray-400">
-                          ${((player.coins || 0) * 0.001).toFixed(2)}
+                          ${(player.coins * 0.001).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -779,17 +677,17 @@ export function RankingView({
                   <div className="flex flex-wrap gap-3 mt-2 text-xs">
                     <div className="flex items-center gap-1 text-gray-400">
                       <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level || 1}</span>
+                      <span>Nv. {player.level}</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-green-400">
                       <Zap className="w-3 h-3" />
-                      <span>{(player.tokens || 0).toLocaleString()} CROC</span>
+                      <span>{player.tokens.toLocaleString()} CROC</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-blue-400">
                       <Target className="w-3 h-3" />
-                      <span>{(player.clicks || 0).toLocaleString()} clics</span>
+                      <span>{player.clicks.toLocaleString()} clics</span>
                     </div>
                     
                     <div className="flex items-center gap-1 text-gray-500">
@@ -803,7 +701,7 @@ export function RankingView({
                 <div className="md:hidden ml-3">
                   <div className="text-right">
                     <div className="text-sm font-bold text-yellow-400">
-                      {(player.coins || 0).toLocaleString()}
+                      {player.coins.toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-400">monedas</div>
                   </div>
@@ -815,7 +713,7 @@ export function RankingView({
                     <motion.div 
                       className="h-full bg-gradient-to-r from-primary/50 to-primary"
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, topPlayerValue > 0 ? (playerValue / topPlayerValue) * 100 : 0)}%` }}
+                      animate={{ width: `${Math.min(100, (playerValue / (stats.topPlayer?.coins || 1)) * 100)}%` }}
                       transition={{ duration: 1, delay: 0.5 }}
                     />
                   </div>
@@ -826,7 +724,7 @@ export function RankingView({
         </AnimatePresence>
       </div>
     );
-  }, [loading, ranking, error, activeTab, searchQuery, stats, formatDate, fetchRanking]);
+  };
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding">
@@ -852,7 +750,7 @@ export function RankingView({
         </motion.div>
 
         {/* 👤 Información del usuario actual */}
-        {CurrentUserCard}
+        <CurrentUserCard />
 
         {/* 📊 Estadísticas del ranking */}
         <motion.div 
@@ -892,7 +790,7 @@ export function RankingView({
               <div className="flex items-center justify-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-purple-400" />
                 <span className="text-2xl font-bold text-purple-400">
-                  {stats.topPlayer ? ((stats.topPlayer.coins || 0) / 1000).toFixed(0) + 'k' : '0'}
+                  {stats.topPlayer ? (stats.topPlayer.coins / 1000).toFixed(0) + 'k' : '0'}
                 </span>
               </div>
               <div className="text-xs text-gray-400">Récord Actual</div>
@@ -901,7 +799,7 @@ export function RankingView({
         </motion.div>
 
         {/* 🥇 Top 3 */}
-        {TopThreePlayers}
+        <TopThreePlayers />
 
         {/* 🎯 Controles del ranking */}
         <motion.div 
@@ -964,7 +862,7 @@ export function RankingView({
                   <span className="hidden sm:inline">Ordenar</span>
                 </Button>
                 
-                {/* 🎯 BOTÓN ACTUALIZADO */}
+                {/* 🎯 BOTÓN ACTUALIZADO: Usa refreshRankingData en lugar de fetchRanking */}
                 <Button
                   onClick={refreshRankingData}
                   variant="outline"
@@ -1016,14 +914,93 @@ export function RankingView({
               {renderRankingList()}
             </div>
 
-            {/* Paginación */}
+            {/* Paginación (simulada) */}
             <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-700/30">
               <div className="text-sm text-gray-400">
                 Mostrando {Math.min(ranking.length, 20)} de {stats.totalPlayers} jugadores
               </div>
-              <div className="text-xs text-gray-500">
-                Actualización automática cada 60s
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Anterior
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  Siguiente
+                </Button>
               </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 📚 Guía y consejos */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="p-4 bg-gradient-to-r from-blue-900/20 to-blue-800/20 rounded-xl border border-blue-700/30">
+            <h4 className="font-bold mb-3 flex items-center gap-2 text-blue-300">
+              <Sparkles className="w-4 h-4" />
+              Cómo subir en el ranking
+            </h4>
+            <ul className="text-sm text-gray-400 space-y-2">
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <span>Compra mejoras para aumentar tus ganancias</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <span>Completa misiones diarias y logros</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <span>Haz staking de tus tokens CROC</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <span>Invita amigos para obtener bonificaciones</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="p-4 bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 rounded-xl border border-yellow-700/30">
+            <h4 className="font-bold mb-3 flex items-center gap-2 text-yellow-300">
+              <Trophy className="w-4 h-4" />
+              Premios y Recompensas
+            </h4>
+            <ul className="text-sm text-gray-400 space-y-2">
+              <li className="flex items-center gap-2">
+                <Medal className="w-4 h-4 text-yellow-500" />
+                <span><strong>🥇 Oro:</strong> Insignia exclusiva + 1000 CROC</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Medal className="w-4 h-4 text-gray-400" />
+                <span><strong>🥈 Plata:</strong> 500 CROC + skin especial</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Medal className="w-4 h-4 text-amber-600" />
+                <span><strong>🥉 Bronce:</strong> 250 CROC + boost temporal</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-purple-400" />
+                <span><strong>Top 10:</strong> Recompensas semanales</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="p-4 bg-gradient-to-r from-green-900/20 to-emerald-800/20 rounded-xl border border-green-700/30">
+            <h4 className="font-bold mb-3 flex items-center gap-2 text-green-300">
+              <RefreshCw className="w-4 h-4" />
+              Sistema de Ranking
+            </h4>
+            <div className="text-sm text-gray-400 space-y-2">
+              <p>El ranking se actualiza automáticamente cada 30 segundos.</p>
+              <p>Los puntos se calculan en base a:</p>
+              <ul className="space-y-1 ml-4">
+                <li>• Monedas totales (50%)</li>
+                <li>• Nivel del jugador (30%)</li>
+                <li>• Tokens CROC (20%)</li>
+              </ul>
             </div>
           </div>
         </motion.div>
