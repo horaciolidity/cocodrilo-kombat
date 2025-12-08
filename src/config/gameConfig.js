@@ -316,9 +316,9 @@ export const CARDS_DATA = [
 ];
 
 export const SHOP_ITEMS = [
-  { id: "skin_golden_croc", name: "Cocodrilo Dorado", description: "Una skin dorada brillante para tu cocodrilo.", price: 10000, type: "skin", icon: Palette, image: "/skins/golden_croc.png" },
-  { id: "skin_camo_croc", name: "Cocodrilo Camuflaje", description: "Perfecto para emboscadas en el pantano.", price: 7500, type: "skin", icon: Palette, image: "/skins/camo_croc.png" },
-  { id: "skin_cyborg_croc", name: "Cocodrilo Cyborg", description: "Mejoras cibernéticas para el depredador definitivo.", price: 15000, type: "skin", icon: Palette, image: "/skins/cyborg_croc.png" },
+  { id: "skin_golden_croc", name: "Cocodrilo Dorado", description: "Una skin dorada brillante para tu cocodrilo.", price: 10000, type: "skin", icon: Palette, image: "/skins/golden_croc.jpg" },
+  { id: "skin_camo_croc", name: "Cocodrilo Camuflaje", description: "Perfecto para emboscadas en el pantano.", price: 7500, type: "skin", icon: Palette, image: "/skins/camo_croc.jpg" },
+  { id: "skin_cyborg_croc", name: "Cocodrilo Cyborg", description: "Mejoras cibernéticas para el depredador definitivo.", price: 15000, type: "skin", icon: Palette, image: "/skins/cyborg_croc.jpg" },
   { id: "item_sharp_teeth", name: "Dientes Afilados", description: "+5 monedas por clic.", price: 5000, type: "item", icon: ZapIcon, effect: { type: "click_boost", value: 5 } },
   { id: "item_swamp_amulet", name: "Amuleto del Pantano", description: "+10 monedas por segundo.", price: 8000, type: "item", icon: Shield, effect: { type: "cps_boost", value: 10 } },
   { id: "item_energy_drink", name: "Bebida Energética Croc", description: "Rellena instantáneamente 50 de energía (consumible).", price: 1000, type: "consumable", icon: ZapIcon, effect: { type: "energy_fill", value: 50 } },
