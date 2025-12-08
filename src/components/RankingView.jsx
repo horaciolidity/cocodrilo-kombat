@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Award,
   Crown,
@@ -47,7 +47,7 @@ export function RankingView({
   
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Cambiado a false inicialmente
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,31 +137,7 @@ export function RankingView({
     });
   }, []);
 
-  // 🔄 Actualizar datos del ranking SIN parpadeo
-  const updateRankingData = useCallback((rankingData) => {
-    if (!rankingData || rankingData.length === 0) {
-      setRanking([]);
-      return;
-    }
-
-    // Ordenar datos localmente según criterios de UI
-    const sortedData = rankingData.sort((a, b) => {
-      let valueA = a[sortBy] || 0;
-      let valueB = b[sortBy] || 0;
-      
-      if (sortDirection === "desc") {
-        return valueB - valueA;
-      } else {
-        return valueA - valueB;
-      }
-    });
-
-    setRanking(sortedData);
-    calculateStats(sortedData);
-    setLastUpdated(new Date().toISOString());
-  }, [sortBy, sortDirection, calculateStats]);
-
-  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA SIN PARPADEO
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
   const fetchRanking = useCallback(async (scope = "global", showLoading = false) => {
     try {
       if (showLoading) {
@@ -175,16 +151,33 @@ export function RankingView({
       
       const rankingData = await loadRanking(scope);
       
-      if (rankingData && rankingData.length > 0) {
-        updateRankingData(rankingData);
-      } else {
-        setRanking([]);
+      if (!rankingData || rankingData.length === 0) {
+        // Si no hay datos, mantener los existentes
+        setLastUpdated(new Date().toISOString());
+        if (showLoading) setLoading(false);
+        return;
       }
-      
-      console.log("✅ Ranking actualizado sin parpadeo:", rankingData?.length || 0, "jugadores");
+
+      // Ordenar datos localmente según criterios de UI
+      const sortedData = rankingData.sort((a, b) => {
+        let valueA = a[sortBy] || 0;
+        let valueB = b[sortBy] || 0;
+        
+        if (sortDirection === "desc") {
+          return valueB - valueA;
+        } else {
+          return valueA - valueB;
+        }
+      });
+
+      setRanking(sortedData);
+      calculateStats(sortedData);
+      setLastUpdated(new Date().toISOString());
+
+      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking:", err);
+      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
       toast({
         title: "❌ Error de conexión",
@@ -196,7 +189,7 @@ export function RankingView({
         setLoading(false);
       }
     }
-  }, [loadRanking, updateRankingData, toast]);
+  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
 
   // 🔄 Refrescar ranking (ignorando caché) SIN PARPADEO
   const refreshRankingData = useCallback(async () => {
@@ -210,7 +203,20 @@ export function RankingView({
       const rankingData = await refreshRanking(activeTab);
       
       if (rankingData && rankingData.length > 0) {
-        updateRankingData(rankingData);
+        const sortedData = rankingData.sort((a, b) => {
+          let valueA = a[sortBy] || 0;
+          let valueB = b[sortBy] || 0;
+          
+          if (sortDirection === "desc") {
+            return valueB - valueA;
+          } else {
+            return valueA - valueB;
+          }
+        });
+        
+        setRanking(sortedData);
+        calculateStats(sortedData);
+        setLastUpdated(new Date().toISOString());
         
         toast({
           title: "✅ Ranking actualizado",
@@ -226,12 +232,13 @@ export function RankingView({
         duration: 3000,
       });
     }
-  }, [refreshRanking, activeTab, updateRankingData, toast]);
+  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
 
   // 🔄 Cargar ranking inicial SOLO al montar o cambiar pestaña
   useEffect(() => {
+    // Solo cargar si no hay datos o si cambia la pestaña
     fetchRanking(activeTab, true);
-  }, [activeTab, fetchRanking]);
+  }, [activeTab]); // Solo dependencia de activeTab
 
   // 🕐 Actualización automática periódica SIN PARPADEO
   useEffect(() => {
@@ -244,23 +251,6 @@ export function RankingView({
 
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, fetchRanking]);
-
-  // 🔄 Reordenar ranking localmente cuando cambia el criterio de ordenación
-  useEffect(() => {
-    if (ranking.length > 0) {
-      const sortedData = [...ranking].sort((a, b) => {
-        let valueA = a[sortBy] || 0;
-        let valueB = b[sortBy] || 0;
-        
-        if (sortDirection === "desc") {
-          return valueB - valueA;
-        } else {
-          return valueA - valueB;
-        }
-      });
-      setRanking(sortedData);
-    }
-  }, [sortBy, sortDirection]);
 
   // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
   const CurrentUserCard = () => {
@@ -494,6 +484,7 @@ export function RankingView({
 
   // 📋 Renderizar lista de ranking
   const renderRankingList = () => {
+    // Si está cargando y no hay datos, mostrar spinner
     if (loading && ranking.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -508,6 +499,7 @@ export function RankingView({
       );
     }
 
+    // Si hay error y no hay datos, mostrar error
     if (error && ranking.length === 0) {
       return (
         <div className="text-center py-12">
@@ -530,6 +522,7 @@ export function RankingView({
       );
     }
 
+    // Si no hay datos (ni error ni loading)
     if (ranking.length === 0) {
       return (
         <div className="text-center py-12">
