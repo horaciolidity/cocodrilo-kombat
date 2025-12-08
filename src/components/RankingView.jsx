@@ -37,7 +37,7 @@ export function RankingView({
   user, 
   player, 
   tokenPrice = 0.05,
-  refreshInterval = 30000,
+  refreshInterval = 120000,
   // 🎯 NUEVAS PROPS - Centralizadas desde useGameData
   loadRanking,
   refreshRanking,
@@ -137,91 +137,84 @@ export function RankingView({
     });
   }, []);
 
-  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA
-  const fetchRanking = useCallback(async (scope = "global") => {
+  // 🔄 Actualizar datos del ranking SIN parpadeo
+  const updateRankingData = useCallback((rankingData) => {
+    if (!rankingData || rankingData.length === 0) {
+      setRanking([]);
+      return;
+    }
+
+    // Ordenar datos localmente según criterios de UI
+    const sortedData = rankingData.sort((a, b) => {
+      let valueA = a[sortBy] || 0;
+      let valueB = b[sortBy] || 0;
+      
+      if (sortDirection === "desc") {
+        return valueB - valueA;
+      } else {
+        return valueA - valueB;
+      }
+    });
+
+    setRanking(sortedData);
+    calculateStats(sortedData);
+    setLastUpdated(new Date().toISOString());
+  }, [sortBy, sortDirection, calculateStats]);
+
+  // 🔄 Cargar ranking DESDE LA FUENTE CENTRALIZADA SIN PARPADEO
+  const fetchRanking = useCallback(async (scope = "global", showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
       
-      console.log("🏆 Cargando ranking desde fuente centralizada:", scope);
-      
-      // 🎯 USAR LA FUNCIÓN loadRanking DEL HOOK CENTRAL
       if (!loadRanking) {
         throw new Error("Función loadRanking no disponible");
       }
       
       const rankingData = await loadRanking(scope);
       
-      if (!rankingData || rankingData.length === 0) {
+      if (rankingData && rankingData.length > 0) {
+        updateRankingData(rankingData);
+      } else {
         setRanking([]);
-        setLastUpdated(new Date().toISOString());
-        setLoading(false);
-        return;
       }
-
-      // Ordenar datos localmente según criterios de UI
-      const sortedData = rankingData.sort((a, b) => {
-        let valueA = a[sortBy] || 0;
-        let valueB = b[sortBy] || 0;
-        
-        if (sortDirection === "desc") {
-          return valueB - valueA;
-        } else {
-          return valueA - valueB;
-        }
-      });
-
-      setRanking(sortedData);
-      calculateStats(sortedData);
-      setLastUpdated(new Date().toISOString());
-
-      console.log("✅ Ranking cargado desde fuente centralizada:", sortedData.length, "jugadores");
+      
+      console.log("✅ Ranking actualizado sin parpadeo:", rankingData?.length || 0, "jugadores");
 
     } catch (err) {
-      console.error("❌ Error al cargar ranking desde fuente centralizada:", err);
+      console.error("❌ Error al cargar ranking:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
-      setRanking([]);
       toast({
         title: "❌ Error de conexión",
         description: "No se pudo cargar el ranking. Verifica tu conexión.",
         duration: 3000,
       });
     } finally {
-      setLoading(false);
-    }
-  }, [loadRanking, sortBy, sortDirection, calculateStats, toast]);
-
-  // 🔄 Refrescar ranking (ignorando caché)
-  const refreshRankingData = useCallback(async () => {
-    try {
-      setLoading(true);
-      console.log("🔄 Refrescando ranking (ignorando caché)...");
-      
-      if (!refreshRanking) {
-        throw new Error("Función refreshRanking no disponible");
+      if (showLoading) {
+        setLoading(false);
       }
-      
+    }
+  }, [loadRanking, updateRankingData, toast]);
+
+  // 🔄 Refrescar ranking (ignorando caché) SIN PARPADEO
+  const refreshRankingData = useCallback(async () => {
+    console.log("🔄 Refrescando ranking (sin parpadeo)...");
+    
+    if (!refreshRanking) {
+      throw new Error("Función refreshRanking no disponible");
+    }
+    
+    try {
       const rankingData = await refreshRanking(activeTab);
       
       if (rankingData && rankingData.length > 0) {
-        const sortedData = rankingData.sort((a, b) => {
-          let valueA = a[sortBy] || 0;
-          let valueB = b[sortBy] || 0;
-          
-          if (sortDirection === "desc") {
-            return valueB - valueA;
-          } else {
-            return valueA - valueB;
-          }
-        });
-        
-        setRanking(sortedData);
-        calculateStats(sortedData);
-        setLastUpdated(new Date().toISOString());
+        updateRankingData(rankingData);
         
         toast({
           title: "✅ Ranking actualizado",
-          description: "Los datos del ranking han sido refrescados.",
+          description: "Los datos han sido actualizados silenciosamente.",
           duration: 2000,
         });
       }
@@ -232,26 +225,42 @@ export function RankingView({
         description: "No se pudo actualizar el ranking. Usando datos en caché.",
         duration: 3000,
       });
-    } finally {
-      setLoading(false);
     }
-  }, [refreshRanking, activeTab, sortBy, sortDirection, calculateStats, toast]);
+  }, [refreshRanking, activeTab, updateRankingData, toast]);
 
-  // 🔄 Cargar ranking inicial
+  // 🔄 Cargar ranking inicial SOLO al montar o cambiar pestaña
   useEffect(() => {
-    fetchRanking(activeTab);
+    fetchRanking(activeTab, true);
   }, [activeTab, fetchRanking]);
 
-  // 🕐 Actualización automática periódica
+  // 🕐 Actualización automática periódica SIN PARPADEO
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        fetchRanking(activeTab);
+        // Actualización silenciosa, sin mostrar estado de carga
+        fetchRanking(activeTab, false);
       }
     }, refreshInterval);
 
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, fetchRanking]);
+
+  // 🔄 Reordenar ranking localmente cuando cambia el criterio de ordenación
+  useEffect(() => {
+    if (ranking.length > 0) {
+      const sortedData = [...ranking].sort((a, b) => {
+        let valueA = a[sortBy] || 0;
+        let valueB = b[sortBy] || 0;
+        
+        if (sortDirection === "desc") {
+          return valueB - valueA;
+        } else {
+          return valueA - valueB;
+        }
+      });
+      setRanking(sortedData);
+    }
+  }, [sortBy, sortDirection]);
 
   // 👤 Info del usuario actual - USANDO DATOS CENTRALIZADOS
   const CurrentUserCard = () => {
@@ -485,7 +494,7 @@ export function RankingView({
 
   // 📋 Renderizar lista de ranking
   const renderRankingList = () => {
-    if (loading) {
+    if (loading && ranking.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <motion.div
@@ -499,7 +508,7 @@ export function RankingView({
       );
     }
 
-    if (error) {
+    if (error && ranking.length === 0) {
       return (
         <div className="text-center py-12">
           <div className="w-20 h-20 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
@@ -510,7 +519,7 @@ export function RankingView({
             No se pudo cargar el ranking. Verifica tu conexión a internet.
           </p>
           <Button 
-            onClick={() => fetchRanking(activeTab)}
+            onClick={() => fetchRanking(activeTab, true)}
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -850,14 +859,12 @@ export function RankingView({
                   <span className="hidden sm:inline">Ordenar</span>
                 </Button>
                 
-                {/* 🎯 BOTÓN ACTUALIZADO: Usa refreshRankingData en lugar de fetchRanking */}
                 <Button
                   onClick={refreshRankingData}
                   variant="outline"
-                  disabled={loading}
                   className="flex items-center gap-2"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  <RefreshCw className="w-4 h-4" />
                   <span className="hidden sm:inline">Actualizar</span>
                 </Button>
               </div>
@@ -982,7 +989,7 @@ export function RankingView({
               Sistema de Ranking
             </h4>
             <div className="text-sm text-gray-400 space-y-2">
-              <p>El ranking se actualiza automáticamente cada 30 segundos.</p>
+              <p>El ranking se actualiza automáticamente cada 2 minutos.</p>
               <p>Los puntos se calculan en base a:</p>
               <ul className="space-y-1 ml-4">
                 <li>• Monedas totales (50%)</li>
