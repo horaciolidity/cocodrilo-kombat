@@ -297,7 +297,7 @@ export function GameView({
   // ✅ CALCULAR VALOR PROYECTADO MEJORADO
   const actualTokenPrice = tokenPrice || localTokenPrice;
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
-  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001);
+  const totalProjectedValue = projectedCrocValue; // ← SOLO CROC
 
   // 🎯 RENDER PRINCIPAL
   return (
@@ -593,7 +593,6 @@ export function GameView({
 
 /* ===================== Subcomponentes ===================== */
 
-// ✅ NUEVO: Componente para Valor Proyectado Móvil
 function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
   return (
     <motion.div 
@@ -606,7 +605,7 @@ function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
         <div className="flex items-center gap-2">
           <Award className="w-5 h-5 text-yellow-300" />
           <h3 className="text-lg font-bold text-yellow-100">
-            💰 Valor Proyectado
+            💰 Valor CROC  // ← CAMBIADO
           </h3>
         </div>
         <div className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -786,12 +785,12 @@ function TokenInfoPanel({
         </div>
       </div>
 
-      {/* ✅ NUEVO: Valor Proyectado */}
+            {/* ✅ VALOR CROC SOLAMENTE */}
       <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm text-yellow-300 flex items-center gap-1">
             <Target className="w-4 h-4" />
-            Valor Proyectado:
+            Valor CROC:  // ← CAMBIADO
           </span>
           <span className="font-bold text-lg text-yellow-400">
             ${projectedValue.toFixed(2)}
