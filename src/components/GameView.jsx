@@ -61,15 +61,12 @@ export function GameView({
   calculateRealClickPower,
   getReferralLink,
 }) {
-  const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
-  const [liquidity, setLiquidity] = useState(50000);
-  const [priceData, setPriceData] = useState(generateRandomPriceData(tokenPrice));
+ 
   const [isClicked, setIsClicked] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
-  const simulationIntervalRef = useRef(null);
 
   // ✅ DEFINIR handleBuyToken
   const handleBuyToken = () => {
@@ -81,51 +78,11 @@ export function GameView({
     playSound('uiClick');
   };
 
-  // 🔄 SIMULACIÓN DE PRECIO DINÁMICO (similar a FairlaunchView)
   useEffect(() => {
-    if (simulationIntervalRef.current) {
-      clearInterval(simulationIntervalRef.current);
-    }
+  // Solo usar el tokenPrice del hook central
+  console.log('🎮 GameView usando precio CROC:', tokenPrice);
+}, [tokenPrice]);
 
-    simulationIntervalRef.current = setInterval(() => {
-      // Simulación de cambio de precio (similar a FairlaunchView)
-      const change = (Math.random() - 0.5) * 0.015; // Cambio entre -0.0075 y +0.0075
-      const newPrice = Math.max(0.001, localTokenPrice + change);
-      const roundedPrice = parseFloat(newPrice.toFixed(4));
-      
-      setLocalTokenPrice(roundedPrice);
-      
-      // Actualizar gráfico
-      setPriceData(prevData => {
-        const newData = [...prevData];
-        
-        // Si hay más de 30 puntos, eliminar el más viejo
-        if (newData.length >= 30) {
-          newData.shift();
-        }
-        
-        // Añadir nuevo punto
-        const dayNumber = prevData.length + 1;
-        newData.push({
-          name: `D${dayNumber}`,
-          price: roundedPrice
-        });
-        
-        return newData;
-      });
-      
-      // Actualizar liquidez aleatoriamente
-      const liquidityChange = (Math.random() - 0.5) * 5000;
-      setLiquidity(prev => Math.max(10000, prev + liquidityChange));
-      
-    }, 5000); // Actualizar cada 5 segundos
-
-    return () => {
-      if (simulationIntervalRef.current) {
-        clearInterval(simulationIntervalRef.current);
-      }
-    };
-  }, [localTokenPrice]);
 
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
@@ -193,8 +150,8 @@ export function GameView({
   // ✅ CALCULAR CLICK POWER EN TIEMPO REAL - VERSIÓN MEJORADA
   const getCurrentClickPower = () => {
     if (calculateRealClickPower) {
-      const power = calculateRealClickPower();
-      return power;
+          return calculateRealClickPower();
+
     }
     
     // Fallback robusto
@@ -342,7 +299,7 @@ export function GameView({
   };
 
   // ✅ CALCULAR VALOR PROYECTADO - SOLO CROC (sin monedas)
-  const actualTokenPrice = localTokenPrice; // Usar el precio simulado
+  const actualTokenPrice = tokenPrice; // Usar el precio simulado
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
   const totalProjectedValue = projectedCrocValue; // SOLO CROC
 

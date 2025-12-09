@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Bug,
   Shield,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -58,7 +59,21 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-  const tokenPrice = useTokenPrice();
+  
+  /* 💰 PRECIO GLOBAL CROC - CENTRALIZADO EN SUPABASE */
+  const {
+    tokenPrice,
+    setTokenPrice,
+    priceHistory,
+    liquidity,
+    getChartData,
+    getPriceStats,
+    isLoading: tokenPriceLoading,
+    error: tokenPriceError,
+    refreshPrice,
+    updatePrice
+  } = useTokenPrice();
+  
   /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState("game");
@@ -146,6 +161,17 @@ function App() {
     // 🎯 FUNCIONES DE SINCRONIZACIÓN
     syncAllData,
   } = gameLogic;
+
+  // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshPrice();
+      }
+    }, 60000); // Refrescar cada minuto
+
+    return () => clearInterval(interval);
+  }, [refreshPrice]);
 
   // ✅ REFERIDOS - MANEJO AUTOMÁTICO EN EL HOOK CENTRAL
 
@@ -246,6 +272,16 @@ function App() {
     playSound("equip");
   }, [user, gameData, playSound]);
 
+  // ✅ FUNCIÓN PARA COMPRAR TOKENS CROC
+  const handleBuyToken = useCallback(async () => {
+    toast({
+      title: '🚧 Comprar Token CROC',
+      description: 'Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).',
+      duration: 5000,
+    });
+    playSound('uiClick');
+  }, [toast, playSound]);
+
   /* 💡 UI Loading global */
   if (loading) {
     return (
@@ -275,6 +311,16 @@ function App() {
       </div>
     );
   }
+
+  // 💰 PAQUETE COMPLETO DE DATOS DE PRECIO PARA PASAR A COMPONENTES
+  const tokenPriceData = {
+    tokenPrice,
+    priceHistory,
+    liquidity,
+    getChartData,
+    getPriceStats,
+    refreshPrice
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -379,13 +425,28 @@ function App() {
         </div>
       </nav>
 
-      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN */}
+      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN Y PRECIO CROC */}
       {user && (
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-1.5 px-4 text-sm">
           <div className="flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             <span>✅ Conectado a la nube - Datos sincronizados automáticamente</span>
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      )}
+
+      {/* 📈 BANNER DE PRECIO CROC EN TIEMPO REAL */}
+      {!tokenPriceLoading && (
+        <div className="bg-gradient-to-r from-yellow-800 to-amber-700 text-white text-center py-1.5 px-4 text-sm">
+          <div className="flex items-center justify-center gap-2">
+            <TrendingUp className="w-4 h-4 text-yellow-300" />
+            <span>
+              <strong>CROC:</strong> ${tokenPrice.toFixed(4)} • 
+              <strong> Liquidez:</strong> ${liquidity.toLocaleString()} • 
+              <span className="text-yellow-300 ml-1">📈 Actualizado en tiempo real</span>
+            </span>
+            <TrendingUp className="w-4 h-4 text-yellow-300" />
           </div>
         </div>
       )}
@@ -421,11 +482,12 @@ function App() {
                 activeSkin={activeSkin}
                 toast={toast}
                 user={user}
-                tokenPrice={tokenPrice}
+                tokenPriceData={tokenPriceData} // ✅ Pasamos todo el paquete de datos
                 referralStats={referralStats}
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={gameData.getReferralLink}
+                onBuyToken={handleBuyToken} // ✅ Función para comprar tokens
               />
             )}
 
@@ -467,12 +529,10 @@ function App() {
             )}
 
             {currentView === "ranking" && (
-              // 🎯 CORREGIDO: RankingView actualizado con arquitectura centralizada
               <RankingView 
                 user={user} 
                 player={player}
                 tokenPrice={tokenPrice}
-                // 🎯 NUEVAS PROPS desde useGameData centralizado
                 loadRanking={gameData.loadRanking}
                 refreshRanking={gameData.refreshRanking}
                 gameDataState={gameState}
@@ -484,6 +544,7 @@ function App() {
                 toast={toast} 
                 tokenPrice={tokenPrice}
                 setTokenPrice={setTokenPrice}
+                updatePriceInSupabase={updatePrice}
               />
             )}
 
@@ -495,6 +556,8 @@ function App() {
                 playSound={playSound}
                 nativeTokenBalance={gameState.nativeTokenBalance}
                 tokenPrice={tokenPrice}
+                tokenPriceHistory={priceHistory}
+                refreshTokenPrice={refreshPrice}
               />
             )}
 
@@ -509,7 +572,7 @@ function App() {
                   Object.values(farmingMilestonesState).filter((m) => m.claimed).length
                 }
                 referralStats={referralStats}
-                tokenPrice={tokenPrice}
+                tokenPriceData={tokenPriceData} // ✅ Pasamos todo el paquete de datos
               />
             )}
 
@@ -525,6 +588,7 @@ function App() {
                 playSound={playSound}
                 syncGameData={syncAllData}
                 gameData={gameData}
+                refreshTokenPrice={refreshPrice}
               />
             )}
           </React.Suspense>
@@ -558,7 +622,7 @@ function App() {
         <div className="max-w-7xl mx-auto">
           <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
           
-          {/* INFORMACIÓN DE SESIÓN */}
+          {/* INFORMACIÓN DE SESIÓN Y PRECIO CROC */}
           <div className="mt-3 pt-3 border-t border-border/50 text-center text-xs text-muted-foreground">
             {user ? (
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -567,11 +631,21 @@ function App() {
                   <span>Sesión activa: <strong>{player?.username || user.email}</strong></span>
                 </div>
                 <span className="hidden sm:inline">•</span>
-                <span>Tokens CROC: <strong>{gameState.nativeTokenBalance?.toLocaleString() || 0}</strong></span>
+                <span className="text-yellow-300">
+                  🪙 CROC: <strong>{gameState.nativeTokenBalance?.toLocaleString() || 0}</strong>
+                </span>
                 <span className="hidden sm:inline">•</span>
-                <span>Referidos: <strong>{referralStats?.referralsCount || 0}</strong></span>
+                <span className="text-green-400">
+                  💰 Valor: <strong>${((gameState.nativeTokenBalance || 0) * tokenPrice).toFixed(2)}</strong>
+                </span>
                 <span className="hidden sm:inline">•</span>
-                <span>Nivel: <strong>{gameState.level}</strong></span>
+                <span>
+                  👥 Referidos: <strong>{referralStats?.referralsCount || 0}</strong>
+                </span>
+                <span className="hidden sm:inline">•</span>
+                <span>
+                  🏆 Nivel: <strong>{gameState.level}</strong>
+                </span>
               </div>
             ) : (
               <div className="flex items-center justify-center gap-2">
@@ -583,8 +657,22 @@ function App() {
                 >
                   Inicia sesión para guardar tu progreso
                 </Button></span>
+                <span className="hidden sm:inline">•</span>
+                <span className="text-yellow-400">
+                  💰 CROC: <strong>${tokenPrice.toFixed(4)}</strong>
+                </span>
               </div>
             )}
+          </div>
+          
+          {/* INDICADOR DE PRECIO EN TIEMPO REAL */}
+          <div className="mt-2 text-center">
+            <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-full border border-yellow-600/30">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-[10px] text-yellow-300">
+                📈 Precio CROC global • Sincronizado con Supabase • Actualizado cada 8 segundos
+              </span>
+            </div>
           </div>
         </div>
       </footer>
