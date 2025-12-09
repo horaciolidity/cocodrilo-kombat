@@ -303,150 +303,124 @@ export function RankingView({
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, loadRanking, updateBackgroundData]);
 
-  // 🏆 COMPONENTE PODIUM COMPLETAMENTE AISLADO
-  const TopThreePlayers = () => {
-    const [localTopThree, setLocalTopThree] = useState([]);
-    const [isInitialized, setIsInitialized] = useState(false);
-    
-    useEffect(() => {
-      if (ranking.length >= 3) {
-        const newTopThree = [ranking[1], ranking[0], ranking[2]];
+ // 🥇 Top 3 Players - Versión ultra estable
+const TopThreePlayers = () => {
+  const [topThree, setTopThree] = useState([]);
+  
+  // Efecto para actualizar el top three solo cuando los jugadores en el top 3 cambian
+  useEffect(() => {
+    if (ranking.length >= 3) {
+      const newTopThree = [ranking[1], ranking[0], ranking[2]];
+      
+      // Comparar por ID y por monedas (por si cambian las monedas)
+      const hasChanged = 
+        topThree.length === 0 ||
+        topThree[0]?.id !== newTopThree[0]?.id ||
+        topThree[1]?.id !== newTopThree[1]?.id ||
+        topThree[2]?.id !== newTopThree[2]?.id ||
+        topThree[0]?.coins !== newTopThree[0]?.coins ||
+        topThree[1]?.coins !== newTopThree[1]?.coins ||
+        topThree[2]?.coins !== newTopThree[2]?.coins;
+      
+      if (hasChanged) {
+        // Actualizar con un retraso mínimo para permitir que la UI se estabilice
+        const timer = setTimeout(() => {
+          setTopThree(newTopThree);
+        }, 100);
         
-        // Solo actualizar si realmente cambió el top 3
-        const hasChanged = localTopThree.length === 0 || 
-          !localTopThree[0] || 
-          !localTopThree[1] || 
-          !localTopThree[2] ||
-          localTopThree[0]?.id !== newTopThree[0]?.id ||
-          localTopThree[1]?.id !== newTopThree[1]?.id ||
-          localTopThree[2]?.id !== newTopThree[2]?.id;
-        
-        if (hasChanged) {
-          setTimeout(() => {
-            setLocalTopThree(newTopThree);
-            if (!isInitialized) setIsInitialized(true);
-          }, 100);
-        }
+        return () => clearTimeout(timer);
       }
-    }, [ranking, localTopThree, isInitialized]);
-
-    if (localTopThree.length < 3 && !isInitialized) {
-      return (
-        <div className="mb-8">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Crown className="w-6 h-6 text-yellow-400" />
-            Podium del Ranking
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((position) => (
-              <div
-                key={position}
-                className={`relative rounded-xl p-4 border-2 ${
-                  position === 2
-                    ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl' 
-                    : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
-                }`}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <div className={`h-20 w-20 mb-3 rounded-full border-4 ${
-                    position === 2 ? 'border-yellow-500' : 'border-gray-600'
-                  } bg-gray-800 animate-pulse`} />
-                  <div className={`h-6 w-24 mb-2 rounded ${
-                    position === 2 ? 'bg-yellow-900/30' : 'bg-gray-700'
-                  } animate-pulse`} />
-                  <div className="space-y-2">
-                    <div className="h-4 w-20 bg-gray-700 rounded animate-pulse" />
-                    <div className="h-3 w-16 bg-gray-800 rounded animate-pulse" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
     }
-
-    if (localTopThree.length < 3) return null;
-
+  }, [ranking, topThree]);
+  
+  if (topThree.length < 3) {
+    // Mostrar placeholders
     return (
       <div className="mb-8">
         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
           <Crown className="w-6 h-6 text-yellow-400" />
           Podium del Ranking
         </h3>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {localTopThree.map((player, idx) => {
-            if (!player) return null;
-            
-            const position = [2, 1, 3][idx];
-            const isTop = position === 1;
-            
-            return (
-              <div
-                key={`${player.id}-${position}`}
-                className={`relative rounded-xl p-4 border-2 transition-all duration-500 ${
-                  isTop 
-                    ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl' 
-                    : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
-                }`}
-              >
-                <div className="absolute top-4 right-4">
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${
-                    position === 1 ? 'from-yellow-400 to-yellow-300 shadow-yellow-500/30' :
-                    position === 2 ? 'from-gray-300 to-gray-200 shadow-gray-400/30' :
-                    'from-amber-500 to-amber-400 shadow-amber-600/30'
-                  } flex items-center justify-center shadow-lg ring-2 ring-white/20`}>
-                    <span className="text-2xl">
-                      {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center text-center">
-                  <div className={`h-20 w-20 mb-3 border-4 ${
-                    isTop ? 'border-yellow-500' : 'border-gray-600'
-                  } rounded-full overflow-hidden`}>
-                    <img 
-                      src={player.avatar} 
-                      alt={player.name} 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.name || 'player'}`;
-                      }}
-                    />
-                  </div>
-                  
-                  <h4 className={`font-bold ${
-                    isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
-                  }`}>
-                    {player.name || "Jugador"}
-                  </h4>
-                  
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <Coins className="w-3 h-3 text-yellow-400" />
-                      <span className="font-semibold">{(player.coins || 0).toLocaleString()} 💰</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Trophy className="w-3 h-3" />
-                      <span>Nv. {player.level || 1}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {isTop && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                    🏆 REY DEL PANTANO
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {[1, 2, 3].map((pos) => (
+            <div key={pos} className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/30 h-64 animate-pulse"></div>
+          ))}
         </div>
       </div>
     );
-  };
+  }
+  
+  return (
+    <div className="mb-8">
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <Crown className="w-6 h-6 text-yellow-400" />
+        Podium del Ranking
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {topThree.map((player, idx) => {
+          const position = [2, 1, 3][idx];
+          const isTop = position === 1;
+          
+          return (
+            <div
+              key={`${player.id}-${position}`}
+              className={`relative rounded-xl p-4 border-2 ${
+                isTop
+                  ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl'
+                  : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
+              }`}
+            >
+              <div className="absolute top-4 right-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'
+                }`}>
+                  <span className="text-2xl">
+                    {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col items-center text-center">
+                <div className={`h-20 w-20 mb-3 border-4 ${
+                  isTop ? 'border-yellow-500' : 'border-gray-600'
+                } rounded-full overflow-hidden`}>
+                  <img
+                    src={player.avatar}
+                    alt={player.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                
+                <h4 className={`font-bold ${
+                  isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
+                }`}>
+                  {player.name}
+                </h4>
+                
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <Coins className="w-3 h-3 text-yellow-400" />
+                    <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                    <Trophy className="w-3 h-3" />
+                    <span>Nv. {player.level}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {isTop && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  🏆 REY DEL PANTANO
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
   // 👤 Info del usuario actual
   const CurrentUserCard = () => {
