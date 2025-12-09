@@ -25,6 +25,8 @@ import { MilestoneReachedModal } from "@/components/MilestoneReachedModal";
 
 import { useGameLogic } from "@/hooks/useGameLogic";
 import { useSound } from "@/hooks/useSound";
+import { useTokenPrice } from '@/hooks/useTokenPrice';
+
 
 import {
   Home,
@@ -56,8 +58,7 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-  const [tokenPrice, setTokenPrice] = useState(0.05);
-
+  const tokenPrice = useTokenPrice();
   /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState("game");

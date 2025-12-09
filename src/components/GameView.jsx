@@ -55,7 +55,7 @@ export function GameView({
   activeSkin,
   toast,
   user,
-  tokenPrice = 0.05,
+  tokenPrice,
   referralStats,
   refreshReferralStats,
   calculateRealClickPower,
