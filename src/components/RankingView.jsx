@@ -1,5 +1,5 @@
 // src/components/RankingView.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react"; // ¡AGREGAR memo aquí!
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import {
   Award,
   Crown,
@@ -63,6 +63,7 @@ export function RankingView({
   const statsRef = useRef({ totalPlayers: 0, averageCoins: 0, topPlayer: null, recentActivity: 0 });
   const isInitialLoadRef = useRef(true);
   const updateInProgressRef = useRef(false);
+  const topThreeCacheRef = useRef([]); // Cache para el top 3
 
   const userGameData = useMemo(() => gameDataState || {
     coins: 0,
@@ -303,38 +304,48 @@ export function RankingView({
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, loadRanking, updateBackgroundData]);
 
- // 🥇 Top 3 Players - Versión ultra estable
-const TopThreePlayers = () => {
-  const [topThree, setTopThree] = useState([]);
-  
-  // Efecto para actualizar el top three solo cuando los jugadores en el top 3 cambian
-  useEffect(() => {
-    if (ranking.length >= 3) {
-      const newTopThree = [ranking[1], ranking[0], ranking[2]];
-      
-      // Comparar por ID y por monedas (por si cambian las monedas)
-      const hasChanged = 
-        topThree.length === 0 ||
-        topThree[0]?.id !== newTopThree[0]?.id ||
-        topThree[1]?.id !== newTopThree[1]?.id ||
-        topThree[2]?.id !== newTopThree[2]?.id ||
-        topThree[0]?.coins !== newTopThree[0]?.coins ||
-        topThree[1]?.coins !== newTopThree[1]?.coins ||
-        topThree[2]?.coins !== newTopThree[2]?.coins;
-      
-      if (hasChanged) {
-        // Actualizar con un retraso mínimo para permitir que la UI se estabilice
-        const timer = setTimeout(() => {
-          setTopThree(newTopThree);
-        }, 100);
+  // 🥇 Top 3 Players - Versión optimizada y estable
+  const TopThreePlayers = memo(() => {
+    // Calcular top 3 basado en ranking actual
+    const topThree = useMemo(() => {
+      if (ranking.length >= 3) {
+        const newTopThree = [ranking[1], ranking[0], ranking[2]];
         
-        return () => clearTimeout(timer);
+        // Comparar con caché anterior
+        const hasChanged = topThreeCacheRef.current.length === 0 ||
+          topThreeCacheRef.current[0]?.id !== newTopThree[0]?.id ||
+          topThreeCacheRef.current[1]?.id !== newTopThree[1]?.id ||
+          topThreeCacheRef.current[2]?.id !== newTopThree[2]?.id ||
+          topThreeCacheRef.current[0]?.coins !== newTopThree[0]?.coins ||
+          topThreeCacheRef.current[1]?.coins !== newTopThree[1]?.coins ||
+          topThreeCacheRef.current[2]?.coins !== newTopThree[2]?.coins;
+        
+        if (hasChanged) {
+          console.log("🏆 Top 3 actualizado");
+          topThreeCacheRef.current = newTopThree;
+          return newTopThree;
+        }
+        return topThreeCacheRef.current;
       }
+      return [];
+    }, [ranking]);
+
+    if (topThree.length < 3) {
+      return (
+        <div className="mb-8">
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Crown className="w-6 h-6 text-yellow-400" />
+            Podium del Ranking
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((pos) => (
+              <div key={pos} className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/30 h-64 animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      );
     }
-  }, [ranking, topThree]);
-  
-  if (topThree.length < 3) {
-    // Mostrar placeholders
+
     return (
       <div className="mb-8">
         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -342,85 +353,74 @@ const TopThreePlayers = () => {
           Podium del Ranking
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((pos) => (
-            <div key={pos} className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/30 h-64 animate-pulse"></div>
-          ))}
+          {topThree.map((player, idx) => {
+            const position = [2, 1, 3][idx];
+            const isTop = position === 1;
+            
+            return (
+              <div
+                key={`${player.id}-${position}`}
+                className={`relative rounded-xl p-4 border-2 ${
+                  isTop
+                    ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl'
+                    : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
+                }`}
+              >
+                <div className="absolute top-4 right-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'
+                  }`}>
+                    <span className="text-2xl">
+                      {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-center text-center">
+                  <div className={`h-20 w-20 mb-3 border-4 ${
+                    isTop ? 'border-yellow-500' : 'border-gray-600'
+                  } rounded-full overflow-hidden`}>
+                    <img
+                      src={player.avatar}
+                      alt={player.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.id}`;
+                      }}
+                    />
+                  </div>
+                  
+                  <h4 className={`font-bold ${
+                    isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
+                  }`}>
+                    {player.name}
+                  </h4>
+                  
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <Coins className="w-3 h-3 text-yellow-400" />
+                      <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                      <Trophy className="w-3 h-3" />
+                      <span>Nv. {player.level}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {isTop && (
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    🏆 REY DEL PANTANO
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
-  }
-  
-  return (
-    <div className="mb-8">
-      <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-        <Crown className="w-6 h-6 text-yellow-400" />
-        Podium del Ranking
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {topThree.map((player, idx) => {
-          const position = [2, 1, 3][idx];
-          const isTop = position === 1;
-          
-          return (
-            <div
-              key={`${player.id}-${position}`}
-              className={`relative rounded-xl p-4 border-2 ${
-                isTop
-                  ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl'
-                  : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
-              }`}
-            >
-              <div className="absolute top-4 right-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'
-                }`}>
-                  <span className="text-2xl">
-                    {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col items-center text-center">
-                <div className={`h-20 w-20 mb-3 border-4 ${
-                  isTop ? 'border-yellow-500' : 'border-gray-600'
-                } rounded-full overflow-hidden`}>
-                  <img
-                    src={player.avatar}
-                    alt={player.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                <h4 className={`font-bold ${
-                  isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
-                }`}>
-                  {player.name}
-                </h4>
-                
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center justify-center gap-2 text-sm">
-                    <Coins className="w-3 h-3 text-yellow-400" />
-                    <span className="font-semibold">{player.coins.toLocaleString()} 💰</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                    <Trophy className="w-3 h-3" />
-                    <span>Nv. {player.level}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {isTop && (
-                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  🏆 REY DEL PANTANO
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+  });
 
   // 👤 Info del usuario actual
   const CurrentUserCard = () => {
@@ -958,4 +958,4 @@ const TopThreePlayers = () => {
       </div>
     </div>
   );
-} 
+}
