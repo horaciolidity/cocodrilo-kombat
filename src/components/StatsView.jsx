@@ -166,14 +166,16 @@ function ReferralsStatsCard({ referralStats = {}, tokenPrice }) {
   );
 }
 
+
 function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
-  const totalProjectedValue = projectedCrocValue + (gameState.coins * 0.0001);
+  // ✅ SOLO MOSTRAR VALOR DE CROC, NO MONEDAS
+  const totalProjectedValue = projectedCrocValue; // Eliminamos la suma de monedas
 
   return (
     <div className="stats-card rounded-xl p-6">
       <h3 className="text-xl font-bold mb-4 flex items-center">
         <Award className="w-6 h-6 mr-2 text-yellow-400" />
-        Valor Proyectado
+        Valor CROC Proyectado
       </h3>
       
       <div className="space-y-4">
@@ -181,7 +183,7 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
           <div className="text-2xl font-bold text-yellow-400 mb-1">
             ${totalProjectedValue.toFixed(2)}
           </div>
-          <div className="text-xs text-yellow-200">Valor Total Proyectado</div>
+          <div className="text-xs text-yellow-200">Valor en CROC Tokens</div>
         </div>
 
         <div className="space-y-3">
@@ -193,16 +195,16 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
               color: "text-yellow-400" 
             },
             { 
-              label: "Monedas:", 
-              value: `$${(gameState.coins * 0.0001).toFixed(2)}`, 
-              detail: `${Math.floor(gameState.coins).toLocaleString()} monedas`,
-              color: "text-yellow-300" 
+              label: "Precio por Token:", 
+              value: `$${tokenPrice}`, 
+              detail: "Cotización actual",
+              color: "text-green-400" 
             },
             { 
-              label: "Por Segundo:", 
-              value: `$${(gameState.coinsPerSecond * 0.0001 * 3600).toFixed(2)}/h`, 
-              detail: "Proyección horaria",
-              color: "text-green-400" 
+              label: "Valor por Referido:", 
+              value: `$${(10 * tokenPrice).toFixed(2)}`, 
+              detail: "10 CROC por cada referido",
+              color: "text-blue-400" 
             },
           ].map(stat => (
             <div key={stat.label} className="flex justify-between items-start py-1">
@@ -219,13 +221,14 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
 
         <div className="mt-3 p-2 bg-blue-900/20 rounded border border-blue-700/30">
           <p className="text-xs text-blue-300 text-center">
-            💡 Valores basados en precio simulado de CROC
+            💡 Valor basado en la cotización actual de CROC
           </p>
         </div>
       </div>
     </div>
   );
 }
+
 
 function AchievementsCard({ achievementsUnlocked }) {
   const unlockedCount = achievementsUnlocked.length;
