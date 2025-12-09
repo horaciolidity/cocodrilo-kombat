@@ -30,8 +30,8 @@ import {
 } from 'recharts';
 import { useSound } from '@/hooks/useSound';
 
-const generateRandomPriceData = () => {
-  let price = 0.05;
+const generateRandomPriceData = (initialPrice = 0.05) => {
+  let price = initialPrice;
   const data = [];
   for (let i = 0; i < 30; i++) {
     data.push({ name: `D${i + 1}`, price: parseFloat(price.toFixed(4)) });
@@ -63,12 +63,13 @@ export function GameView({
 }) {
   const [localTokenPrice, setLocalTokenPrice] = useState(tokenPrice);
   const [liquidity, setLiquidity] = useState(50000);
-  const [priceData, setPriceData] = useState(generateRandomPriceData());
+  const [priceData, setPriceData] = useState(generateRandomPriceData(tokenPrice));
   const [isClicked, setIsClicked] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
+  const simulationIntervalRef = useRef(null);
 
   // ✅ DEFINIR handleBuyToken
   const handleBuyToken = () => {
@@ -79,6 +80,52 @@ export function GameView({
     });
     playSound('uiClick');
   };
+
+  // 🔄 SIMULACIÓN DE PRECIO DINÁMICO (similar a FairlaunchView)
+  useEffect(() => {
+    if (simulationIntervalRef.current) {
+      clearInterval(simulationIntervalRef.current);
+    }
+
+    simulationIntervalRef.current = setInterval(() => {
+      // Simulación de cambio de precio (similar a FairlaunchView)
+      const change = (Math.random() - 0.5) * 0.015; // Cambio entre -0.0075 y +0.0075
+      const newPrice = Math.max(0.001, localTokenPrice + change);
+      const roundedPrice = parseFloat(newPrice.toFixed(4));
+      
+      setLocalTokenPrice(roundedPrice);
+      
+      // Actualizar gráfico
+      setPriceData(prevData => {
+        const newData = [...prevData];
+        
+        // Si hay más de 30 puntos, eliminar el más viejo
+        if (newData.length >= 30) {
+          newData.shift();
+        }
+        
+        // Añadir nuevo punto
+        const dayNumber = prevData.length + 1;
+        newData.push({
+          name: `D${dayNumber}`,
+          price: roundedPrice
+        });
+        
+        return newData;
+      });
+      
+      // Actualizar liquidez aleatoriamente
+      const liquidityChange = (Math.random() - 0.5) * 5000;
+      setLiquidity(prev => Math.max(10000, prev + liquidityChange));
+      
+    }, 5000); // Actualizar cada 5 segundos
+
+    return () => {
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+      }
+    };
+  }, [localTokenPrice]);
 
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
@@ -294,10 +341,10 @@ export function GameView({
     });
   };
 
-  // ✅ CALCULAR VALOR PROYECTADO MEJORADO
-  const actualTokenPrice = tokenPrice || localTokenPrice;
+  // ✅ CALCULAR VALOR PROYECTADO - SOLO CROC (sin monedas)
+  const actualTokenPrice = localTokenPrice; // Usar el precio simulado
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
-  const totalProjectedValue = projectedCrocValue; // ← SOLO CROC
+  const totalProjectedValue = projectedCrocValue; // SOLO CROC
 
   // 🎯 RENDER PRINCIPAL
   return (
@@ -350,7 +397,7 @@ export function GameView({
         />
       </div>
 
-      {/* ✅ VALOR PROYECTADO MÓVIL */}
+      {/* ✅ VALOR CROC MÓVIL */}
       <div className="block md:hidden mb-4">
         <ProjectedValueMobile 
           projectedValue={totalProjectedValue}
@@ -593,6 +640,7 @@ export function GameView({
 
 /* ===================== Subcomponentes ===================== */
 
+// ✅ NUEVO: Componente para Valor CROC Móvil
 function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
   return (
     <motion.div 
@@ -605,7 +653,7 @@ function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
         <div className="flex items-center gap-2">
           <Award className="w-5 h-5 text-yellow-300" />
           <h3 className="text-lg font-bold text-yellow-100">
-            💰 Valor CROC  // ← CAMBIADO
+            💰 Valor CROC
           </h3>
         </div>
         <div className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -785,12 +833,12 @@ function TokenInfoPanel({
         </div>
       </div>
 
-            {/* ✅ VALOR CROC SOLAMENTE */}
+      {/* ✅ VALOR CROC SOLAMENTE */}
       <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm text-yellow-300 flex items-center gap-1">
             <Target className="w-4 h-4" />
-            Valor CROC:  // ← CAMBIADO
+            Valor CROC:
           </span>
           <span className="font-bold text-lg text-yellow-400">
             ${projectedValue.toFixed(2)}
@@ -798,7 +846,7 @@ function TokenInfoPanel({
         </div>
         <div className="text-xs text-yellow-200 flex justify-between">
           <span>{nativeTokenBalance.toLocaleString()} CROC</span>
-          <span>@ ${tokenPrice}</span>
+          <span>@ ${tokenPrice.toFixed(4)}</span>
         </div>
       </div>
 
@@ -807,7 +855,7 @@ function TokenInfoPanel({
         <div className="flex justify-between">
           <span>Precio Actual:</span>
           <span className="font-semibold text-primary">
-            ${tokenPrice.toLocaleString()}
+            ${tokenPrice.toFixed(4)}
           </span>
         </div>
         <div className="flex justify-between">
@@ -824,26 +872,32 @@ function TokenInfoPanel({
         </div>
       </div>
 
-      {/* Gráfico */}
+      {/* Gráfico - ACTUALIZADO para mejor visualización */}
       <div className="h-24 w-full mb-3">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={priceData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+              interval={4} // Mostrar cada 4 días
             />
             <YAxis
-              domain={['auto', 'auto']}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              domain={['dataMin', 'dataMax']}
+              tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+              tickFormatter={(value) => `$${value.toFixed(3)}`}
+              width={40}
             />
             <Tooltip
+              formatter={(value) => [`$${Number(value).toFixed(4)}`, 'Precio']}
+              labelFormatter={(label) => `Día ${label.replace('D', '')}`}
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '0.5rem',
+                fontSize: '12px',
               }}
-              itemStyle={{ color: 'hsl(var(--foreground))' }}
+              itemStyle={{ color: 'hsl(var(--primary))' }}
               labelStyle={{
                 color: 'hsl(var(--primary))',
                 fontWeight: 'bold',
@@ -855,6 +909,9 @@ function TokenInfoPanel({
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               dot={false}
+              activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
+              isAnimationActive={true}
+              animationDuration={300}
             />
           </LineChart>
         </ResponsiveContainer>
