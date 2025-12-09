@@ -1,5 +1,6 @@
 
 import { Howl } from 'howler';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const soundFiles = {
   bite: '/sounds/bite.mp3', // 🦷 nuevo sonido de mordida
