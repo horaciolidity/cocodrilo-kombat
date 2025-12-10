@@ -1,180 +1,31 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 export function useTokenPrice(initialPrice = 0.05) {
-  // 🎯 ESTADOS PRINCIPALES
+  // 🎯 ESTADOS SIMPLES
   const [tokenPrice, setTokenPrice] = useState(initialPrice);
-  const [priceHistory, setPriceHistory] = useState([]);
   const [liquidity, setLiquidity] = useState(50000);
-  const [marketSentiment, setMarketSentiment] = useState(0); // -1 a 1 (bajista/alcista)
-  const [tradingVolume, setTradingVolume] = useState(1000000);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
   
-  // 🔥 REFERENCIAS PARA OPTIMIZACIÓN
+  // 🔥 REFERENCIAS
   const simulationRef = useRef(null);
-  const updateCountRef = useRef(0);
-  const lastFetchRef = useRef(0);
-  const priceCacheRef = useRef(new Map());
   const isMountedRef = useRef(true);
+  const lastUpdateRef = useRef(0);
+  const priceCacheRef = useRef({ price: initialPrice, timestamp: 0 });
 
-  // 📈 CONFIGURACIÓN DE MERCADO REALISTA
-  const MARKET_CONFIG = useMemo(() => ({
-    // Volatilidad basada en el momento del día (simula mercados más activos)
-    baseVolatility: 0.015,
-    peakHoursMultiplier: 1.5, // Horas pico (14:00-18:00 UTC)
-    
-    // Tendencias del mercado
-    longTermDrift: 0.0003, // Tendencia alcista a largo plazo
-    shortTermMeanReversion: 0.002, // Fuerza que devuelve al precio a la media
-    
-    // Liquidez y volumen
-    minLiquidity: 10000,
-    maxLiquidity: 500000,
-    volumeVolatility: 0.25,
-    
-    // Eventos de mercado
-    eventProbability: 0.05, // 5% de probabilidad de evento
-    eventTypes: {
-      pump: { multiplier: 1.15, duration: 3, probability: 0.3 },
-      dump: { multiplier: 0.88, duration: 2, probability: 0.2 },
-      stability: { multiplier: 1.0, duration: 5, probability: 0.5 }
-    }
-  }), []);
-
-  // 🎯 CALCULAR VOLATILIDAD DINÁMICA
-  const calculateDynamicVolatility = useCallback(() => {
-    const now = new Date();
-    const hour = now.getUTCHours();
-    
-    // Más volatilidad en horarios de mercado activos
-    let timeFactor = 1.0;
-    if ((hour >= 14 && hour <= 18) || (hour >= 22 && hour <= 2)) {
-      timeFactor = MARKET_CONFIG.peakHoursMultiplier;
-    }
-    
-    // Más volatilidad con baja liquidez
-    const liquidityFactor = Math.max(0.5, Math.min(2.0, 100000 / liquidity));
-    
-    // Aumentar volatilidad con sentimiento extremo
-    const sentimentFactor = 1 + Math.abs(marketSentiment) * 0.5;
-    
-    return MARKET_CONFIG.baseVolatility * timeFactor * liquidityFactor * sentimentFactor;
-  }, [liquidity, marketSentiment, MARKET_CONFIG]);
-
-  // 🎯 SIMULAR EVENTO DE MERCADO
-  const simulateMarketEvent = useCallback((currentPrice) => {
-    if (Math.random() > MARKET_CONFIG.eventProbability) return currentPrice;
-    
-    const events = Object.entries(MARKET_CONFIG.eventTypes);
-    const event = events.reduce((acc, [key, data]) => {
-      const rand = Math.random();
-      if (rand < data.probability) return { type: key, ...data };
-      return acc;
-    }, events[0]);
-    
-    console.log(`🎯 Evento de mercado: ${event.type} (x${event.multiplier})`);
-    
-    // Aplicar efecto gradual
-    const newPrice = currentPrice * event.multiplier;
-    
-    // Actualizar sentimiento del mercado
-    const sentimentChange = event.multiplier > 1 ? 0.2 : -0.3;
-    setMarketSentiment(prev => Math.max(-1, Math.min(1, prev + sentimentChange)));
-    
-    return newPrice;
-  }, [MARKET_CONFIG]);
-
-  // 📊 MODELO DE MERCADO HÍPER-REALISTA
-  const simulateMarketUpdate = useCallback((currentPrice, currentLiquidity) => {
-    const now = new Date();
-    updateCountRef.current += 1;
-    
-    // 1. CALCULAR VOLATILIDAD DINÁMICA
-    const volatility = calculateDynamicVolatility();
-    
-    // 2. MOVIMIENTO BROWNIANO GEOMÉTRICO MEJORADO
-    const randomWalk = (Math.random() - 0.5) * 2 * volatility;
-    
-    // 3. DRIFT A LARGO PLAZO + REVERSIÓN A LA MEDIA
-    const longTermDrift = MARKET_CONFIG.longTermDrift;
-    const meanReversion = MARKET_CONFIG.shortTermMeanReversion * 
-                         (0.05 - currentPrice) / 0.05; // Revertir hacia $0.05
-    
-    // 4. INFLUENCIA DEL SENTIMIENTO DEL MERCADO
-    const sentimentEffect = marketSentiment * volatility * 0.3;
-    
-    // 5. EFECTO DE VOLUMEN (mayor volumen = menos volatilidad)
-    const volumeEffect = (1000000 / tradingVolume) * volatility * 0.1;
-    
-    // 6. COMBINAR TODOS LOS FACTORES
-    const totalChange = randomWalk + longTermDrift + meanReversion + 
-                       sentimentEffect + volumeEffect;
-    
-    // 7. APLICAR CAMBIO
-    let newPrice = currentPrice * (1 + totalChange);
-    
-    // 8. SIMULAR EVENTO DE MERCADO (PUMP/DUMP)
-    newPrice = simulateMarketEvent(newPrice);
-    
-    // 9. LIMITES REALISTAS
-    newPrice = Math.max(0.001, Math.min(10.0, newPrice));
-    const roundedPrice = parseFloat(newPrice.toFixed(6));
-    
-    // 10. ACTUALIZAR LIQUIDEZ REALISTA
-    const liquidityChange = (Math.random() - 0.5) * 5000 * 
-                           (roundedPrice / currentPrice) * 
-                           (1 + Math.abs(marketSentiment));
-    
-    let newLiquidity = currentLiquidity + liquidityChange;
-    newLiquidity = Math.max(MARKET_CONFIG.minLiquidity, 
-                           Math.min(MARKET_CONFIG.maxLiquidity, newLiquidity));
-    
-    // 11. ACTUALIZAR VOLUMEN DE TRADING
-    const volumeChange = (Math.random() - 0.5) * MARKET_CONFIG.volumeVolatility * 
-                        tradingVolume * (roundedPrice / currentPrice);
-    
-    const newVolume = Math.max(100000, tradingVolume + volumeChange);
-    
-    // 12. ACTUALIZAR SENTIMIENTO (evolución natural)
-    const sentimentDrift = (Math.random() - 0.5) * 0.1;
-    const newSentiment = Math.max(-1, Math.min(1, marketSentiment + sentimentDrift));
-    
-    return {
-      price: roundedPrice,
-      liquidity: newLiquidity,
-      volume: newVolume,
-      sentiment: newSentiment,
-      timestamp: now.toISOString(),
-      updateId: updateCountRef.current
-    };
-  }, [calculateDynamicVolatility, MARKET_CONFIG, marketSentiment, tradingVolume, simulateMarketEvent]);
-
-  // 🔄 CARGAR PRECIO DESDE SUPABASE CON CACHÉ INTELIGENTE
-  const loadPriceFromSupabase = useCallback(async (forceRefresh = false) => {
+  // 🔄 CARGAR PRECIO DESDE SUPABASE (FUENTE ÚNICA DE VERDAD)
+  const loadPriceFromSupabase = useCallback(async (force = false) => {
     if (!isMountedRef.current) return;
     
-    const CACHE_KEY = 'croc_price';
-    const CACHE_DURATION = 15000; // 15 segundos
-    
     try {
-      setIsLoading(true);
-      
-      // Verificar caché local
-      const cached = priceCacheRef.current.get(CACHE_KEY);
+      // Evitar llamadas muy seguidas (mínimo 5 segundos)
       const now = Date.now();
-      
-      if (!forceRefresh && cached && (now - cached.timestamp < CACHE_DURATION)) {
-        console.log('💰 Usando precio CROC en caché:', cached.data.price);
-        setTokenPrice(cached.data.price);
-        setLiquidity(cached.data.liquidity);
-        setLastSyncTime(new Date(cached.data.last_updated));
-        setIsLoading(false);
+      if (!force && now - lastUpdateRef.current < 5000) {
         return;
       }
       
-      console.log('💰 Cargando precio CROC desde Supabase...');
+      setIsLoading(true);
       
       const { data, error: fetchError } = await supabase
         .from('token_prices')
@@ -185,291 +36,215 @@ export function useTokenPrice(initialPrice = 0.05) {
         .single();
 
       if (fetchError) {
-        console.warn('⚠️ No se encontró precio en Supabase, usando simulación local');
-        // No establecer error, usar simulación local
-        priceCacheRef.current.delete(CACHE_KEY);
+        console.log('⚠️ No se encontró precio en Supabase, usando simulación local');
+        // No es error crítico, continuamos con simulación local
       } else if (data) {
-        console.log('✅ Precio CROC cargado desde Supabase:', data.price);
+        const newPrice = Number(data.price) || initialPrice;
+        const newLiquidity = Number(data.liquidity) || 50000;
         
-        const priceData = {
-          price: Number(data.price) || initialPrice,
-          liquidity: Number(data.liquidity) || 50000,
-          last_updated: data.last_updated
-        };
+        console.log('✅ Precio CROC cargado:', newPrice);
+        
+        // Actualizar estado solo si cambió
+        if (Math.abs(newPrice - tokenPrice) > 0.000001) {
+          setTokenPrice(newPrice);
+        }
+        if (Math.abs(newLiquidity - liquidity) > 100) {
+          setLiquidity(newLiquidity);
+        }
         
         // Actualizar caché
-        priceCacheRef.current.set(CACHE_KEY, {
-          data: priceData,
+        priceCacheRef.current = {
+          price: newPrice,
+          liquidity: newLiquidity,
           timestamp: now
-        });
+        };
         
-        setTokenPrice(priceData.price);
-        setLiquidity(priceData.liquidity);
-        setLastSyncTime(new Date(priceData.last_updated));
-        lastFetchRef.current = now;
+        lastUpdateRef.current = now;
       }
     } catch (err) {
-      console.error('❌ Error cargando precio desde Supabase:', err);
+      console.error('❌ Error cargando precio:', err);
       setError(err.message);
-      // Continuar con simulación local en caso de error
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [initialPrice]);
+  }, [initialPrice, tokenPrice, liquidity]);
 
-  // 🔄 SINCRONIZAR PRECIO CON SUPABASE (OPTIMIZADO)
-  const updatePriceInSupabase = useCallback(async (newPrice, newLiquidity) => {
+  // 📈 SIMULACIÓN LOCAL SENCILLA (solo para este cliente)
+  const runLocalSimulation = useCallback(() => {
+    // Solo mover el precio un poco (máximo ±2%)
+    const change = (Math.random() - 0.5) * 0.04; // -2% a +2%
+    const newPrice = Math.max(0.001, tokenPrice * (1 + change));
+    
+    // Mover liquidez un poco
+    const liqChange = (Math.random() - 0.5) * 1000;
+    const newLiquidity = Math.max(10000, liquidity + liqChange);
+    
+    setTokenPrice(parseFloat(newPrice.toFixed(6)));
+    setLiquidity(Math.floor(newLiquidity));
+    
+    console.log('📈 Simulación local:', newPrice.toFixed(6));
+  }, [tokenPrice, liquidity]);
+
+  // 🔄 SINCRONIZAR CON SUPABASE (todos los clientes escriben aquí)
+  const syncPriceToSupabase = useCallback(async () => {
     if (!isMountedRef.current) return;
     
-    const now = Date.now();
-    const MIN_SYNC_INTERVAL = 30000; // 30 segundos mínimo entre syncs
+    try {
+      // Solo sincronizar cada 30 segundos máximo
+      const now = Date.now();
+      if (now - lastUpdateRef.current < 30000) {
+        return;
+      }
+      
+      console.log('💾 Sincronizando precio con Supabase:', tokenPrice);
+      
+      const { error } = await supabase
+        .from('token_prices')
+        .insert([
+          { 
+            token_symbol: 'CROC', 
+            price: tokenPrice, 
+            liquidity: liquidity,
+            last_updated: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        // Si falla, intentar UPSERT
+        await supabase
+          .from('token_prices')
+          .upsert({
+            token_symbol: 'CROC',
+            price: tokenPrice,
+            liquidity: liquidity,
+            last_updated: new Date().toISOString()
+          });
+      }
+      
+      lastUpdateRef.current = now;
+      console.log('✅ Precio sincronizado');
+      
+    } catch (err) {
+      console.error('❌ Error sincronizando:', err);
+    }
+  }, [tokenPrice, liquidity]);
+
+  // ⚡ INICIALIZAR Y CONFIGURAR INTERVALOS
+  useEffect(() => {
+    isMountedRef.current = true;
     
-    // Throttling para evitar sobrecarga
-    if (now - lastFetchRef.current < MIN_SYNC_INTERVAL) {
-      return;
+    // 1. Cargar precio inicial desde Supabase
+    loadPriceFromSupabase();
+    
+    // 2. Configurar intervalo para cargar precio REAL cada 15 segundos
+    const loadInterval = setInterval(() => {
+      loadPriceFromSupabase();
+    }, 15000);
+    
+    // 3. Configurar intervalo para simulación LOCAL (solo efecto visual)
+    simulationRef.current = setInterval(() => {
+      runLocalSimulation();
+    }, 8000);
+    
+    // 4. Configurar intervalo para sincronizar con Supabase
+    const syncInterval = setInterval(() => {
+      syncPriceToSupabase();
+    }, 30000);
+    
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(loadInterval);
+      if (simulationRef.current) clearInterval(simulationRef.current);
+      clearInterval(syncInterval);
+    };
+  }, [loadPriceFromSupabase, runLocalSimulation, syncPriceToSupabase]);
+
+  // 📊 DATOS PARA GRÁFICO (simulados basados en precio actual)
+  const getChartData = useCallback(() => {
+    const data = [];
+    let simulatedPrice = tokenPrice;
+    
+    // Generar 30 puntos de datos (simulados)
+    for (let i = 0; i < 30; i++) {
+      // Pequeña variación para cada punto histórico
+      const change = (Math.random() - 0.5) * 0.03;
+      simulatedPrice = Math.max(0.001, simulatedPrice * (1 + change));
+      
+      data.unshift({
+        name: `${30 - i}m`,
+        price: parseFloat(simulatedPrice.toFixed(4)),
+        timestamp: new Date(Date.now() - (30 - i) * 60000).toISOString()
+      });
     }
     
+    return data;
+  }, [tokenPrice]);
+
+  // 📈 ESTADÍSTICAS SIMPLES
+  const getPriceStats = useCallback(() => {
+    // Simular estadísticas basadas en el precio actual
+    const change24h = ((tokenPrice - initialPrice) / initialPrice) * 100;
+    
+    return {
+      change24h: parseFloat(change24h.toFixed(2)),
+      high: tokenPrice * 1.15, // +15%
+      low: tokenPrice * 0.85,  // -15%
+      volume: liquidity * 0.7
+    };
+  }, [tokenPrice, liquidity, initialPrice]);
+
+  // 🔄 ACTUALIZAR PRECIO MANUALMENTE (para admin/testing)
+  const updatePrice = useCallback(async (newPrice, newLiquidity) => {
+    if (!isMountedRef.current) return;
+    
     try {
-      console.log('💾 Sincronizando precio CROC con Supabase:', newPrice);
+      setTokenPrice(newPrice);
+      if (newLiquidity !== undefined) setLiquidity(newLiquidity);
       
-      const { error: updateError } = await supabase
+      // Sincronizar inmediatamente
+      await supabase
         .from('token_prices')
         .insert([
           { 
             token_symbol: 'CROC', 
             price: newPrice, 
-            liquidity: newLiquidity,
+            liquidity: newLiquidity || liquidity,
             last_updated: new Date().toISOString()
           }
         ]);
-
-      if (updateError) {
-        // Si es error de duplicado, intentar update
-        if (updateError.code === '23505') {
-          const { error: upsertError } = await supabase
-            .from('token_prices')
-            .upsert({
-              token_symbol: 'CROC',
-              price: newPrice,
-              liquidity: newLiquidity,
-              last_updated: new Date().toISOString()
-            });
-          
-          if (upsertError) throw upsertError;
-        } else {
-          throw updateError;
-        }
-      }
       
-      lastFetchRef.current = now;
-      setLastSyncTime(new Date());
-      console.log('✅ Precio CROC sincronizado con Supabase');
-      
-      // Invalidar caché
-      priceCacheRef.current.delete('croc_price');
+      lastUpdateRef.current = Date.now();
+      console.log('✅ Precio actualizado manualmente:', newPrice);
       
     } catch (err) {
-      console.error('❌ Error sincronizando precio:', err);
-      // No propagar error para no interrumpir simulación local
+      console.error('❌ Error actualizando precio:', err);
     }
-  }, []);
-
-  // 📈 SIMULACIÓN EN TIEMPO REAL CON ACTUALIZACIÓN SUPABASE
-  useEffect(() => {
-    isMountedRef.current = true;
-    
-    // Cargar precio inicial
-    loadPriceFromSupabase();
-    
-    // Iniciar simulación de mercado
-    simulationRef.current = setInterval(() => {
-      if (!isMountedRef.current) return;
-      
-      const marketUpdate = simulateMarketUpdate(tokenPrice, liquidity);
-      
-      // Actualizar estados
-      setTokenPrice(marketUpdate.price);
-      setLiquidity(marketUpdate.liquidity);
-      setTradingVolume(marketUpdate.volume);
-      setMarketSentiment(marketUpdate.sentiment);
-      
-      // Actualizar historial
-      setPriceHistory(prev => {
-        const newHistory = [...prev];
-        const dataPoint = {
-          timestamp: marketUpdate.timestamp,
-          price: marketUpdate.price,
-          liquidity: marketUpdate.liquidity,
-          volume: marketUpdate.volume,
-          sentiment: marketUpdate.sentiment,
-          name: `T${marketUpdate.updateId}`
-        };
-        
-        // Mantener solo últimos 100 puntos
-        if (newHistory.length >= 100) {
-          newHistory.shift();
-        }
-        newHistory.push(dataPoint);
-        
-        return newHistory;
-      });
-      
-      // Sincronizar con Supabase cada 10 actualizaciones (≈80 segundos)
-      if (marketUpdate.updateId % 10 === 0) {
-        updatePriceInSupabase(marketUpdate.price, marketUpdate.liquidity);
-      }
-      
-    }, 8000); // Actualizar cada 8 segundos
-
-    return () => {
-      isMountedRef.current = false;
-      if (simulationRef.current) {
-        clearInterval(simulationRef.current);
-      }
-    };
-  }, [tokenPrice, liquidity, loadPriceFromSupabase, simulateMarketUpdate, updatePriceInSupabase]);
-
-  // 🔄 REFRESCAR PRECIO MANUALMENTE
-  const refreshPrice = useCallback(async () => {
-    await loadPriceFromSupabase(true); // Forzar refresh
-  }, [loadPriceFromSupabase]);
-
-  // 📊 GENERAR DATOS PARA GRÁFICO (OPTIMIZADO)
-  const getChartData = useCallback((limit = 30) => {
-    if (priceHistory.length === 0) {
-      // Generar datos históricos simulados
-      const initialData = [];
-      let price = tokenPrice;
-      let liq = liquidity;
-      
-      for (let i = 0; i < limit; i++) {
-        const simulated = simulateMarketUpdate(price, liq);
-        price = simulated.price;
-        liq = simulated.liquidity;
-        
-        initialData.unshift({
-          name: `H-${limit - i}`,
-          price: parseFloat(price.toFixed(4)),
-          liquidity: liq,
-          volume: simulated.volume,
-          timestamp: new Date(Date.now() - (limit - i) * 8000).toISOString()
-        });
-      }
-      return initialData;
-    }
-    
-    return priceHistory.slice(-limit).map((point, index) => ({
-      ...point,
-      name: `T${point.updateId || index + 1}`
-    }));
-  }, [priceHistory, tokenPrice, liquidity, simulateMarketUpdate]);
-
-  // 📈 OBTENER ESTADÍSTICAS DETALLADAS
-  const getPriceStats = useCallback(() => {
-    if (priceHistory.length < 2) {
-      return {
-        change24h: 0,
-        change7d: 0,
-        high: tokenPrice,
-        low: tokenPrice,
-        volume24h: tradingVolume,
-        marketCap: liquidity * tokenPrice,
-        sentiment: marketSentiment,
-        volatility: calculateDynamicVolatility()
-      };
-    }
-    
-    // Últimas 24 horas (aproximadamente)
-    const recentPoints = priceHistory.slice(-24);
-    const prices = recentPoints.map(p => p.price);
-    const volumes = recentPoints.map(p => p.volume || 0);
-    
-    // Cambio 24h
-    const change24h = recentPoints.length > 1 ? 
-      ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100 : 0;
-    
-    // Cambio 7 días (si hay datos)
-    const weeklyChange = priceHistory.length >= 168 ? 
-      ((tokenPrice - priceHistory[0].price) / priceHistory[0].price) * 100 : 0;
-    
-    return {
-      change24h,
-      change7d: weeklyChange,
-      high: Math.max(...prices),
-      low: Math.min(...prices),
-      volume24h: volumes.reduce((a, b) => a + b, 0) / volumes.length,
-      marketCap: liquidity * tokenPrice,
-      sentiment: marketSentiment,
-      volatility: calculateDynamicVolatility(),
-      supportLevel: Math.min(...prices) * 0.98,
-      resistanceLevel: Math.max(...prices) * 1.02
-    };
-  }, [priceHistory, tokenPrice, liquidity, tradingVolume, marketSentiment, calculateDynamicVolatility]);
-
-  // 💰 SIMULAR COMPRA/VENTA (PARA TESTING)
-  const simulateTrade = useCallback((type, amount) => {
-    // type: 'buy' o 'sell'
-    // amount: porcentaje del volumen (0-1)
-    
-    const impact = type === 'buy' ? 0.001 : -0.001;
-    const volumeImpact = amount * 0.5;
-    
-    const newPrice = tokenPrice * (1 + impact * amount);
-    const newLiquidity = liquidity * (1 + volumeImpact);
-    const newVolume = tradingVolume * (1 + volumeImpact);
-    const newSentiment = marketSentiment + (type === 'buy' ? 0.05 : -0.05);
-    
-    setTokenPrice(newPrice);
-    setLiquidity(newLiquidity);
-    setTradingVolume(newVolume);
-    setMarketSentiment(newSentiment);
-    
-    return {
-      executedPrice: newPrice,
-      impact: impact * amount * 100,
-      newLiquidity,
-      newVolume
-    };
-  }, [tokenPrice, liquidity, tradingVolume, marketSentiment]);
+  }, [liquidity]);
 
   return {
-    // 📊 DATOS DEL MERCADO
+    // 💰 DATOS PRINCIPALES
     tokenPrice,
     liquidity,
-    tradingVolume,
-    marketSentiment,
-    priceHistory,
-    lastSyncTime,
     
-    // 🔧 ESTADO DEL SISTEMA
+    // 🔧 ESTADO
     isLoading,
     error,
     
-    // 📈 FUNCIONES DE DATOS
+    // 📊 FUNCIONES
     getChartData,
     getPriceStats,
     
-    // 🔄 FUNCIONES DE SINCRO
-    refreshPrice,
-    updatePrice: updatePriceInSupabase,
+    // 🔄 FUNCIONES DE CONTROL
+    refreshPrice: () => loadPriceFromSupabase(true),
+    updatePrice,
     
-    // 🎮 FUNCIONES DE SIMULACIÓN (para desarrollo/testing)
-    simulateTrade,
+    // 📱 FORMATOS
+    formatPrice: (value = tokenPrice) => `$${value.toFixed(4)}`,
+    formatLiquidity: () => `$${liquidity.toLocaleString()}`,
     
-    // 📱 FUNCIONES DE UTILIDAD
-    formatPrice: (value = tokenPrice) => `$${value.toFixed(6)}`,
-    formatVolume: (value = tradingVolume) => `$${(value / 1000000).toFixed(2)}M`,
-    formatMarketCap: () => `$${(liquidity * tokenPrice / 1000000).toFixed(2)}M`,
-    
-    // 🎯 MÉTRICAS EN TIEMPO REAL
-    metrics: {
-      isBullish: marketSentiment > 0.2,
-      isBearish: marketSentiment < -0.2,
-      isVolatile: calculateDynamicVolatility() > 0.02,
-      liquidityScore: (liquidity / 50000) * 100, // Porcentaje respecto a base
-      confidence: Math.abs(marketSentiment) * 100 // Confianza del mercado
-    }
+    // ℹ️ INFO
+    lastUpdated: lastUpdateRef.current ? new Date(lastUpdateRef.current) : null
   };
 }
