@@ -56,12 +56,18 @@ export function GameView({
   toast,
   user,
   tokenPrice,
+  liquidity,  // <- Añadir esta prop
+  priceData,  // <- Añadir esta prop (generar datos si no existe)
   referralStats,
   refreshReferralStats,
   calculateRealClickPower,
   getReferralLink,
+  onBuyToken,  // <- Añadir esta prop
+
 }) {
  
+  const priceDataToUse = priceData || generateRandomPriceData(tokenPrice);
+
   const [isClicked, setIsClicked] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const { playSound } = useSound();

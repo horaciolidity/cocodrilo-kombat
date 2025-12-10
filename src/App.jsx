@@ -481,6 +481,8 @@ function App() {
                 toast={toast}
                 user={user}
                 tokenPrice={tokenPrice}
+                liquidity={liquidity}  
+                priceData={getChartData()} 
                 referralStats={referralStats}
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
