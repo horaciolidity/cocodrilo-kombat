@@ -62,10 +62,10 @@ function App() {
   
   /* 💰 PRECIO GLOBAL CROC - CENTRALIZADO EN SUPABASE */
   const {
-    tokenPrice,
+    tokenPrice = 0.05,
     setTokenPrice,
-    priceHistory,
-    liquidity,
+    priceHistory = [],
+    liquidity = 50000, // ✅ VALOR POR DEFECTO
     getChartData,
     getPriceStats,
     isLoading: tokenPriceLoading,
@@ -166,14 +166,12 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        refreshPrice();
+        refreshPrice && refreshPrice();
       }
     }, 60000); // Refrescar cada minuto
 
     return () => clearInterval(interval);
   }, [refreshPrice]);
-
-  // ✅ REFERIDOS - MANEJO AUTOMÁTICO EN EL HOOK CENTRAL
 
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
   useEffect(() => {
@@ -425,7 +423,7 @@ function App() {
         </div>
       </nav>
 
-      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN Y PRECIO CROC */}
+      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN */}
       {user && (
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-1.5 px-4 text-sm">
           <div className="flex items-center justify-center gap-2">
@@ -482,12 +480,12 @@ function App() {
                 activeSkin={activeSkin}
                 toast={toast}
                 user={user}
-                tokenPriceData={tokenPriceData} // ✅ Pasamos todo el paquete de datos
+                tokenPrice={tokenPrice}
                 referralStats={referralStats}
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={gameData.getReferralLink}
-                onBuyToken={handleBuyToken} // ✅ Función para comprar tokens
+                onBuyToken={handleBuyToken}
               />
             )}
 
@@ -572,7 +570,7 @@ function App() {
                   Object.values(farmingMilestonesState).filter((m) => m.claimed).length
                 }
                 referralStats={referralStats}
-                tokenPriceData={tokenPriceData} // ✅ Pasamos todo el paquete de datos
+                tokenPriceData={tokenPriceData}
               />
             )}
 
