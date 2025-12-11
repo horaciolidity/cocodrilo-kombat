@@ -81,7 +81,7 @@ function GeneralStatsCard({ gameState, ownedCardsCount, ownedItemsCount, farming
           { label: "Ítems Comprados:", value: ownedItemsCount, color: "text-pink-400", icon: ShoppingBag },
           { label: "Hitos CROC:", value: `${farmingMilestonesCount} / ${FARMING_MILESTONES.length}`, color: "text-yellow-500", icon: Target },
           { label: "Tokens CROC:", value: (gameState.nativeTokenBalance || 0).toLocaleString(), color: "text-yellow-500", icon: DollarSign },
-          { label: "Precio CROC Actual:", value: `$${tokenPrice}`, color: "text-green-400", icon: DollarSign },
+          { label: "Precio CROC Actual:", value: `$${tokenPrice.toFixed(6)}`, color: "text-green-400", icon: DollarSign },
         ].map(stat => (
           <div key={stat.label} className="flex justify-between items-center py-1">
             <span className="flex items-center text-sm">

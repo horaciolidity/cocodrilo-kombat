@@ -1,31 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-export function useTokenPrice(initialPrice = 0.05) {
-  // 🎯 ESTADOS SIMPLES
-  const [tokenPrice, setTokenPrice] = useState(initialPrice);
+export function useTokenPrice() {
+  // 🎯 ESTADOS PRINCIPALES
+  const [tokenPrice, setTokenPrice] = useState(0.05);
   const [liquidity, setLiquidity] = useState(50000);
+  const [priceHistory, setPriceHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // 🔥 REFERENCIAS
-  const simulationRef = useRef(null);
+  // 🔥 REFERENCIAS PARA CONTROL
+  const simulationIntervalRef = useRef(null);
+  const syncIntervalRef = useRef(null);
   const isMountedRef = useRef(true);
   const lastUpdateRef = useRef(0);
-  const priceCacheRef = useRef({ price: initialPrice, timestamp: 0 });
+  const priceSeedRef = useRef(0.05); // Semilla para simulación consistente
 
-  // 🔄 CARGAR PRECIO DESDE SUPABASE (FUENTE ÚNICA DE VERDAD)
+  // 📊 CARGAR PRECIO REAL DESDE SUPABASE
   const loadPriceFromSupabase = useCallback(async (force = false) => {
     if (!isMountedRef.current) return;
     
     try {
-      // Evitar llamadas muy seguidas (mínimo 5 segundos)
       const now = Date.now();
-      if (!force && now - lastUpdateRef.current < 5000) {
+      // Evitar llamadas demasiado frecuentes (mínimo 10 segundos)
+      if (!force && now - lastUpdateRef.current < 10000) {
         return;
       }
       
       setIsLoading(true);
+      console.log('💰 Cargando precio CROC desde Supabase...');
       
       const { data, error: fetchError } = await supabase
         .from('token_prices')
@@ -36,69 +39,96 @@ export function useTokenPrice(initialPrice = 0.05) {
         .single();
 
       if (fetchError) {
-        console.log('⚠️ No se encontró precio en Supabase, usando simulación local');
-        // No es error crítico, continuamos con simulación local
+        console.log('⚠️ No hay datos en Supabase, usando simulación');
+        // No es error crítico
       } else if (data) {
-        const newPrice = Number(data.price) || initialPrice;
+        const newPrice = Number(data.price) || 0.05;
         const newLiquidity = Number(data.liquidity) || 50000;
         
-        console.log('✅ Precio CROC cargado:', newPrice);
+        console.log(`✅ Precio cargado: $${newPrice}, Liquidez: $${newLiquidity}`);
         
-        // Actualizar estado solo si cambió
-        if (Math.abs(newPrice - tokenPrice) > 0.000001) {
+        // Actualizar solo si hay cambio significativo
+        if (Math.abs(newPrice - tokenPrice) > 0.0001) {
           setTokenPrice(newPrice);
+          priceSeedRef.current = newPrice; // Actualizar semilla
         }
-        if (Math.abs(newLiquidity - liquidity) > 100) {
+        
+        if (Math.abs(newLiquidity - liquidity) > 1000) {
           setLiquidity(newLiquidity);
         }
-        
-        // Actualizar caché
-        priceCacheRef.current = {
-          price: newPrice,
-          liquidity: newLiquidity,
-          timestamp: now
-        };
         
         lastUpdateRef.current = now;
       }
     } catch (err) {
-      console.error('❌ Error cargando precio:', err);
+      console.error('❌ Error cargando precio:', err.message);
       setError(err.message);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [initialPrice, tokenPrice, liquidity]);
-
-  // 📈 SIMULACIÓN LOCAL SENCILLA (solo para este cliente)
-  const runLocalSimulation = useCallback(() => {
-    // Solo mover el precio un poco (máximo ±2%)
-    const change = (Math.random() - 0.5) * 0.04; // -2% a +2%
-    const newPrice = Math.max(0.001, tokenPrice * (1 + change));
-    
-    // Mover liquidez un poco
-    const liqChange = (Math.random() - 0.5) * 1000;
-    const newLiquidity = Math.max(10000, liquidity + liqChange);
-    
-    setTokenPrice(parseFloat(newPrice.toFixed(6)));
-    setLiquidity(Math.floor(newLiquidity));
-    
-    console.log('📈 Simulación local:', newPrice.toFixed(6));
   }, [tokenPrice, liquidity]);
 
-  // 🔄 SINCRONIZAR CON SUPABASE (todos los clientes escriben aquí)
+  // 📈 SIMULACIÓN DE PRECIO REALISTA
+  const runPriceSimulation = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
+    // Factores de simulación más realistas
+    const volatility = 0.015; // 1.5% de volatilidad
+    const drift = 0.0008; // Tendencia ligeramente alcista
+    const momentum = 0.3; // Inercia del precio
+    
+    // Movimiento browniano con momentum
+    const randomChange = (Math.random() - 0.5) * 2 * volatility;
+    const deterministicChange = drift + (priceSeedRef.current > tokenPrice ? momentum : -momentum) * 0.001;
+    
+    const change = randomChange + deterministicChange;
+    const newPrice = Math.max(0.001, tokenPrice * (1 + change));
+    const roundedPrice = parseFloat(newPrice.toFixed(6));
+    
+    // Actualizar estado local
+    setTokenPrice(roundedPrice);
+    priceSeedRef.current = roundedPrice;
+    
+    // Simular liquidez correlacionada
+    const liquidityChange = (Math.random() - 0.45) * 5000 * (change > 0 ? 1.2 : 0.8);
+    const newLiquidity = Math.max(10000, liquidity + liquidityChange);
+    setLiquidity(Math.floor(newLiquidity));
+    
+    // Actualizar historial
+    setPriceHistory(prev => {
+      const newHistory = [...prev];
+      const timestamp = new Date().toISOString();
+      const dataPoint = {
+        timestamp,
+        price: roundedPrice,
+        name: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      // Mantener solo últimos 50 puntos
+      if (newHistory.length >= 50) {
+        newHistory.shift();
+      }
+      newHistory.push(dataPoint);
+      
+      return newHistory;
+    });
+    
+    console.log(`📈 Simulación: $${roundedPrice.toFixed(6)} (+${(change*100).toFixed(2)}%)`);
+  }, [tokenPrice, liquidity]);
+
+  // 💾 SINCRONIZAR CON SUPABASE
   const syncPriceToSupabase = useCallback(async () => {
     if (!isMountedRef.current) return;
     
     try {
-      // Solo sincronizar cada 30 segundos máximo
       const now = Date.now();
-      if (now - lastUpdateRef.current < 30000) {
+      // Sincronizar máximo cada 15 segundos
+      if (now - lastUpdateRef.current < 15000) {
         return;
       }
       
-      console.log('💾 Sincronizando precio con Supabase:', tokenPrice);
+      console.log('💾 Sincronizando precio con Supabase...');
       
       const { error } = await supabase
         .from('token_prices')
@@ -112,7 +142,8 @@ export function useTokenPrice(initialPrice = 0.05) {
         ]);
 
       if (error) {
-        // Si falla, intentar UPSERT
+        console.error('❌ Error insertando precio:', error);
+        // Intentar upsert como fallback
         await supabase
           .from('token_prices')
           .upsert({
@@ -120,113 +151,131 @@ export function useTokenPrice(initialPrice = 0.05) {
             price: tokenPrice,
             liquidity: liquidity,
             last_updated: new Date().toISOString()
-          });
+          }, { onConflict: 'token_symbol' });
       }
       
       lastUpdateRef.current = now;
-      console.log('✅ Precio sincronizado');
+      console.log('✅ Precio sincronizado con Supabase');
       
     } catch (err) {
-      console.error('❌ Error sincronizando:', err);
+      console.error('❌ Error en sincronización:', err);
     }
   }, [tokenPrice, liquidity]);
 
-  // ⚡ INICIALIZAR Y CONFIGURAR INTERVALOS
+  // ⚡ INICIALIZAR SISTEMA DE PRECIO
   useEffect(() => {
     isMountedRef.current = true;
     
-    // 1. Cargar precio inicial desde Supabase
-    loadPriceFromSupabase();
+    console.log('🚀 Inicializando sistema de precio CROC...');
     
-    // 2. Configurar intervalo para cargar precio REAL cada 15 segundos
-    const loadInterval = setInterval(() => {
-      loadPriceFromSupabase();
-    }, 15000);
+    // 1. Cargar precio inicial
+    loadPriceFromSupabase(true);
     
-    // 3. Configurar intervalo para simulación LOCAL (solo efecto visual)
-    simulationRef.current = setInterval(() => {
-      runLocalSimulation();
+    // 2. Iniciar simulación local (cada 8 segundos)
+    simulationIntervalRef.current = setInterval(() => {
+      runPriceSimulation();
     }, 8000);
     
-    // 4. Configurar intervalo para sincronizar con Supabase
-    const syncInterval = setInterval(() => {
+    // 3. Sincronizar con Supabase periódicamente (cada 20 segundos)
+    syncIntervalRef.current = setInterval(() => {
       syncPriceToSupabase();
-    }, 30000);
+    }, 20000);
+    
+    // 4. Recargar desde Supabase periódicamente (cada 40 segundos)
+    const reloadInterval = setInterval(() => {
+      loadPriceFromSupabase();
+    }, 40000);
     
     return () => {
       isMountedRef.current = false;
-      clearInterval(loadInterval);
-      if (simulationRef.current) clearInterval(simulationRef.current);
-      clearInterval(syncInterval);
+      if (simulationIntervalRef.current) clearInterval(simulationIntervalRef.current);
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      clearInterval(reloadInterval);
     };
-  }, [loadPriceFromSupabase, runLocalSimulation, syncPriceToSupabase]);
+  }, [loadPriceFromSupabase, runPriceSimulation, syncPriceToSupabase]);
 
-  // 📊 DATOS PARA GRÁFICO (simulados basados en precio actual)
+  // 📊 OBTENER DATOS PARA GRÁFICO
   const getChartData = useCallback(() => {
-    const data = [];
+    // Si hay historial, usarlo
+    if (priceHistory.length > 0) {
+      return priceHistory.slice(-30).map((point, index) => ({
+        name: `T${index + 1}`,
+        price: point.price,
+        timestamp: point.timestamp
+      }));
+    }
+    
+    // Si no, generar datos iniciales basados en precio actual
+    const initialData = [];
     let simulatedPrice = tokenPrice;
     
-    // Generar 30 puntos de datos (simulados)
     for (let i = 0; i < 30; i++) {
-      // Pequeña variación para cada punto histórico
-      const change = (Math.random() - 0.5) * 0.03;
+      const change = (Math.random() - 0.5) * 0.02;
       simulatedPrice = Math.max(0.001, simulatedPrice * (1 + change));
       
-      data.unshift({
-        name: `${30 - i}m`,
+      initialData.unshift({
+        name: `T${30 - i}`,
         price: parseFloat(simulatedPrice.toFixed(4)),
         timestamp: new Date(Date.now() - (30 - i) * 60000).toISOString()
       });
     }
     
-    return data;
-  }, [tokenPrice]);
+    return initialData;
+  }, [priceHistory, tokenPrice]);
 
-  // 📈 ESTADÍSTICAS SIMPLES
+  // 📈 OBTENER ESTADÍSTICAS
   const getPriceStats = useCallback(() => {
-    // Simular estadísticas basadas en el precio actual
-    const change24h = ((tokenPrice - initialPrice) / initialPrice) * 100;
+    if (priceHistory.length < 2) {
+      return {
+        change24h: 0,
+        high: tokenPrice,
+        low: tokenPrice,
+        volume: liquidity * 0.8,
+        marketCap: (tokenPrice * 10000000).toFixed(0) // Suposición: 10M tokens
+      };
+    }
+    
+    const recentPrices = priceHistory.slice(-24).map(p => p.price);
+    const change24h = ((tokenPrice - recentPrices[0]) / recentPrices[0]) * 100;
     
     return {
       change24h: parseFloat(change24h.toFixed(2)),
-      high: tokenPrice * 1.15, // +15%
-      low: tokenPrice * 0.85,  // -15%
-      volume: liquidity * 0.7
+      high: Math.max(...recentPrices, tokenPrice),
+      low: Math.min(...recentPrices, tokenPrice),
+      volume: liquidity * 0.8,
+      marketCap: (tokenPrice * 10000000).toFixed(0)
     };
-  }, [tokenPrice, liquidity, initialPrice]);
+  }, [priceHistory, tokenPrice, liquidity]);
 
-  // 🔄 ACTUALIZAR PRECIO MANUALMENTE (para admin/testing)
+  // 🔄 REFRESCAR MANUALMENTE
+  const refreshPrice = useCallback(async () => {
+    await loadPriceFromSupabase(true);
+  }, [loadPriceFromSupabase]);
+
+  // 🔧 ACTUALIZAR PRECIO MANUALMENTE (admin)
   const updatePrice = useCallback(async (newPrice, newLiquidity) => {
-    if (!isMountedRef.current) return;
-    
-    try {
-      setTokenPrice(newPrice);
-      if (newLiquidity !== undefined) setLiquidity(newLiquidity);
-      
-      // Sincronizar inmediatamente
-      await supabase
-        .from('token_prices')
-        .insert([
-          { 
-            token_symbol: 'CROC', 
-            price: newPrice, 
-            liquidity: newLiquidity || liquidity,
-            last_updated: new Date().toISOString()
-          }
-        ]);
-      
-      lastUpdateRef.current = Date.now();
-      console.log('✅ Precio actualizado manualmente:', newPrice);
-      
-    } catch (err) {
-      console.error('❌ Error actualizando precio:', err);
+    if (typeof newPrice !== 'number' || isNaN(newPrice) || newPrice <= 0) {
+      throw new Error('Precio inválido');
     }
-  }, [liquidity]);
+    
+    setTokenPrice(newPrice);
+    priceSeedRef.current = newPrice;
+    
+    if (newLiquidity !== undefined) {
+      setLiquidity(newLiquidity);
+    }
+    
+    // Sincronizar inmediatamente
+    await syncPriceToSupabase();
+    
+    console.log(`✅ Precio actualizado manualmente a $${newPrice}`);
+  }, [syncPriceToSupabase]);
 
   return {
     // 💰 DATOS PRINCIPALES
     tokenPrice,
     liquidity,
+    priceHistory,
     
     // 🔧 ESTADO
     isLoading,
@@ -237,14 +286,15 @@ export function useTokenPrice(initialPrice = 0.05) {
     getPriceStats,
     
     // 🔄 FUNCIONES DE CONTROL
-    refreshPrice: () => loadPriceFromSupabase(true),
+    refreshPrice,
     updatePrice,
     
-    // 📱 FORMATOS
-    formatPrice: (value = tokenPrice) => `$${value.toFixed(4)}`,
+    // 📱 UTILIDADES
+    formatPrice: (value = tokenPrice) => `$${value.toFixed(6)}`,
     formatLiquidity: () => `$${liquidity.toLocaleString()}`,
     
-    // ℹ️ INFO
-    lastUpdated: lastUpdateRef.current ? new Date(lastUpdateRef.current) : null
+    // ℹ️ INFORMACIÓN
+    lastUpdated: lastUpdateRef.current ? new Date(lastUpdateRef.current) : null,
+    isSimulating: !!simulationIntervalRef.current
   };
 }

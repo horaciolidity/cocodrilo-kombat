@@ -641,7 +641,7 @@ function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
         </div>
         <div className="bg-yellow-800/40 rounded-lg p-2 border border-yellow-600/30">
           <div className="text-yellow-300 text-xs mb-1">📈 Precio</div>
-          <div className="text-white font-bold text-sm">${tokenPrice}</div>
+          <div className="text-white font-bold text-sm">${tokenPrice.toFixed(6)}</div>
         </div>
       </div>
     </motion.div>
@@ -818,7 +818,7 @@ function TokenInfoPanel({
         <div className="flex justify-between">
           <span>Precio Actual:</span>
           <span className="font-semibold text-primary">
-            ${tokenPrice.toFixed(4)}
+            ${tokenPrice.toFixed(6)}
           </span>
         </div>
         <div className="flex justify-between">
