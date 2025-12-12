@@ -167,9 +167,34 @@ function ReferralsStatsCard({ referralStats = {}, tokenPrice }) {
 }
 
 
+// StatsView.jsx - MODIFICAR ProjectedValueCard
 function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
-  // ✅ SOLO MOSTRAR VALOR DE CROC, NO MONEDAS
-  const totalProjectedValue = projectedCrocValue; // Eliminamos la suma de monedas
+  const currentPrice = tokenPrice || 0.05;
+  const crocBalance = gameState.nativeTokenBalance || 0;
+  
+  // 📊 Calcular ganancias potenciales
+  const potentialGains = [
+    { 
+      label: "Si +5%:", 
+      value: `$${(crocBalance * currentPrice * 1.05).toFixed(2)}`,
+      change: "+5%"
+    },
+    { 
+      label: "Si +10%:", 
+      value: `$${(crocBalance * currentPrice * 1.10).toFixed(2)}`,
+      change: "+10%"
+    },
+    { 
+      label: "Si -5%:", 
+      value: `$${(crocBalance * currentPrice * 0.95).toFixed(2)}`,
+      change: "-5%"
+    },
+    { 
+      label: "Si -10%:", 
+      value: `$${(crocBalance * currentPrice * 0.90).toFixed(2)}`,
+      change: "-10%"
+    },
+  ];
 
   return (
     <div className="stats-card rounded-xl p-6">
@@ -179,49 +204,82 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
       </h3>
       
       <div className="space-y-4">
+        {/* Valor actual */}
         <div className="bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg p-4 text-center border border-yellow-600/30">
           <div className="text-2xl font-bold text-yellow-400 mb-1">
-            ${totalProjectedValue.toFixed(2)}
+            ${projectedCrocValue.toFixed(2)}
           </div>
-          <div className="text-xs text-yellow-200">Valor en CROC Tokens</div>
+          <div className="text-sm text-yellow-200">
+            {crocBalance.toLocaleString()} CROC @ ${currentPrice.toFixed(6)}
+          </div>
         </div>
 
+        {/* 📈 Variaciones potenciales */}
+        <div>
+          <h4 className="text-sm font-semibold mb-2 text-gray-300">📊 Escenarios potenciales:</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {potentialGains.map((scenario, index) => (
+              <motion.div
+                key={index}
+                className={`p-2 rounded-lg border ${
+                  scenario.change.startsWith('+') 
+                    ? 'bg-green-900/20 border-green-700/30' 
+                    : 'bg-red-900/20 border-red-700/30'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">{scenario.label}</span>
+                  <span className={`text-xs font-bold ${
+                    scenario.change.startsWith('+') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {scenario.change}
+                  </span>
+                </div>
+                <div className="text-sm font-bold text-white mt-1">
+                  {scenario.value}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* 📊 Estadísticas */}
         <div className="space-y-3">
           {[
             { 
-              label: "Tokens CROC:", 
-              value: `$${projectedCrocValue.toFixed(2)}`, 
-              detail: `${(gameState.nativeTokenBalance || 0).toLocaleString()} CROC @ $${tokenPrice}`,
-              color: "text-yellow-400" 
-            },
-            { 
-              label: "Precio por Token:", 
-              value: `$${tokenPrice}`, 
-              detail: "Cotización actual",
+              label: "Precio actual:", 
+              value: `$${currentPrice.toFixed(6)}`, 
               color: "text-green-400" 
             },
             { 
-              label: "Valor por Referido:", 
-              value: `$${(10 * tokenPrice).toFixed(2)}`, 
-              detail: "10 CROC por cada referido",
-              color: "text-blue-400" 
+              label: "Máx 24h:", 
+              value: `$${(currentPrice * 1.10).toFixed(6)}`, 
+              color: "text-green-400" 
+            },
+            { 
+              label: "Mín 24h:", 
+              value: `$${(currentPrice * 0.90).toFixed(6)}`, 
+              color: "text-red-400" 
+            },
+            { 
+              label: "Volatilidad:", 
+              value: "±10%", 
+              color: "text-yellow-400" 
             },
           ].map(stat => (
-            <div key={stat.label} className="flex justify-between items-start py-1">
-              <div className="flex-1">
-                <div className="flex justify-between">
-                  <span className="text-sm">{stat.label}</span>
-                  <span className={`font-bold ${stat.color} text-sm`}>{stat.value}</span>
-                </div>
-                <div className="text-xs text-gray-400 mt-1">{stat.detail}</div>
-              </div>
+            <div key={stat.label} className="flex justify-between items-center py-1">
+              <span className="text-sm">{stat.label}</span>
+              <span className={`font-bold ${stat.color} text-sm`}>{stat.value}</span>
             </div>
           ))}
         </div>
 
-        <div className="mt-3 p-2 bg-blue-900/20 rounded border border-blue-700/30">
+        {/* ℹ️ Info */}
+        <div className="mt-3 p-3 bg-blue-900/20 rounded border border-blue-700/30">
           <p className="text-xs text-blue-300 text-center">
-            💡 Valor basado en la cotización actual de CROC
+            💡 El precio fluctúa ±10% en tiempo real • Sincronizado globalmente
           </p>
         </div>
       </div>

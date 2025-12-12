@@ -719,6 +719,7 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
   );
 }
 
+// GameView.jsx - MODIFICAR EL COMPONENTE TokenInfoPanel
 function TokenInfoPanel({ 
   tokenPrice, 
   liquidity, 
@@ -730,161 +731,157 @@ function TokenInfoPanel({
   projectedValue
 }) {
   const hasReferrals = referralStats?.referralsCount > 0;
-
+  
+  // 📊 Calcular estadísticas en tiempo real
+  const currentPrice = tokenPrice || 0.05;
+  const tokenValue = nativeTokenBalance * currentPrice;
+  
+  // 📈 Datos para el gráfico con animación
+  const [chartData, setChartData] = useState(priceData || []);
+  
+  useEffect(() => {
+    if (priceData && priceData.length > 0) {
+      setChartData(priceData.slice(-30)); // Mostrar últimos 30 puntos
+    }
+  }, [priceData]);
+  
   return (
     <div className="stats-card rounded-xl p-4">
-      {/* Encabezado */}
+      {/* Encabezado con precio en tiempo real */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold flex items-center">
-          <DollarSign className="w-6 h-6 mr-2 text-primary" /> 
-          Token CROC 🐊
+          <DollarSign className="w-6 h-6 mr-2 text-yellow-400" /> 
+          CROC Token 🐊
         </h3>
         
-        {/* 🧩 Widget de Referidos para Desktop - Oculto en móviles */}
-        <div className="hidden md:block">
-          <motion.div 
-            className="bg-gradient-to-br from-green-900/80 to-emerald-800/80 border border-green-600/50 rounded-lg px-3 py-2 shadow-lg text-green-100 backdrop-blur-md w-48"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-[13px] font-semibold text-green-300 flex items-center gap-1">
-                <Users className="w-3 h-3" />
-                🐊 Referidos
-              </span>
-              <Button
-                onClick={onCopyReferralLink}
-                size="sm"
-                className="bg-green-600 hover:bg-green-500 text-white text-[11px] px-2 py-1 rounded-md transition-all duration-200"
-              >
-                <Copy className="w-3 h-3 mr-1" />
-                Copiar
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-1 text-[12px] text-green-200">
-              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
-                <span className="text-[10px] text-green-300">👥</span>
-                <b className="text-white">{referralStats?.referralsCount || 0}</b>
-              </div>
-              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
-                <span className="text-[10px] text-green-300">💰</span>
-                <b className="text-white">{referralStats?.crocFromRefs || 0}</b>
-              </div>
-              <div className="flex flex-col items-center p-1 bg-green-800/30 rounded">
-                <span className="text-[10px] text-green-300">🪙</span>
-                <b className="text-white">{referralStats?.coinsFromRefs || 0}</b>
-              </div>
-            </div>
-
-            {/* Indicador de bonificación activa */}
-            {hasReferrals && (
-              <motion.div 
-                className="mt-2 pt-2 border-t border-green-600/30"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <p className="text-[10px] text-green-300 text-center flex items-center justify-center gap-1">
-                  <Sparkles className="w-2 h-2" />
-                  <span>Recompensas activas</span>
-                </p>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
+        {/* Indicador de precio en vivo */}
+        <motion.div 
+          className="px-3 py-1 rounded-full bg-gradient-to-r from-yellow-900/50 to-amber-800/50 border border-yellow-500/30"
+          animate={{ 
+            scale: [1, 1.05, 1],
+            opacity: [0.8, 1, 0.8]
+          }}
+          transition={{ 
+            duration: 2, 
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold text-yellow-300">
+              ${currentPrice.toFixed(6)}
+            </span>
+          </div>
+        </motion.div>
       </div>
 
-      {/* ✅ VALOR CROC SOLAMENTE */}
-      <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm text-yellow-300 flex items-center gap-1">
-            <Target className="w-4 h-4" />
-            Valor CROC:
+      {/* ✅ VALOR DE TUS TOKENS */}
+      <div className="mb-4 p-4 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-yellow-300 flex items-center gap-2">
+            <Coins className="w-4 h-4" />
+            Valor tus CROC:
           </span>
           <span className="font-bold text-lg text-yellow-400">
-            ${projectedValue.toFixed(2)}
+            ${tokenValue.toFixed(2)}
           </span>
         </div>
         <div className="text-xs text-yellow-200 flex justify-between">
           <span>{nativeTokenBalance.toLocaleString()} CROC</span>
-          <span>@ ${tokenPrice.toFixed(4)}</span>
+          <span className="flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" />
+            @ ${currentPrice.toFixed(6)}
+          </span>
         </div>
       </div>
 
-      {/* Datos del token */}
-      <div className="space-y-2 text-sm mb-3">
-        <div className="flex justify-between">
-          <span>Precio Actual:</span>
-          <span className="font-semibold text-primary">
-            ${tokenPrice.toFixed(6)}
-          </span>
+      {/* 📊 Datos del token */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-gray-800/30 rounded-lg p-3 text-center">
+          <div className="text-xs text-gray-400 mb-1">📈 Precio</div>
+          <div className="font-bold text-lg text-green-400">
+            ${currentPrice.toFixed(6)}
+          </div>
         </div>
-        <div className="flex justify-between">
-          <span>Liquidez Total:</span>
-          <span className="font-semibold text-primary">
+        <div className="bg-gray-800/30 rounded-lg p-3 text-center">
+          <div className="text-xs text-gray-400 mb-1">💧 Liquidez</div>
+          <div className="font-bold text-lg text-blue-400">
             ${liquidity.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Tus Tokens:</span>
-          <span className="font-semibold text-emerald-400">
-            {nativeTokenBalance.toLocaleString()} CROC
-          </span>
+          </div>
         </div>
       </div>
 
-      {/* Gráfico - ACTUALIZADO para mejor visualización */}
-      <div className="h-24 w-full mb-3">
+      {/* 📈 Gráfico mejorado */}
+      <div className="h-32 w-full mb-4">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={priceData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+          <LineChart 
+            data={chartData} 
+            margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+          >
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="#374151" 
+              opacity={0.3} 
+            />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
-              interval={4} // Mostrar cada 4 días
+              tick={{ fontSize: 9, fill: '#9CA3AF' }}
+              interval={7}
+              axisLine={false}
             />
             <YAxis
-              domain={['dataMin', 'dataMax']}
-              tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
-              tickFormatter={(value) => `$${value.toFixed(3)}`}
-              width={40}
+              domain={['dataMin - 0.001', 'dataMax + 0.001']}
+              tick={{ fontSize: 9, fill: '#9CA3AF' }}
+              tickFormatter={(value) => `$${value.toFixed(4)}`}
+              width={35}
+              axisLine={false}
             />
             <Tooltip
-              formatter={(value) => [`$${Number(value).toFixed(4)}`, 'Precio']}
-              labelFormatter={(label) => `Día ${label.replace('D', '')}`}
+              formatter={(value) => [`$${Number(value).toFixed(6)}`, 'Precio CROC']}
+              labelFormatter={(label) => `Hora: ${label}`}
               contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
+                backgroundColor: '#1F2937',
+                border: '1px solid #374151',
                 borderRadius: '0.5rem',
                 fontSize: '12px',
               }}
-              itemStyle={{ color: 'hsl(var(--primary))' }}
-              labelStyle={{
-                color: 'hsl(var(--primary))',
-                fontWeight: 'bold',
-              }}
+              itemStyle={{ color: '#FBBF24' }}
+              labelStyle={{ color: '#D1D5DB', fontWeight: 'bold' }}
             />
             <Line
               type="monotone"
               dataKey="price"
-              stroke="hsl(var(--primary))"
+              stroke="#FBBF24"
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
+              activeDot={{ 
+                r: 4, 
+                fill: '#F59E0B',
+                stroke: '#FFFFFF',
+                strokeWidth: 1
+              }}
               isAnimationActive={true}
-              animationDuration={300}
+              animationDuration={500}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
+      {/* 🔄 Indicador de actualización en vivo */}
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        <span className="text-xs text-green-400">
+          Actualizando en tiempo real • Sincronizado con Supabase
+        </span>
+      </div>
+
       <Button
         onClick={onBuyToken}
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mobile-button"
+        className="w-full bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700 text-white mobile-button"
       >
-        <ExternalLink className="w-4 h-4 mr-2" /> Comprar Token CROC
+        <ExternalLink className="w-4 h-4 mr-2" /> Comprar CROC
       </Button>
     </div>
   );

@@ -184,6 +184,28 @@ export function WalletView({
     stakingAPY: "15-25%"
   };
 
+
+ // WalletView.jsx - AGREGAR EN EL COMPONENTE
+const [crocPrice, setCrocPrice] = useState(tokenPrice || 0.05);
+
+// 🔄 Actualizar precio periódicamente
+useEffect(() => {
+  const interval = setInterval(() => {
+    // Simular fluctuación suave ±10%
+    const fluctuation = 1 + (Math.random() * 0.2 - 0.1); // ±10%
+    const newPrice = tokenPrice * fluctuation;
+    setCrocPrice(parseFloat(newPrice.toFixed(6)));
+  }, 8000);
+
+  return () => clearInterval(interval);
+}, [tokenPrice]);
+
+// 💰 Calcular valores actualizados
+const updatedProjectedValue = nativeTokenBalance * crocPrice;
+const updatedStakeValue = stakeAmount * crocPrice;
+const updatedRewardsValue = pendingRewards * crocPrice;
+
+
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-4xl mx-auto">
@@ -217,12 +239,12 @@ export function WalletView({
                   <Coins className="w-8 h-8 text-yellow-400" />
                 </div>
                 <h3 className="text-sm text-muted-foreground mb-2">Tokens CROC</h3>
-                <div className="text-3xl font-bold text-yellow-400 mb-2">
-                  {nativeTokenBalance.toLocaleString()}
-                </div>
+               <div className="text-3xl font-bold text-yellow-400 mb-2">
+                  ${updatedProjectedValue.toFixed(2)}
+               </div>
                 <div className="text-sm text-green-400 flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" />
-                  ${projectedValue.toFixed(2)} USD
+                 <TrendingUp className="w-4 h-4" />
+                   {nativeTokenBalance.toLocaleString()} CROC @ ${crocPrice.toFixed(6)}
                 </div>
               </div>
             </div>
