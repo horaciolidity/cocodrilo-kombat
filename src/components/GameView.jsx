@@ -84,11 +84,16 @@ export function GameView({
     playSound('uiClick');
   };
 
-  useEffect(() => {
-  // Solo usar el tokenPrice del hook central
-  console.log('🎮 GameView usando precio CROC:', tokenPrice);
+ // GameView (1).jsx - MODIFICAR useEffect inicial
+useEffect(() => {
+  // Solo loguear cuando el precio cambie significativamente
+  const prevPrice = useRef(tokenPrice);
+  
+  if (Math.abs(tokenPrice - prevPrice.current) > 0.0001) {
+    console.log('🎮 GameView - Precio actualizado:', tokenPrice.toFixed(6));
+    prevPrice.current = tokenPrice;
+  }
 }, [tokenPrice]);
-
 
   // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {

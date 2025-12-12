@@ -59,6 +59,8 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const tokenPriceHook = useTokenPrice();
+
   
   /* 💰 PRECIO GLOBAL CROC - CENTRALIZADO EN SUPABASE */
   const {
