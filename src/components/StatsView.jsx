@@ -12,8 +12,20 @@ import {
   Coins,
   Award,
   Zap,
-  MousePointer
+  MousePointer,
+  RefreshCw 
 } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // ✅ ¡IMPORTANTE! Añadir esto
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts'; // ✅ Asegurar que recharts está importado
+
 import { UPGRADES, ACHIEVEMENTS, FARMING_MILESTONES } from '@/config/gameConfig';
 
 export function StatsView({ 
