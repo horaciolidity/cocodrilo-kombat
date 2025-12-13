@@ -24,15 +24,44 @@ export function StatsView({
   ownedItemsCount, 
   farmingMilestonesCount,
   referralStats,
-  tokenPrice = 0.05
+  tokenPrice = 0.05,
+  liquidity = 50000,
+  priceHistory = [],
+  tokenPriceData, // ✅ Recibir el objeto completo
+  getChartData, // ✅ Recibir función para gráficos
+  getPriceStats, // ✅ Recibir función para estadísticas
+  refreshPrice // ✅ Recibir función para refrescar
 }) {
-  // ✅ Calcular valor proyectado de tokens CROC
+  
+  // ✅ Obtener datos de gráfico si no vienen en priceHistory
+  const chartData = priceHistory.length > 0 ? priceHistory : 
+                   (getChartData ? getChartData() : []);
+  
+  // ✅ Obtener estadísticas de precio
+  const priceStats = getPriceStats ? getPriceStats() : {
+    change24h: 0,
+    high: tokenPrice,
+    low: tokenPrice,
+    volume: liquidity * 0.8,
+    marketCap: (tokenPrice * 10000000).toFixed(0)
+  };
+
+  // ✅ Calcular valor proyectado
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * tokenPrice;
 
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-center gradient-text">📊 Estadísticas</h1>
+        
+        {/* ✅ Añadir Panel de Precio en Tiempo Real */}
+        <TokenPriceStatsCard 
+          tokenPrice={tokenPrice}
+          liquidity={liquidity}
+          priceStats={priceStats}
+          chartData={chartData}
+          refreshPrice={refreshPrice}
+        />
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <GeneralStatsCard 
@@ -53,9 +82,86 @@ export function StatsView({
             gameState={gameState}
             projectedCrocValue={projectedCrocValue}
             tokenPrice={tokenPrice}
+            priceStats={priceStats}
           />
         </div>
       </div>
+    </div>
+  );
+}
+function TokenPriceStatsCard({ tokenPrice, liquidity, priceStats, chartData, refreshPrice }) {
+  return (
+    <div className="stats-card rounded-xl p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold flex items-center">
+          <TrendingUp className="w-6 h-6 mr-2 text-green-400" />
+          Precio CROC en Tiempo Real
+        </h3>
+        <Button
+          onClick={refreshPrice}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Actualizar
+        </Button>
+      </div>
+      
+      {/* Precio y cambio */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="bg-gradient-to-br from-green-900/30 to-emerald-800/30 rounded-lg p-4 text-center border border-green-700/30">
+          <div className="text-2xl font-bold text-green-400">
+            ${tokenPrice.toFixed(6)}
+          </div>
+          <div className="text-xs text-green-200">Precio Actual</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 rounded-lg p-4 text-center border border-blue-700/30">
+          <div className={`text-2xl font-bold ${priceStats.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {priceStats.change24h >= 0 ? '↗' : '↘'} {priceStats.change24h}%
+          </div>
+          <div className="text-xs text-blue-200">24h Change</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-yellow-900/30 to-amber-800/30 rounded-lg p-4 text-center border border-yellow-700/30">
+          <div className="text-2xl font-bold text-yellow-400">
+            ${liquidity.toLocaleString()}
+          </div>
+          <div className="text-xs text-yellow-200">Liquidez</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 rounded-lg p-4 text-center border border-purple-700/30">
+          <div className="text-2xl font-bold text-purple-400">
+            ${priceStats.marketCap}
+          </div>
+          <div className="text-xs text-purple-200">Market Cap</div>
+        </div>
+      </div>
+      
+      {/* Mini gráfico (opcional) */}
+      {chartData.length > 0 && (
+        <div className="mt-4">
+          <div className="text-sm font-semibold mb-2">Últimas 24h</div>
+          <div className="h-32 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData.slice(-24)}>
+                <Line 
+                  type="monotone" 
+                  dataKey="price" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Tooltip 
+                  formatter={(value) => [`$${Number(value).toFixed(6)}`, 'Precio']}
+                  labelStyle={{ color: '#10b981' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -167,10 +273,7 @@ function ReferralsStatsCard({ referralStats = {}, tokenPrice }) {
 }
 
 
-function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
-  // ✅ SOLO MOSTRAR VALOR DE CROC, NO MONEDAS
-  const totalProjectedValue = projectedCrocValue; // Eliminamos la suma de monedas
-
+function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice, priceStats }) {
   return (
     <div className="stats-card rounded-xl p-6">
       <h3 className="text-xl font-bold mb-4 flex items-center">
@@ -181,7 +284,7 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
       <div className="space-y-4">
         <div className="bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg p-4 text-center border border-yellow-600/30">
           <div className="text-2xl font-bold text-yellow-400 mb-1">
-            ${totalProjectedValue.toFixed(2)}
+            ${projectedCrocValue.toFixed(2)}
           </div>
           <div className="text-xs text-yellow-200">Valor en CROC Tokens</div>
         </div>
@@ -191,20 +294,26 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
             { 
               label: "Tokens CROC:", 
               value: `$${projectedCrocValue.toFixed(2)}`, 
-              detail: `${(gameState.nativeTokenBalance || 0).toLocaleString()} CROC @ $${tokenPrice}`,
+              detail: `${(gameState.nativeTokenBalance || 0).toLocaleString()} CROC @ $${tokenPrice.toFixed(6)}`,
               color: "text-yellow-400" 
             },
             { 
-              label: "Precio por Token:", 
-              value: `$${tokenPrice}`, 
-              detail: "Cotización actual",
+              label: "Cambio 24h:", 
+              value: `${priceStats.change24h}%`, 
+              detail: priceStats.change24h >= 0 ? "📈 En alza" : "📉 En baja",
+              color: priceStats.change24h >= 0 ? "text-green-400" : "text-red-400"
+            },
+            { 
+              label: "Máximo 24h:", 
+              value: `$${priceStats.high.toFixed(6)}`, 
+              detail: "Precio más alto del día",
               color: "text-green-400" 
             },
             { 
-              label: "Valor por Referido:", 
-              value: `$${(10 * tokenPrice).toFixed(2)}`, 
-              detail: "10 CROC por cada referido",
-              color: "text-blue-400" 
+              label: "Mínimo 24h:", 
+              value: `$${priceStats.low.toFixed(6)}`, 
+              detail: "Precio más bajo del día",
+              color: "text-red-400" 
             },
           ].map(stat => (
             <div key={stat.label} className="flex justify-between items-start py-1">
@@ -217,12 +326,6 @@ function ProjectedValueCard({ gameState, projectedCrocValue, tokenPrice }) {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-3 p-2 bg-blue-900/20 rounded border border-blue-700/30">
-          <p className="text-xs text-blue-300 text-center">
-            💡 Valor basado en la cotización actual de CROC
-          </p>
         </div>
       </div>
     </div>

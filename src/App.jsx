@@ -563,20 +563,27 @@ function App() {
               />
             )}
 
-            {currentView === "stats" && (
-              <StatsView
-                gameState={gameState}
-                upgrades={upgrades}
-                achievementsUnlocked={achievementsUnlocked}
-                ownedCardsCount={ownedCards.length}
-                ownedItemsCount={ownedItems.length}
-                farmingMilestonesCount={
-                  Object.values(farmingMilestonesState).filter((m) => m.claimed).length
-                }
-                referralStats={referralStats}
-                tokenPriceData={tokenPriceData}
-              />
-            )}
+           {currentView === "stats" && (
+  <StatsView
+    gameState={gameState}
+    upgrades={upgrades}
+    achievementsUnlocked={achievementsUnlocked}
+    ownedCardsCount={ownedCards.length}
+    ownedItemsCount={ownedItems.length}
+    farmingMilestonesCount={
+      Object.values(farmingMilestonesState).filter((m) => m.claimed).length
+    }
+    referralStats={referralStats}
+    // ✅ PASAR TODOS LOS DATOS DE PRECIO
+    tokenPrice={tokenPrice}
+    liquidity={liquidity}
+    priceHistory={priceHistory}
+    tokenPriceData={tokenPriceData} // Ya lo pasas, pero verifiquemos
+    getChartData={getChartData} // Añadir esta función
+    getPriceStats={getPriceStats} // Añadir esta función
+    refreshPrice={refreshPrice} // Añadir para actualizar manualmente
+  />
+)}
 
             {currentView === "settings" && (
               <SettingsView
