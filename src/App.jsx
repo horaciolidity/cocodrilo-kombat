@@ -78,20 +78,17 @@ function App() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
- useEffect(() => {
-  // 🔗 Verificar parámetro de referencia en la URL y guardarlo
+  // 🔗 Verificar parámetro de referencia en la URL
+useEffect(() => {
   const urlParams = new URLSearchParams(window.location.search);
   const refCode = urlParams.get('ref');
   
-  if (refCode && /^[a-zA-Z0-9]{8}$/.test(refCode)) {
-    console.log('🔗 Código de referencia encontrado en URL:', refCode);
-    localStorage.setItem('pending_referral_code', refCode);
-    
-    // Limpiar la URL sin recargar la página
-    const newUrl = window.location.pathname;
-    window.history.replaceState({}, document.title, newUrl);
+  if (refCode && !localStorage.getItem('referral_code')) {
+    localStorage.setItem('referral_code', refCode);
+    console.log('🔗 Código de referencia guardado desde URL:', refCode);
   }
 }, []);
+
   /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
