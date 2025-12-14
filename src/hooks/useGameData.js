@@ -120,10 +120,11 @@ export function useGameData(user) {
     }
   }, [user]);
 
-  // 🎯 OBTENER O CREAR JUGADOR - VERSIÓN CORREGIDA
+  // 🎯 OBTENER O CREAR JUGADOR - VERSIÓN COMPLETAMENTE CORREGIDA
   const getOrCreatePlayer = async (user) => {
     console.log('🔍 Debug - Buscando jugador para user_id:', user.id);
     
+    // Primero, verificar si ya existe
     const { data: existingPlayer } = await supabase
       .from('players')
       .select('*')
@@ -135,7 +136,9 @@ export function useGameData(user) {
       return existingPlayer;
     }
 
-    // Generar username a partir del email (si existe) o aleatorio
+    console.log('🆕 Creando NUEVO jugador para:', user.email);
+    
+    // Generar username
     const emailUsername = user.email ? user.email.split('@')[0] : '';
     const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
     const username = emailUsername 
@@ -144,32 +147,41 @@ export function useGameData(user) {
     
     const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
     
-    // 🔍 OBTENER CÓDIGO DE REFERIDO CON PRIORIDAD:
+    // 🎯 **CORRECCIÓN CRÍTICA: OBTENER CÓDIGO DE REFERIDO CON MEJOR LOGÍSTICA**
     let referredBy = null;
     let referralCodeUsed = null;
     
-    // 1. De localStorage (pending_referral_code de AuthModal)
-    if (localStorage.getItem('pending_referral_code')) {
-      referralCodeUsed = localStorage.getItem('pending_referral_code');
-      localStorage.removeItem('pending_referral_code');
-      console.log('🔗 Código de referencia de pending_referral_code:', referralCodeUsed);
-    }
-    // 2. De user_metadata (si viene del registro)
-    else if (user.user_metadata?.referral_code) {
-      referralCodeUsed = user.user_metadata.referral_code;
-      console.log('🔗 Código de referencia de user_metadata:', referralCodeUsed);
-    }
-    // 3. De localStorage antiguo (backward compatibility)
-    else if (localStorage.getItem('referral_code')) {
-      referralCodeUsed = localStorage.getItem('referral_code');
-      localStorage.removeItem('referral_code');
-      console.log('🔗 Código de referencia de localStorage:', referralCodeUsed);
-    }
+    // 1. Verificar parámetro en la URL ACTUAL (lo más reciente)
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCodeFromUrl = urlParams.get('ref');
     
-    // Buscar referidor
+    // 2. Verificar localStorage (pending_referral_code de AuthModal)
+    const pendingRefCode = localStorage.getItem('pending_referral_code');
+    
+    // 3. Verificar user_metadata
+    const metadataRefCode = user.user_metadata?.referral_code;
+    
+    // 4. Verificar localStorage antiguo
+    const oldRefCode = localStorage.getItem('referral_code');
+    
+    console.log('📋 Fuentes de código de referencia:', {
+      url: refCodeFromUrl,
+      pending: pendingRefCode,
+      metadata: metadataRefCode,
+      old: oldRefCode
+    });
+    
+    // Prioridad: URL > pending > metadata > old
+    referralCodeUsed = refCodeFromUrl || pendingRefCode || metadataRefCode || oldRefCode;
+    
     if (referralCodeUsed) {
-      console.log(`🎯 Buscando referidor con código: ${referralCodeUsed.toUpperCase()}`);
+      console.log(`🎯 Usando código de referencia: ${referralCodeUsed}`);
       
+      // Limpiar almacenamiento después de usar
+      if (pendingRefCode) localStorage.removeItem('pending_referral_code');
+      if (oldRefCode) localStorage.removeItem('referral_code');
+      
+      // Buscar referidor en la base de datos
       const { data: referrer } = await supabase
         .from('players')
         .select('id, username, referral_code')
@@ -178,90 +190,105 @@ export function useGameData(user) {
       
       if (referrer) {
         referredBy = referrer.id;
-        console.log(`✅ Referidor encontrado: ${referrer.username} (${referrer.id})`);
+        console.log(`✅ Referidor encontrado: ${referrer.username} (ID: ${referrer.id})`);
       } else {
         console.warn(`⚠️ Código de referencia no válido: ${referralCodeUsed}`);
       }
+    } else {
+      console.log('ℹ️ No se encontró código de referencia');
     }
 
-    console.log('🎮 Creando nuevo jugador:', { username, referralCode, referredBy });
+    console.log('🎮 Creando nuevo jugador con datos:', { 
+      username, 
+      referralCode, 
+      referredBy,
+      referralCodeUsed 
+    });
 
-    // Crear nuevo jugador
-    const { data: newPlayer, error } = await supabase
-      .from('players')
-      .insert([{
-        user_id: user.id,
-        username: username,
-        avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${username}`,
-        referral_code: referralCode,
-        referred_by: referredBy,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_active: new Date().toISOString()
-      }])
-      .select()
-      .single();
+    try {
+      // Crear nuevo jugador en la base de datos
+      const { data: newPlayer, error } = await supabase
+        .from('players')
+        .insert([{
+          user_id: user.id,
+          username: username,
+          avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${username}`,
+          referral_code: referralCode,
+          referred_by: referredBy,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_active: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-    if (error) {
-      console.error('❌ Error creando jugador:', error);
-      
-      // Intentar con otro username si hay duplicado
-      if (error.code === '23505' && error.message.includes('username')) {
-        const altUsername = `${username}_${Math.floor(Math.random() * 1000)}`;
-        const { data: altPlayer, error: altError } = await supabase
-          .from('players')
-          .insert([{
-            user_id: user.id,
-            username: altUsername,
-            avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${altUsername}`,
-            referral_code: referralCode,
-            referred_by: referredBy,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_active: new Date().toISOString()
-          }])
-          .select()
-          .single();
+      if (error) {
+        console.error('❌ Error creando jugador:', error);
         
-        if (altError) {
-          console.error('❌ Error creando jugador alternativo:', altError);
-          throw altError;
+        // Intentar con otro username si hay duplicado
+        if (error.code === '23505' && error.message.includes('username')) {
+          const altUsername = `${username}_${Math.floor(Math.random() * 1000)}`;
+          console.log('🔄 Intentando con username alternativo:', altUsername);
+          
+          const { data: altPlayer, error: altError } = await supabase
+            .from('players')
+            .insert([{
+              user_id: user.id,
+              username: altUsername,
+              avatar_url: `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${altUsername}`,
+              referral_code: referralCode,
+              referred_by: referredBy,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_active: new Date().toISOString()
+            }])
+            .select()
+            .single();
+          
+          if (altError) {
+            console.error('❌ Error creando jugador alternativo:', altError);
+            throw altError;
+          }
+          
+          console.log('✅ Jugador alternativo creado:', altPlayer.username);
+          
+          // 🎯 **APLICAR RECOMPENSAS DE REFERIDO INMEDIATAMENTE**
+          if (referredBy) {
+            console.log(`💰 Aplicando recompensas para referidor ${referredBy} y nuevo jugador ${altPlayer.id}`);
+            await applyReferralRewards(referredBy, altPlayer.id);
+          }
+          
+          return altPlayer;
         }
-        
-        // 🎯 APLICAR RECOMPENSAS INMEDIATAMENTE si fue referido
-        if (referredBy) {
-          console.log('💰 Aplicando recompensas de referencia inmediatamente...');
-          await applyReferralRewards(referredBy, altPlayer.id);
-        }
-        
-        return altPlayer;
+        throw error;
       }
+
+      console.log('✅ Nuevo jugador creado exitosamente:', newPlayer.username);
+      
+      // 🎯 **APLICAR RECOMPENSAS DE REFERIDO INMEDIATAMENTE**
+      if (referredBy) {
+        console.log(`💰 Aplicando recompensas para referidor ${referredBy} y nuevo jugador ${newPlayer.id}`);
+        await applyReferralRewards(referredBy, newPlayer.id);
+      }
+      
+      return newPlayer;
+      
+    } catch (error) {
+      console.error('❌ Error fatal creando jugador:', error);
       throw error;
     }
-
-    console.log('✅ Nuevo jugador creado:', newPlayer.username);
-    
-    // 🎯 APLICAR RECOMPENSAS INMEDIATAMENTE si fue referido
-    if (referredBy) {
-      console.log('💰 Aplicando recompensas de referencia inmediatamente...');
-      await applyReferralRewards(referredBy, newPlayer.id);
-    }
-
-    return newPlayer;
   };
 
-  // 🎯 FUNCIÓN PARA APLICAR RECOMPENSAS DE REFERIDO - VERSIÓN SIMPLIFICADA Y SEGURA
+  // 🎯 **FUNCIÓN PARA APLICAR RECOMPENSAS - COMPLETAMENTE REESCRITA**
   const applyReferralRewards = async (referrerId, newPlayerId) => {
+    console.log('🎁 ========== INICIANDO APLICACIÓN DE RECOMPENSAS ==========');
+    console.log('📤 Datos:', { referrerId, newPlayerId });
+    
     try {
-      console.log(`🎁 Aplicando recompensas de referencia:`, {
-        referrer: referrerId,
-        nuevoJugador: newPlayerId
-      });
-
-      // 1. Contar referidos actuales del referidor
+      // 🔄 **1. CONTAR REFERIDOS ACTUALES DEL REFERIDOR**
       const { data: referrals, error: countError } = await supabase
         .from('players')
-        .select('id')
+        .select('id, username, created_at')
         .eq('referred_by', referrerId);
       
       if (countError) {
@@ -272,101 +299,161 @@ export function useGameData(user) {
       const totalReferrals = referrals?.length || 0;
       console.log(`📊 Referidor ${referrerId} tiene ${totalReferrals} referidos`);
       
-      // 2. Calcular los valores totales que debería tener
-      const totalCrocFromRefs = totalReferrals * 10;
-      const totalCoinsFromRefs = totalReferrals * 1000;
+      // 💰 **2. CALCULAR RECOMPENSAS TOTALES**
+      const totalCrocReward = totalReferrals * 10;
+      const totalCoinsReward = totalReferrals * 1000;
       
-      // 3. ACTUALIZAR REFERIDOR - player_stats
+      console.log('💰 Recompensas totales calculadas:', {
+        referidos: totalReferrals,
+        crocTotal: totalCrocReward,
+        monedasTotal: totalCoinsReward
+      });
+      
+      // 🔄 **3. ACTUALIZAR PLAYER_STATS DEL REFERIDOR (USANDO UPSERT)**
+      console.log('🔄 Actualizando player_stats del referidor...');
+      
       const { data: existingStats } = await supabase
         .from('player_stats')
-        .select('croc_from_refs, coins_from_refs, native_token_balance, coins')
+        .select('croc_from_refs, coins_from_refs, referrals_count, native_token_balance, coins, total_coins')
         .eq('player_id', referrerId)
         .maybeSingle();
       
-      let crocDiff = totalCrocFromRefs - (Number(existingStats?.croc_from_refs) || 0);
-      let coinsDiff = totalCoinsFromRefs - (Number(existingStats?.coins_from_refs) || 0);
+      console.log('📊 Stats existentes del referidor:', existingStats);
       
+      // Calcular las diferencias
+      const currentCrocRefs = Number(existingStats?.croc_from_refs) || 0;
+      const currentCoinsRefs = Number(existingStats?.coins_from_refs) || 0;
+      const currentRefCount = Number(existingStats?.referrals_count) || 0;
+      
+      const crocDiff = totalCrocReward - currentCrocRefs;
+      const coinsDiff = totalCoinsReward - currentCoinsRefs;
+      const refDiff = totalReferrals - currentRefCount;
+      
+      console.log('📈 Diferencias a aplicar:', {
+        crocDiff,
+        coinsDiff,
+        refDiff
+      });
+      
+      // Preparar payload de actualización
       const updatePayload = {
         player_id: referrerId,
         referrals_count: totalReferrals,
-        croc_from_refs: totalCrocFromRefs,
-        coins_from_refs: totalCoinsFromRefs,
+        croc_from_refs: totalCrocReward,
+        coins_from_refs: totalCoinsReward,
         updated_at: new Date().toISOString(),
         last_active: new Date().toISOString()
       };
       
-      // Solo agregar la diferencia si es positiva
+      // Solo agregar las diferencias si son positivas
       if (crocDiff > 0) {
         updatePayload.native_token_balance = supabase.raw(`COALESCE(native_token_balance, 0) + ${crocDiff}`);
       }
+      
       if (coinsDiff > 0) {
         updatePayload.coins = supabase.raw(`COALESCE(coins, 0) + ${coinsDiff}`);
         updatePayload.total_coins = supabase.raw(`COALESCE(total_coins, 0) + ${coinsDiff}`);
       }
       
-      // Si no existe player_stats, crear uno básico
-      if (!existingStats) {
-        updatePayload.level = 1;
-        updatePayload.energy = 100;
-        updatePayload.max_energy = 100;
-        updatePayload.click_power = 1;
-        updatePayload.coins_per_second = 0;
-        updatePayload.experience = 0;
-        updatePayload.clicks = 0;
-      }
+      console.log('📤 Payload para referidor:', updatePayload);
       
+      // Usar upsert para crear o actualizar
       const { error: updateError } = await supabase
         .from('player_stats')
-        .upsert(updatePayload, { onConflict: 'player_id' });
+        .upsert(updatePayload, {
+          onConflict: 'player_id',
+          ignoreDuplicates: false
+        });
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Error actualizando player_stats del referidor:', updateError);
+      } else {
+        console.log('✅ Player_stats del referidor actualizadas');
+      }
       
-      // 4. ACTUALIZAR TABLA PLAYERS del referidor
+      // 🔄 **4. ACTUALIZAR TABLA PLAYERS DEL REFERIDOR**
+      console.log('🔄 Actualizando tabla players del referidor...');
+      
       const { error: updatePlayerError } = await supabase
         .from('players')
         .update({
-          total_earned_croc: totalCrocFromRefs,
-          total_earned_coins: totalCoinsFromRefs,
+          total_earned_croc: totalCrocReward,
+          total_earned_coins: totalCoinsReward,
           updated_at: new Date().toISOString()
         })
         .eq('id', referrerId);
       
-      if (updatePlayerError) throw updatePlayerError;
+      if (updatePlayerError) {
+        console.error('❌ Error actualizando tabla players del referidor:', updatePlayerError);
+      } else {
+        console.log('✅ Tabla players del referidor actualizada');
+      }
       
-      // 5. DAR BONIFICACIÓN AL NUEVO JUGADOR (referido)
-      const { error: updateNewPlayerError } = await supabase
+      // 🎁 **5. DAR BONIFICACIÓN AL NUEVO JUGADOR (REFERIDO)**
+      console.log('🎁 Dando bonificación al nuevo jugador referido...');
+      
+      // Primero verificar si ya tiene stats
+      const { data: newPlayerStats } = await supabase
         .from('player_stats')
-        .upsert({
-          player_id: newPlayerId,
-          native_token_balance: supabase.raw('COALESCE(native_token_balance, 0) + 10'),
-          coins: supabase.raw('COALESCE(coins, 0) + 1000'),
-          total_coins: supabase.raw('COALESCE(total_coins, 0) + 1000'),
-          level: 1,
-          energy: 100,
-          max_energy: 100,
-          click_power: 1,
-          coins_per_second: 0,
-          experience: 0,
-          clicks: 0,
-          updated_at: new Date().toISOString(),
-          last_active: new Date().toISOString()
-        }, { onConflict: 'player_id' });
+        .select('native_token_balance, coins, total_coins')
+        .eq('player_id', newPlayerId)
+        .maybeSingle();
       
-      if (updateNewPlayerError) throw updateNewPlayerError;
+      console.log('📊 Stats existentes del nuevo jugador:', newPlayerStats);
       
-      console.log(`✅ Recompensas aplicadas exitosamente. Referidor: ${referrerId}, Nuevo: ${newPlayerId}`, {
-        referidos: totalReferrals,
-        croc: totalCrocFromRefs,
-        monedas: totalCoinsFromRefs,
-        bonificacionNuevo: '10 CROC + 1000 monedas'
+      const newPlayerUpdate = {
+        player_id: newPlayerId,
+        // Añadir bonificación solo si no la tiene ya
+        native_token_balance: supabase.raw(`COALESCE(native_token_balance, 0) + 10`),
+        coins: supabase.raw(`COALESCE(coins, 0) + 1000`),
+        total_coins: supabase.raw(`COALESCE(total_coins, 0) + 1000`),
+        level: 1,
+        energy: 100,
+        max_energy: 100,
+        click_power: 1,
+        coins_per_second: 0,
+        experience: 0,
+        clicks: 0,
+        updated_at: new Date().toISOString(),
+        last_active: new Date().toISOString()
+      };
+      
+      console.log('📤 Payload para nuevo jugador:', newPlayerUpdate);
+      
+      const { error: newPlayerError } = await supabase
+        .from('player_stats')
+        .upsert(newPlayerUpdate, {
+          onConflict: 'player_id',
+          ignoreDuplicates: false
+        });
+      
+      if (newPlayerError) {
+        console.error('❌ Error dando bonificación al nuevo jugador:', newPlayerError);
+      } else {
+        console.log('✅ Bonificación dada al nuevo jugador');
+      }
+      
+      console.log('🎉 ========== RECOMPENSAS APLICADAS EXITOSAMENTE ==========');
+      console.log('📋 Resumen:', {
+        referidor: {
+          id: referrerId,
+          referidosTotales: totalReferrals,
+          crocTotal: totalCrocReward,
+          monedasTotal: totalCoinsReward
+        },
+        nuevoJugador: {
+          id: newPlayerId,
+          bonificacion: '10 CROC + 1000 monedas'
+        }
       });
-
+      
     } catch (error) {
-      console.error("❌ Error crítico aplicando recompensas:", error);
+      console.error('❌ ERROR CRÍTICO en applyReferralRewards:', error);
+      console.error('🔍 Stack trace:', error.stack);
     }
   };
 
-  // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR
+  // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR - VERSIÓN MEJORADA
   const getOrCreatePlayerStats = async (playerId) => {
     console.log('📊 Buscando player_stats para player_id:', playerId);
     
@@ -397,6 +484,23 @@ export function useGameData(user) {
 
     const isReferred = !!player?.referred_by;
     console.log(`🎯 Jugador ${playerId} es referido: ${isReferred}`);
+    
+    // Si es referido, verificar si ya recibió bonificación
+    if (isReferred) {
+      console.log('🔍 Jugador referido, verificando si ya tiene stats...');
+      
+      // Intentar obtener stats nuevamente (por si acaso)
+      const { data: recheckStats } = await supabase
+        .from('player_stats')
+        .select('native_token_balance, coins')
+        .eq('player_id', playerId)
+        .maybeSingle();
+      
+      if (recheckStats) {
+        console.log('✅ Stats encontradas después de rechequeo:', recheckStats);
+        return recheckStats;
+      }
+    }
     
     const initialStats = {
       player_id: playerId,
@@ -429,6 +533,8 @@ export function useGameData(user) {
       last_active: new Date().toISOString()
     };
 
+    console.log('📤 Creando stats iniciales:', initialStats);
+
     const { data: newStats, error } = await supabase
       .from('player_stats')
       .insert([initialStats])
@@ -445,7 +551,7 @@ export function useGameData(user) {
     return newStats;
   };
 
-  // 🎯 OBTENER ESTADÍSTICAS DE REFERIDOS - VERSIÓN SIMPLIFICADA Y CORREGIDA
+  // 🎯 OBTENER ESTADÍSTICAS DE REFERIDOS - VERSIÓN MEJORADA
   const getReferralStats = async (playerId) => {
     try {
       console.log('📈 Obteniendo stats de referidos para:', playerId);
@@ -464,30 +570,20 @@ export function useGameData(user) {
       const realReferralsCount = referrals?.length || 0;
       
       // 2. Obtener stats actuales del jugador
-      const { data: playerStats, error: statsError } = await supabase
+      const { data: playerStats } = await supabase
         .from('player_stats')
         .select('croc_from_refs, coins_from_refs, referrals_count')
         .eq('player_id', playerId)
-        .single();
+        .maybeSingle();
 
-      // Si no hay stats, crear unas básicas
-      if (statsError || !playerStats) {
-        console.log('📝 No hay player_stats, creando nuevas...');
-        await getOrCreatePlayerStats(playerId);
-        return { 
-          referralsCount: realReferralsCount, 
-          crocFromRefs: realReferralsCount * 10, 
-          coinsFromRefs: realReferralsCount * 1000 
-        };
-      }
-      
-      const currentCrocRefs = Number(playerStats.croc_from_refs) || 0;
-      const currentCoinsRefs = Number(playerStats.coins_from_refs) || 0;
-      const currentRefCount = Number(playerStats.referrals_count) || 0;
-      
-      // 3. Calcular cuánto DEBERÍA tener
+      // Calcular valores esperados
       const expectedCrocFromRefs = realReferralsCount * 10;
       const expectedCoinsFromRefs = realReferralsCount * 1000;
+      
+      // Si hay discrepancia, corregirla
+      const currentCrocRefs = Number(playerStats?.croc_from_refs) || 0;
+      const currentCoinsRefs = Number(playerStats?.coins_from_refs) || 0;
+      const currentRefCount = Number(playerStats?.referrals_count) || 0;
       
       console.log(`📊 Referral stats para ${playerId}:`, {
         referidosReales: realReferralsCount,
@@ -496,8 +592,14 @@ export function useGameData(user) {
         crocActual: currentCrocRefs,
         monedasEsperadas: expectedCoinsFromRefs,
         monedasActuales: currentCoinsRefs,
-        necesitaActualizar: currentRefCount !== realReferralsCount
+        necesitaCorreccion: currentRefCount !== realReferralsCount
       });
+      
+      // Si hay discrepancia, corregir inmediatamente
+      if (currentRefCount !== realReferralsCount) {
+        console.log('🔄 Corrigiendo discrepancia en referidos...');
+        await refreshReferralStats();
+      }
       
       return { 
         referralsCount: realReferralsCount, 
@@ -528,8 +630,9 @@ export function useGameData(user) {
     playerId: stats.player_id
   });
 
-  // 🔄 SINCRONIZACIÓN OPTIMIZADA
+  // 🔄 SINCRONIZACIÓN OPTIMIZADA (sin cambios)
   const syncGameData = useCallback(async (updates = {}) => {
+    // ... (mantener el código existente)
     if (!gameData.player?.id || gameData.syncInProgress) {
       pendingSyncRef.current = { ...pendingSyncRef.current, ...updates };
       return;
@@ -617,7 +720,101 @@ export function useGameData(user) {
     }
   }, [gameData]);
 
-  // 🏆 CARGAR RANKING
+  // 🎯 ACTUALIZAR ESTADÍSTICAS DE REFERIDOS - VERSIÓN MEJORADA
+  const refreshReferralStats = useCallback(async () => {
+    if (!gameData.player?.id) return;
+    
+    try {
+      console.log('🔄 Actualizando estadísticas de referidos para:', gameData.player.username);
+      
+      // 1. Contar referidos REALES
+      const { data: referrals, error: referralsError } = await supabase
+        .from('players')
+        .select('id, username')
+        .eq('referred_by', gameData.player.id);
+      
+      if (referralsError) {
+        console.error('❌ Error obteniendo referidos:', referralsError);
+        return;
+      }
+      
+      const realReferralsCount = referrals?.length || 0;
+      
+      // 2. Calcular valores que DEBERÍA tener
+      const expectedCrocFromRefs = realReferralsCount * 10;
+      const expectedCoinsFromRefs = realReferralsCount * 1000;
+      
+      console.log('💰 Valores esperados:', {
+        referidos: realReferralsCount,
+        croc: expectedCrocFromRefs,
+        monedas: expectedCoinsFromRefs
+      });
+      
+      // 3. ACTUALIZAR player_stats con los valores CORRECTOS
+      const { error: updateStatsError } = await supabase
+        .from('player_stats')
+        .update({
+          referrals_count: realReferralsCount,
+          croc_from_refs: expectedCrocFromRefs,
+          coins_from_refs: expectedCoinsFromRefs,
+          native_token_balance: supabase.raw(`GREATEST(COALESCE(native_token_balance, 0), ${expectedCrocFromRefs})`),
+          coins: supabase.raw(`GREATEST(COALESCE(coins, 0), ${expectedCoinsFromRefs})`),
+          total_coins: supabase.raw(`GREATEST(COALESCE(total_coins, 0), ${expectedCoinsFromRefs})`),
+          updated_at: new Date().toISOString()
+        })
+        .eq('player_id', gameData.player.id);
+      
+      if (updateStatsError) {
+        console.error('❌ Error actualizando player_stats:', updateStatsError);
+      }
+      
+      // 4. ACTUALIZAR TABLA players (ESTO ES CLAVE)
+      const { error: updatePlayerError } = await supabase
+        .from('players')
+        .update({
+          total_earned_croc: expectedCrocFromRefs,
+          total_earned_coins: expectedCoinsFromRefs,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', gameData.player.id);
+      
+      if (updatePlayerError) {
+        console.error('❌ Error actualizando tabla players:', updatePlayerError);
+      }
+      
+      // 5. Actualizar estado local
+      const newStats = { 
+        referralsCount: realReferralsCount, 
+        crocFromRefs: expectedCrocFromRefs, 
+        coinsFromRefs: expectedCoinsFromRefs 
+      };
+      
+      setGameData(prev => ({ 
+        ...prev, 
+        referralStats: newStats 
+      }));
+      
+      updateGameState({
+        referralsCount: newStats.referralsCount,
+        crocFromRefs: newStats.crocFromRefs,
+        coinsFromRefs: newStats.coinsFromRefs
+      });
+      
+      console.log('✅ Referidos actualizados correctamente:', {
+        referidos: realReferralsCount,
+        croc: expectedCrocFromRefs,
+        monedas: expectedCoinsFromRefs,
+        lista: referrals?.map(r => r.username)
+      });
+      
+    } catch (error) {
+      console.error('❌ Error refrescando referral stats:', error);
+    }
+  }, [gameData.player?.id, gameData.player?.username, updateGameState]);
+
+  // Las demás funciones (loadRanking, updateGameState, etc.) se mantienen igual...
+
+  // 🏆 CARGAR RANKING (sin cambios)
   const loadRanking = useCallback(async (scope = "global") => {
     const cacheKey = scope;
     const now = Date.now();
@@ -698,13 +895,13 @@ export function useGameData(user) {
     }
   }, [user]);
 
-  // 🔄 REFRESCAR RANKING
+  // 🔄 REFRESCAR RANKING (sin cambios)
   const refreshRanking = useCallback(async (scope = "global") => {
     rankingCacheRef.current[scope] = null;
     return loadRanking(scope);
   }, [loadRanking]);
 
-  // 🎯 FUNCIONES DE ACTUALIZACIÓN
+  // 🎯 FUNCIONES DE ACTUALIZACIÓN (sin cambios)
   const updateGameState = useCallback((newState) => {
     if (!isMounted.current) return;
 
@@ -760,93 +957,6 @@ export function useGameData(user) {
     setGameData(prev => ({ ...prev, referralStats: newReferralStats }));
   }, []);
 
-  // 🎯 ACTUALIZAR ESTADÍSTICAS DE REFERIDOS - VERSIÓN SIMPLIFICADA
-  const refreshReferralStats = useCallback(async () => {
-    if (!gameData.player?.id) return;
-    
-    try {
-      console.log('🔄 Actualizando estadísticas de referidos para:', gameData.player.username);
-      
-      // 1. Contar referidos REALES
-      const { data: referrals, error: referralsError } = await supabase
-        .from('players')
-        .select('id, username')
-        .eq('referred_by', gameData.player.id);
-      
-      if (referralsError) {
-        console.error('❌ Error obteniendo referidos:', referralsError);
-        return;
-      }
-      
-      const realReferralsCount = referrals?.length || 0;
-      
-      // 2. Calcular valores que DEBERÍA tener
-      const expectedCrocFromRefs = realReferralsCount * 10;
-      const expectedCoinsFromRefs = realReferralsCount * 1000;
-      
-      // 3. ACTUALIZAR player_stats con los valores CORRECTOS
-      const { error: updateStatsError } = await supabase
-        .from('player_stats')
-        .update({
-          referrals_count: realReferralsCount,
-          croc_from_refs: expectedCrocFromRefs,
-          coins_from_refs: expectedCoinsFromRefs,
-          native_token_balance: supabase.raw(`GREATEST(COALESCE(native_token_balance, 0), ${expectedCrocFromRefs})`),
-          coins: supabase.raw(`GREATEST(COALESCE(coins, 0), ${expectedCoinsFromRefs})`),
-          updated_at: new Date().toISOString()
-        })
-        .eq('player_id', gameData.player.id);
-      
-      if (updateStatsError) {
-        console.error('❌ Error actualizando player_stats:', updateStatsError);
-        return;
-      }
-      
-      // 4. ACTUALIZAR TABLA players (ESTO ES CLAVE)
-      const { error: updatePlayerError } = await supabase
-        .from('players')
-        .update({
-          total_earned_croc: expectedCrocFromRefs,
-          total_earned_coins: expectedCoinsFromRefs,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', gameData.player.id);
-      
-      if (updatePlayerError) {
-        console.error('❌ Error actualizando tabla players:', updatePlayerError);
-        return;
-      }
-      
-      // 5. Actualizar estado local
-      const newStats = { 
-        referralsCount: realReferralsCount, 
-        crocFromRefs: expectedCrocFromRefs, 
-        coinsFromRefs: expectedCoinsFromRefs 
-      };
-      
-      setGameData(prev => ({ 
-        ...prev, 
-        referralStats: newStats 
-      }));
-      
-      updateGameState({
-        referralsCount: newStats.referralsCount,
-        crocFromRefs: newStats.crocFromRefs,
-        coinsFromRefs: newStats.coinsFromRefs
-      });
-      
-      console.log('✅ Referidos actualizados correctamente:', {
-        referidos: realReferralsCount,
-        croc: expectedCrocFromRefs,
-        monedas: expectedCoinsFromRefs,
-        lista: referrals?.map(r => r.username)
-      });
-      
-    } catch (error) {
-      console.error('❌ Error refrescando referral stats:', error);
-    }
-  }, [gameData.player?.id, gameData.player?.username, updateGameState]);
-
   const getReferralLink = useCallback(() => {
     if (!gameData.player?.referral_code) return window.location.origin;
     return `${window.location.origin}?ref=${gameData.player.referral_code}`;
@@ -869,7 +979,6 @@ export function useGameData(user) {
 
     const interval = setInterval(async () => {
       try {
-        // Actualizar referidos cada 30 segundos
         await refreshReferralStats();
       } catch (error) {
         console.error('❌ Error en actualización periódica de referidos:', error);
