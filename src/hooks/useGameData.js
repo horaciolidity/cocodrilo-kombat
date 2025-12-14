@@ -161,14 +161,12 @@ export function useGameData(user) {
 
     if (error) throw error;
 
-
-if (referredBy) {
+  if (referredBy) {
   try {
-    // Usar una transacción para asegurar la atomicidad
-    const { error: updateError } = await supabase
+    await supabase
       .from('player_stats')
       .update({
-        native_token_balance: supabase.raw('COALESCE(native_token_balance, 0) + 10'),
+        native_token_balance: supabase.raw('COALESCE(native_token_balance, 0) + 10'), // Añadir a saldo
         coins: supabase.raw('COALESCE(coins, 0) + 1000'),
         coins_from_refs: supabase.raw('COALESCE(coins_from_refs, 0) + 1000'),
         croc_from_refs: supabase.raw('COALESCE(croc_from_refs, 0) + 10'),
@@ -176,22 +174,9 @@ if (referredBy) {
       })
       .eq('player_id', referredBy);
 
-    if (updateError) throw updateError;
-    
     console.log(`✅ Recompensas aplicadas al referidor: ${referredBy}`);
-    
-    // También actualizar el campo total_earned_croc en players
-    await supabase
-      .from('players')
-      .update({
-        total_earned_croc: supabase.raw('COALESCE(total_earned_croc, 0) + 10'),
-        total_earned_coins: supabase.raw('COALESCE(total_earned_coins, 0) + 1000')
-      })
-      .eq('id', referredBy);
-      
   } catch (refError) {
     console.error("❌ Error aplicando recompensas de referido:", refError);
-    // No lanzar el error para no bloquear el registro del nuevo jugador
   }
 }
 
