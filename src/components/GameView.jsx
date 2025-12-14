@@ -616,11 +616,11 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ delay: 0.1 }}
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 gap-3">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-green-300" />
           <h3 className="text-lg font-bold text-green-100">
-            🐊 Programa de Referidos
+            🐊 Referidos
           </h3>
           {hasReferrals && (
             <motion.div
@@ -636,20 +636,20 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
         <Button
           onClick={onCopyLink}
           size="sm"
-          className="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg transition-all duration-200 shadow-md w-full md:w-auto"
+          className="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg transition-all duration-200 shadow-md"
         >
           <Copy className="w-3 h-3 mr-1.5" />
-          Copiar Enlace de Referido
+          Copiar
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center mb-3">
+      <div className="grid grid-cols-3 gap-2 text-center mb-3">
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
           <div className="text-green-300 text-sm mb-1">👥 Referidos</div>
           <div className="text-white font-bold text-xl">{referralStats?.referralsCount || 0}</div>
         </div>
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
-          <div className="text-green-300 text-sm mb-1">💰 CROC Ganados</div>
+          <div className="text-green-300 text-sm mb-1">💰 CROC</div>
           <div className="text-white font-bold text-xl">{referralStats?.crocFromRefs || 0}</div>
         </div>
         <div className="bg-green-800/40 rounded-lg p-3 border border-green-600/30">
@@ -660,28 +660,20 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
 
       {hasReferrals && (
         <motion.div 
-          className="bg-green-700/30 border border-green-500/30 rounded-lg p-3 text-center"
+          className="bg-green-700/30 border border-green-500/30 rounded-lg p-2 text-center"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <p className="text-sm text-green-200 flex items-center justify-center gap-1">
-            <Sparkles className="w-4 h-4" />
-            <span>¡Ganando {referralStats?.crocFromRefs || 0} CROC por tus {referralStats?.referralsCount || 0} referido(s)!</span>
+          <p className="text-xs text-green-200 flex items-center justify-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            <span>¡Ganando recompensas por tus referidos!</span>
           </p>
         </motion.div>
       )}
-
-      <div className="mt-3 p-2 bg-gray-800/30 rounded border border-gray-700/50">
-        <p className="text-xs text-gray-300 text-center">
-          💰 Cada referido te da 10 CROC tokens + 1000 monedas
-        </p>
-      </div>
     </motion.div>
   );
 }
-
-
 
 function TokenInfoPanel({ 
   tokenPrice, 
