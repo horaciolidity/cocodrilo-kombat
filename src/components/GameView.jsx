@@ -321,17 +321,16 @@ export function GameView({
         />
       </div>
 
-
-      {/* 🎯 Widget de Referidos MÓVIL Y PC */}
-      <div className="mb-4">
+      {/* 🎯 Widget de Referidos Móvil */}
+      <div className="block md:hidden mb-4">
         <ReferralsWidget 
           referralStats={referralStats} 
           onCopyLink={copyReferralLink}
         />
       </div>
 
-      {/* ✅ VALOR CROC MÓVIL Y PC */}
-      <div className="mb-4">
+      {/* ✅ VALOR CROC MÓVIL */}
+      <div className="block md:hidden mb-4">
         <ProjectedValueMobile 
           projectedValue={totalProjectedValue}
           tokenBalance={gameState.nativeTokenBalance || 0}
