@@ -28,56 +28,59 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
 
   const referralCode = getReferralCode();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) return;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!email || !password) return;
 
-    setLoading(true);
-    playSound?.("uiClick");
+  setLoading(true);
+  playSound?.("uiClick");
 
-    try {
-      let data, error;
+  try {
+    let data, error;
 
-      if (mode === "register") {
-        // 🧾 CREAR CUENTA CON REFERIDO EN METADATA
-        const signUpData = {
-          email,
-          password,
-          options: {
-            data: {}
+    if (mode === "register") {
+      // 🎯 OBTENER CÓDIGO DE REFERIDO DE MÚLTIPLES FUENTES
+      let referralCode = null;
+      
+      // 1. De la URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref');
+      
+      // 2. De localStorage (si viene de URL anterior)
+      const localRefCode = localStorage.getItem('referral_code');
+      
+      // Preferencia: URL > localStorage
+      referralCode = refCode || localRefCode;
+      
+      if (referralCode) {
+        console.log("🎯 Referral code encontrado para registro:", referralCode);
+        
+        // Guardar temporalmente en localStorage para que useGameData.js lo use
+        localStorage.setItem('pending_referral_code', referralCode);
+        
+        // Limpiar URL y localStorage después de usar
+        localStorage.removeItem('referral_code');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // Crear cuenta con metadata
+      const signUpData = {
+        email,
+        password,
+        options: {
+          data: {
+            referral_code: referralCode || null,
+            referred_at: new Date().toISOString()
           }
-        };
-
-        // 🎯 Agregar metadata con código de referido si existe
-        if (referralCode) {
-          signUpData.options.data.referral_code = referralCode;
-          console.log("🎯 Registrando con código de referido en metadata:", referralCode);
         }
+      };
 
-        ({ data, error } = await supabase.auth.signUp(signUpData));
-        
-        if (error) throw error;
-
-        console.log("✅ Usuario registrado en Auth. Metadata:", data.user?.user_metadata);
-        
-        toast({
-          title: "✅ Cuenta creada",
-          description: "Revisa tu correo para confirmar la cuenta. Luego inicia sesión.",
-          duration: 6000,
-        });
-        playSound?.("reward");
-        
-        setRegistrationSuccess(true);
-        setEmail("");
-        setPassword("");
-        
-      } else {
-        // 🔐 INICIAR SESIÓN
-        ({ data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        }));
-        if (error) throw error;
+      ({ data, error } = await supabase.auth.signUp(signUpData));
+      
+      if (error) throw error;
+      
+      console.log("✅ Usuario registrado. Metadata:", data.user?.user_metadata);
+      
 
         const user = data?.user;
         if (user) {
