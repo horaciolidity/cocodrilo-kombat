@@ -27,7 +27,6 @@ import { useGameLogic } from "@/hooks/useGameLogic";
 import { useSound } from "@/hooks/useSound";
 import { useTokenPrice } from '@/hooks/useTokenPrice';
 
-
 import {
   Home,
   BarChart3,
@@ -40,10 +39,6 @@ import {
   Rocket,
   FileText,
   Target as TargetIcon,
-  RefreshCw,
-  Bug,
-  Shield,
-  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -59,15 +54,14 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-    const tokenPriceHook = useTokenPrice();
+  const tokenPriceHook = useTokenPrice();
 
-  
   /* 💰 PRECIO GLOBAL CROC - CENTRALIZADO EN SUPABASE */
   const {
     tokenPrice = 0.05,
     setTokenPrice,
     priceHistory = [],
-    liquidity = 50000, // ✅ VALOR POR DEFECTO
+    liquidity = 50000,
     getChartData,
     getPriceStats,
     isLoading: tokenPriceLoading,
@@ -124,7 +118,6 @@ function App() {
 
   // ✅ DESESTRUCTURACIÓN SIMPLIFICADA
   const {
-    // 🎯 DATOS DEL JUEGO
     gameState,
     upgrades,
     missions,
@@ -138,13 +131,9 @@ function App() {
     referralStats,
     loading,
     error,
-    
-    // 🎯 ESTADOS DE UI
     floatingNumbers,
     clickEffect,
     soundEnabled,
-    
-    // 🎯 FUNCIONES DEL JUEGO
     handleClick,
     buyUpgrade,
     completeMission,
@@ -154,13 +143,9 @@ function App() {
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
-    
-    // 🎯 FUNCIONES DE UI
     setFloatingNumbers,
     setClickEffect,
     setSoundEnabled,
-    
-    // 🎯 FUNCIONES DE SINCRONIZACIÓN
     syncAllData,
   } = gameLogic;
 
@@ -170,7 +155,7 @@ function App() {
       if (document.visibilityState === 'visible') {
         refreshPrice && refreshPrice();
       }
-    }, 60000); // Refrescar cada minuto
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [refreshPrice]);
@@ -324,7 +309,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* 🔝 Barra superior */}
+      {/* 🔝 Barra superior - SIN BOTONES DEBUG, SYNC, INTEGRIDAD */}
       <nav className="bg-card/80 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
@@ -352,104 +337,9 @@ function App() {
                 <span className="hidden sm:inline">{item.label}</span>
               </Button>
             ))}
-            
-            {/* 🔄 Botón de Sincronización Manual */}
-            <Button
-              onClick={syncAllData}
-              variant="outline"
-              size="sm"
-              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-blue-700"
-              title="Sincronizar datos con la nube"
-            >
-              <RefreshCw className="w-3 h-3 md:mr-1.5" />
-              <span className="hidden sm:inline">Sync</span>
-            </Button>
-
-            {/* 🛡️ Botón de Integridad de Datos */}
-            <Button
-              onClick={gameData.verifyDataIntegrity}
-              variant="outline"
-              size="sm"
-              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-green-600 hover:bg-green-700 text-white border-green-700"
-              title="Verificar integridad de datos"
-            >
-              <Shield className="w-3 h-3 md:mr-1.5" />
-              <span className="hidden sm:inline">Integridad</span>
-            </Button>
-
-            {/* 🐛 Botón de Debug */}
-            <Button
-              onClick={() => {
-                console.log("🐛 DEBUG INFO - Arquitectura Centralizada:", {
-                  user: user?.id,
-                  player: player?.id,
-                  gameData: {
-                    coins: gameState.coins,
-                    level: gameState.level,
-                    clicks: gameState.totalClicks,
-                    nativeTokenBalance: gameState.nativeTokenBalance,
-                    crocFromRefs: gameState.crocFromRefs,
-                    coinsFromRefs: gameState.coinsFromRefs,
-                    referralsCount: gameState.referralsCount,
-                    energy: gameState.energy,
-                    coinsPerSecond: gameState.coinsPerSecond,
-                    clickPower: gameState.clickPower,
-                    realClickPower: calculateRealClickPower ? calculateRealClickPower() : 'N/A'
-                  },
-                  upgrades: upgrades,
-                  missions: missions,
-                  ownedCards: ownedCards,
-                  ownedItems: ownedItems,
-                  activeSkin: activeSkin,
-                  achievementsUnlocked: achievementsUnlocked,
-                  dailyRewards: dailyRewards,
-                  farmingMilestones: farmingMilestonesState,
-                  referralStats: referralStats,
-                  loading: loading,
-                  error: error
-                });
-                toast({
-                  title: "🐛 Información de Debug",
-                  description: "Datos mostrados en consola",
-                  duration: 3000,
-                });
-              }}
-              variant="outline"
-              size="sm"
-              className="mobile-button px-2 sm:px-3 md:px-4 text-xs md:text-sm flex-shrink-0 bg-gray-700 hover:bg-gray-800"
-            >
-              <Bug className="w-3 h-3 md:mr-1.5" />
-              <span className="hidden sm:inline">Debug</span>
-            </Button>
           </div>
         </div>
       </nav>
-
-      {/* 🔥 BANNER DE ESTADO DE CONEXIÓN */}
-      {user && (
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-1.5 px-4 text-sm">
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <span>✅ Conectado a la nube - Datos sincronizados automáticamente</span>
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          </div>
-        </div>
-      )}
-
-      {/* 📈 BANNER DE PRECIO CROC EN TIEMPO REAL */}
-      {!tokenPriceLoading && (
-        <div className="bg-gradient-to-r from-yellow-800 to-amber-700 text-white text-center py-1.5 px-4 text-sm">
-          <div className="flex items-center justify-center gap-2">
-            <TrendingUp className="w-4 h-4 text-yellow-300" />
-            <span>
-              <strong>CROC:</strong> ${tokenPrice.toFixed(4)} • 
-              <strong> Liquidez:</strong> ${liquidity.toLocaleString()} • 
-              <span className="text-yellow-300 ml-1">📈 Actualizado en tiempo real</span>
-            </span>
-            <TrendingUp className="w-4 h-4 text-yellow-300" />
-          </div>
-        </div>
-      )}
 
       {/* 🧩 Contenido dinámico */}
       <AnimatePresence mode="sync">
@@ -563,27 +453,26 @@ function App() {
               />
             )}
 
-           {currentView === "stats" && (
-  <StatsView
-    gameState={gameState}
-    upgrades={upgrades}
-    achievementsUnlocked={achievementsUnlocked}
-    ownedCardsCount={ownedCards.length}
-    ownedItemsCount={ownedItems.length}
-    farmingMilestonesCount={
-      Object.values(farmingMilestonesState).filter((m) => m.claimed).length
-    }
-    referralStats={referralStats}
-    // ✅ PASAR TODOS LOS DATOS DE PRECIO
-    tokenPrice={tokenPrice}
-    liquidity={liquidity}
-    priceHistory={priceHistory}
-    tokenPriceData={tokenPriceData} // Ya lo pasas, pero verifiquemos
-    getChartData={getChartData} // Añadir esta función
-    getPriceStats={getPriceStats} // Añadir esta función
-    refreshPrice={refreshPrice} // Añadir para actualizar manualmente
-  />
-)}
+            {currentView === "stats" && (
+              <StatsView
+                gameState={gameState}
+                upgrades={upgrades}
+                achievementsUnlocked={achievementsUnlocked}
+                ownedCardsCount={ownedCards.length}
+                ownedItemsCount={ownedItems.length}
+                farmingMilestonesCount={
+                  Object.values(farmingMilestonesState).filter((m) => m.claimed).length
+                }
+                referralStats={referralStats}
+                tokenPrice={tokenPrice}
+                liquidity={liquidity}
+                priceHistory={priceHistory}
+                tokenPriceData={tokenPriceData}
+                getChartData={getChartData}
+                getPriceStats={getPriceStats}
+                refreshPrice={refreshPrice}
+              />
+            )}
 
             {currentView === "settings" && (
               <SettingsView
@@ -626,7 +515,7 @@ function App() {
         milestone={lastReachedMilestone}
       />
 
-      {/* 🔻 Footer */}
+      {/* 🔻 Footer - SIMPLIFICADO */}
       <footer className="relative bg-card/90 backdrop-blur-md border-t border-border p-3 md:p-4 mt-16 z-10">
         <div className="max-w-7xl mx-auto">
           <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
@@ -674,12 +563,12 @@ function App() {
             )}
           </div>
           
-          {/* INDICADOR DE PRECIO EN TIEMPO REAL */}
+          {/* INDICADOR DE PRECIO EN TIEMPO REAL - SIMPLIFICADO */}
           <div className="mt-2 text-center">
             <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-full border border-yellow-600/30">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-[10px] text-yellow-300">
-                📈 Precio CROC global • Sincronizado con Supabase • Actualizado cada 8 segundos
+                Precio CROC actualizado cada 8 segundos
               </span>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -56,14 +56,13 @@ export function GameView({
   toast,
   user,
   tokenPrice,
-  liquidity,  // <- Añadir esta prop
-  priceData,  // <- Añadir esta prop (generar datos si no existe)
+  liquidity, 
+  priceData,
   referralStats,
   refreshReferralStats,
   calculateRealClickPower,
   getReferralLink,
-  onBuyToken,  // <- Añadir esta prop
-
+  onBuyToken,
 }) {
  
   const priceDataToUse = priceData || generateRandomPriceData(tokenPrice);
@@ -74,7 +73,6 @@ export function GameView({
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
 
-  // ✅ DEFINIR handleBuyToken
   const handleBuyToken = () => {
     toast({
       title: '🚧 Comprar Token CROC',
@@ -85,40 +83,33 @@ export function GameView({
   };
 
   useEffect(() => {
-  // Solo usar el tokenPrice del hook central
-  console.log('🎮 GameView usando precio CROC:', tokenPrice);
-}, [tokenPrice]);
+    console.log('🎮 GameView usando precio CROC:', tokenPrice);
+  }, [tokenPrice]);
 
-
-  // 🔄 ACTUALIZAR REFERIDOS PERIÓDICAMENTE
   useEffect(() => {
     if (user && refreshReferralStats) {
       const interval = setInterval(() => {
         refreshReferralStats();
-      }, 30000); // Actualizar cada 30 segundos
+      }, 30000);
       
       return () => clearInterval(interval);
     }
   }, [user, refreshReferralStats]);
 
-  // 🎥 Manejo de videos - MEJORADO con mejores fallbacks
   useEffect(() => {
     const initializeVideos = async () => {
       if (!videoRefIdle.current || !videoRefBite.current) return;
 
       try {
-        // Configurar videos
         videoRefIdle.current.loop = true;
         videoRefBite.current.loop = false;
         
-        // Precargar videos
         const loadVideo = (videoElement, src) => {
           return new Promise((resolve) => {
             videoElement.src = src;
             videoElement.onloadeddata = () => resolve(true);
             videoElement.onerror = () => {
               console.warn(`❌ Video no disponible: ${src}`);
-              // Intentar con formato alternativo
               const altSrc = src.replace('.mp4', '.webm');
               videoElement.src = altSrc;
               videoElement.onerror = () => resolve(false);
@@ -138,7 +129,7 @@ export function GameView({
           try {
             await videoRefIdle.current.play();
           } catch (err) {
-            console.log("🔇 Autoplay bloqueado - esperando interacción");
+            console.log("🔇 Autoplay bloqueado");
           }
         }
 
@@ -153,17 +144,13 @@ export function GameView({
     initializeVideos();
   }, []);
 
-  // ✅ CALCULAR CLICK POWER EN TIEMPO REAL - VERSIÓN MEJORADA
   const getCurrentClickPower = () => {
     if (calculateRealClickPower) {
-          return calculateRealClickPower();
-
+      return calculateRealClickPower();
     }
     
-    // Fallback robusto
     let clickPower = gameState.clickPower || 1;
     
-    // Aplicar bonus de upgrades
     Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
       const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
       if (upgradeConfig && upgradeData?.level > 0) {
@@ -180,7 +167,6 @@ export function GameView({
     return clickPower;
   };
 
-  // 🐊 Manejo de clic MEJORADO con mejor feedback
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
       const el = event.currentTarget;
@@ -196,12 +182,10 @@ export function GameView({
       return;
     }
 
-    // Ejecutar la lógica de clic original
     handleClick(event);
     playSound('bite');
     setIsClicked(true);
 
-    // 🎥 Manejo de videos mejorado
     if (videoRefIdle.current && videoRefBite.current) {
       try {
         videoRefIdle.current.pause();
@@ -228,7 +212,6 @@ export function GameView({
       }
     }
 
-    // 🪙 Efecto visual mejorado
     const clickEffect = document.createElement('div');
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -248,7 +231,6 @@ export function GameView({
     clickEffect.style.zIndex = '50';
     clickEffect.style.animation = 'riseUp 1.2s ease-out forwards';
 
-    // Color basado en nivel
     const lvl = gameState.level;
     clickEffect.style.color =
       lvl < 5 ? '#bef264' :
@@ -256,7 +238,6 @@ export function GameView({
       lvl < 20 ? '#4ade80' :
       lvl < 30 ? '#22c55e' : '#16a34a';
 
-    // Sombra para mejor legibilidad
     clickEffect.style.textShadow = '0 0 8px rgba(0,0,0,0.8)';
 
     event.currentTarget.appendChild(clickEffect);
@@ -266,16 +247,13 @@ export function GameView({
       }
     }, 1200);
 
-    // 🔁 Reset efecto de clic visual
     setTimeout(() => setIsClicked(false), 200);
   };
 
-  // 🔥 COMPRAR MEJORA CON MEJOR FEEDBACK
   const handleBuyUpgrade = (upgradeId) => {
     buyUpgrade(upgradeId);
   };
 
-  // 📋 Función para copiar enlace de referidos MEJORADA
   const copyReferralLink = () => {
     if (!getReferralLink) {
       toast({
@@ -304,21 +282,12 @@ export function GameView({
     });
   };
 
-  // ✅ CALCULAR VALOR PROYECTADO - SOLO CROC (sin monedas)
-  const actualTokenPrice = tokenPrice; // Usar el precio simulado
+  const actualTokenPrice = tokenPrice;
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
-  const totalProjectedValue = projectedCrocValue; // SOLO CROC
+  const totalProjectedValue = projectedCrocValue;
 
-  // 🎯 RENDER PRINCIPAL
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
-      {/* 🔥 BANNER DE SINCRONIZACIÓN MEJORADO */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white text-center py-2 px-4 rounded-lg mb-4 flex items-center justify-center gap-2 shadow-lg">
-        <Sparkles className="w-4 h-4" />
-        <span className="text-sm font-bold">Sincronizado con la nube - Todo se guarda automáticamente</span>
-        <Sparkles className="w-4 h-4" />
-      </div>
-
       {/* 📊 Stats rápidas */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <StatCard
@@ -371,7 +340,7 @@ export function GameView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-        {/* 🐊 Zona del cocodrilo - VERSIÓN MEJORADA */}
+        {/* 🐊 Zona del cocodrilo */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -394,7 +363,6 @@ export function GameView({
                     : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)] bg-emerald-500/10'
                 }`}
             >
-              {/* 🎥 Videos con mejor manejo de errores */}
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
@@ -423,7 +391,6 @@ export function GameView({
                 }}
               />
 
-              {/* 🖼️ Fallback de imagen mejorado */}
               {!videoLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-800 rounded-full">
                   <div className="text-center text-white p-4">
@@ -434,14 +401,12 @@ export function GameView({
                 </div>
               )}
 
-              {/* ✨ Efecto circular brillante */}
               <motion.div
                 className="absolute inset-0 rounded-full border-[4px] border-lime-400 pointer-events-none"
                 animate={{ opacity: [1, 0.6, 1], scale: [1, 1.05, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
               />
 
-              {/* 🪙 Texto principal mejorado */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center select-none z-10 p-4">
                 <div className="font-bold text-2xl md:text-3xl neon-glow mb-2">
                   {gameState.energy <= 0 ? 'SIN ENERGÍA ⚡' : '¡MORDER!'}
@@ -459,9 +424,7 @@ export function GameView({
             </div>
           </motion.div>
 
-          {/* Barra de progreso y energía MEJORADA */}
           <div className="mt-10 w-full max-w-md space-y-4">
-            {/* Barra de nivel */}
             <div>
               <div className="flex justify-between text-sm mb-2">
                 <span className="flex items-center gap-1">
@@ -480,7 +443,6 @@ export function GameView({
               </div>
             </div>
 
-            {/* 🔥 BARRA DE ENERGÍA MEJORADA */}
             <div>
               <div className="flex justify-between text-sm mb-2">
                 <span className="flex items-center gap-1">
@@ -523,7 +485,6 @@ export function GameView({
           </div>
         </div>
 
-        {/* 📊 Panel lateral MEJORADO */}
         <div className="w-full space-y-4">
           <TokenInfoPanel
             tokenPrice={actualTokenPrice}
@@ -549,7 +510,6 @@ export function GameView({
         </div>
       </div>
 
-      {/* Inyectar estilos CSS */}
       <style>{`
         @keyframes riseUp {
           0% {
@@ -601,9 +561,6 @@ export function GameView({
   );
 }
 
-/* ===================== Subcomponentes ===================== */
-
-// ✅ NUEVO: Componente para Valor CROC Móvil
 function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
   return (
     <motion.div 
@@ -648,7 +605,6 @@ function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
   );
 }
 
-// 🆕 Componente separado para Widget de Referidos
 function ReferralsWidget({ referralStats, onCopyLink }) {
   const hasReferrals = referralStats?.referralsCount > 0;
   
@@ -701,7 +657,6 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
         </div>
       </div>
 
-      {/* Mensaje de bonificación */}
       {hasReferrals && (
         <motion.div 
           className="bg-green-700/30 border border-green-500/30 rounded-lg p-2 text-center"
@@ -719,7 +674,6 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
   );
 }
 
-// GameView.jsx - MODIFICAR EL COMPONENTE TokenInfoPanel
 function TokenInfoPanel({ 
   tokenPrice, 
   liquidity, 
@@ -732,29 +686,25 @@ function TokenInfoPanel({
 }) {
   const hasReferrals = referralStats?.referralsCount > 0;
   
-  // 📊 Calcular estadísticas en tiempo real
   const currentPrice = tokenPrice || 0.05;
   const tokenValue = nativeTokenBalance * currentPrice;
   
-  // 📈 Datos para el gráfico con animación
   const [chartData, setChartData] = useState(priceData || []);
   
   useEffect(() => {
     if (priceData && priceData.length > 0) {
-      setChartData(priceData.slice(-30)); // Mostrar últimos 30 puntos
+      setChartData(priceData.slice(-30));
     }
   }, [priceData]);
   
   return (
     <div className="stats-card rounded-xl p-4">
-      {/* Encabezado con precio en tiempo real */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold flex items-center">
           <DollarSign className="w-6 h-6 mr-2 text-yellow-400" /> 
           CROC Token 🐊
         </h3>
         
-        {/* Indicador de precio en vivo */}
         <motion.div 
           className="px-3 py-1 rounded-full bg-gradient-to-r from-yellow-900/50 to-amber-800/50 border border-yellow-500/30"
           animate={{ 
@@ -776,7 +726,6 @@ function TokenInfoPanel({
         </motion.div>
       </div>
 
-      {/* ✅ VALOR DE TUS TOKENS */}
       <div className="mb-4 p-4 bg-gradient-to-r from-yellow-900/40 to-amber-800/40 rounded-lg border border-yellow-600/30">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-yellow-300 flex items-center gap-2">
@@ -796,7 +745,6 @@ function TokenInfoPanel({
         </div>
       </div>
 
-      {/* 📊 Datos del token */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-gray-800/30 rounded-lg p-3 text-center">
           <div className="text-xs text-gray-400 mb-1">📈 Precio</div>
@@ -812,7 +760,6 @@ function TokenInfoPanel({
         </div>
       </div>
 
-      {/* 📈 Gráfico mejorado */}
       <div className="h-32 w-full mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
@@ -869,7 +816,6 @@ function TokenInfoPanel({
         </ResponsiveContainer>
       </div>
 
-      {/* 🔄 Indicador de actualización en vivo */}
       <div className="flex items-center justify-center gap-2 mb-3">
         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         <span className="text-xs text-green-400">
@@ -946,7 +892,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
               key={upgrade.id}
               className="glass-effect rounded-lg overflow-hidden hover-lift transition-all duration-200"
             >
-              {/* 🖼️ Imagen de portada */}
               {upgrade.image && (
                 <div className="relative w-full h-28 md:h-32 overflow-hidden">
                   <img
@@ -962,7 +907,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
                 </div>
               )}
 
-              {/* 🧩 Contenido */}
               <div className="p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -979,7 +923,6 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
                   )}
                 </div>
 
-                {/* 💰 Precio y botón */}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-yellow-400 font-bold text-sm">
                     {price.toLocaleString()} 💰
