@@ -78,6 +78,17 @@ function App() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
+  // 🔗 Verificar parámetro de referencia en la URL
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref');
+  
+  if (refCode && !localStorage.getItem('referral_code')) {
+    localStorage.setItem('referral_code', refCode);
+    console.log('🔗 Código de referencia guardado desde URL:', refCode);
+  }
+}, []);
+
   /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
