@@ -1,5 +1,5 @@
 // src/components/AuthModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { X, Lock, Mail, Sparkles, CheckCircle } from "lucide-react";
@@ -12,83 +12,111 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("login");
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [referralCode, setReferralCode] = useState(null);
 
   // 🎯 OBTENER Y VALIDAR CÓDIGO DE REFERIDO DE LA URL
-  const getReferralCode = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-    
-    // Validar que sea un código seguro (8 chars alfanum en minúscula)
-    if (refCode && /^[a-z0-9]{8}$/.test(refCode)) {
-      return refCode;
-    }
-    
-    return null;
-  };
-
-  const referralCode = getReferralCode();
-
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!email || !password) return;
-
-  setLoading(true);
-  playSound?.("uiClick");
-
-  try {
-    let data, error;
-
-    if (mode === "register") {
-      // 🎯 OBTENER CÓDIGO DE REFERIDO DE MÚLTIPLES FUENTES
-      let referralCode = null;
-      
-      // 1. De la URL
+  useEffect(() => {
+    const getReferralCode = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const refCode = urlParams.get('ref');
       
-      // 2. De localStorage (si viene de URL anterior)
-      const localRefCode = localStorage.getItem('referral_code');
+      // Validar que sea un código seguro (8 chars alfanum en mayúsculas)
+      if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
+        console.log('🔗 Código de referencia válido en URL:', refCode.toUpperCase());
+        return refCode.toUpperCase();
+      }
       
-      // Preferencia: URL > localStorage
-      referralCode = refCode || localRefCode;
+      // También verificar localStorage (backward compatibility)
+      const localRef = localStorage.getItem('pending_referral_code');
+      if (localRef && /^[A-Z0-9]{8}$/.test(localRef)) {
+        console.log('🔗 Código de referencia en localStorage:', localRef);
+        return localRef;
+      }
       
-      if (referralCode) {
-        console.log("🎯 Referral code encontrado para registro:", referralCode);
-        
-        // Guardar temporalmente en localStorage para que useGameData.js lo use
-        localStorage.setItem('pending_referral_code', referralCode);
-        
-        // Limpiar URL y localStorage después de usar
-        localStorage.removeItem('referral_code');
+      return null;
+    };
+
+    const code = getReferralCode();
+    if (code) {
+      setReferralCode(code);
+      // Limpiar URL sin recargar
+      if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
+    }
+  }, []);
 
-      // Crear cuenta con metadata
-      const signUpData = {
-        email,
-        password,
-        options: {
-          data: {
-            referral_code: referralCode || null,
-            referred_at: new Date().toISOString()
-          }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setLoading(true);
+    playSound?.("uiClick");
+
+    try {
+      let data, error;
+
+      if (mode === "register") {
+        console.log("🎯 Intentando registro con código de referencia:", referralCode);
+        
+        // Preparar metadata para el registro
+        const metadata = {};
+        if (referralCode) {
+          metadata.referral_code = referralCode;
+          metadata.referred_at = new Date().toISOString();
+          console.log("📝 Metadata enviada a Supabase Auth:", metadata);
+          
+          // Guardar también en localStorage como respaldo
+          localStorage.setItem('pending_referral_code', referralCode);
         }
-      };
 
-      ({ data, error } = await supabase.auth.signUp(signUpData));
-      
-      if (error) throw error;
-      
-      console.log("✅ Usuario registrado. Metadata:", data.user?.user_metadata);
-      
-
+        // Crear cuenta con metadata
+        ({ data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: metadata,
+            emailRedirectTo: `${window.location.origin}/`
+          }
+        }));
+        
+        if (error) throw error;
+        
+        console.log("✅ Usuario registrado. Metadata en user:", data.user?.user_metadata);
+        console.log("🔍 Datos completos de registro:", data);
+        
+        // Mostrar éxito
+        setRegistrationSuccess(true);
+        toast({
+          title: "🎉 ¡Registro Exitoso!",
+          description: "Revisa tu correo para confirmar la cuenta.",
+          duration: 5000,
+        });
+        playSound?.("reward");
+        
+      } else {
+        // Modo LOGIN
+        ({ data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        }));
+        
+        if (error) throw error;
+        
         const user = data?.user;
         if (user) {
           setUser(user);
           
-          // 🎯 useGameData.js manejará el código de referido desde user_metadata
-          console.log("🔍 Metadata del usuario al iniciar sesión:", user.user_metadata);
-
+          // 🎯 Verificar si hay código de referencia pendiente
+          const pendingRefCode = localStorage.getItem('pending_referral_code');
+          if (pendingRefCode && /^[A-Z0-9]{8}$/.test(pendingRefCode)) {
+            console.log("🔗 Código de referencia pendiente encontrado en login:", pendingRefCode);
+            
+            // Aquí podrías aplicar la lógica para procesar el código si es necesario
+            // Por ahora solo lo removemos
+            localStorage.removeItem('pending_referral_code');
+          }
+          
           toast({
             title: "🎮 ¡Bienvenido de nuevo!",
             description: "Sesión iniciada correctamente. Tus datos se están sincronizando.",

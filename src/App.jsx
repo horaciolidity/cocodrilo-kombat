@@ -78,20 +78,33 @@ function App() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
- useEffect(() => {
+ // En App.jsx, actualiza el useEffect para capturar referidos:
+
+useEffect(() => {
   // 🔗 Verificar parámetro de referencia en la URL y guardarlo
   const urlParams = new URLSearchParams(window.location.search);
   const refCode = urlParams.get('ref');
   
-  if (refCode && /^[a-zA-Z0-9]{8}$/.test(refCode)) {
-    console.log('🔗 Código de referencia encontrado en URL:', refCode);
-    localStorage.setItem('pending_referral_code', refCode);
+  if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
+    console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
+    console.log('📝 Guardando en localStorage como pending_referral_code');
+    
+    // Guardar en MAYÚSCULAS
+    localStorage.setItem('pending_referral_code', refCode.toUpperCase());
     
     // Limpiar la URL sin recargar la página
     const newUrl = window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
+    
+    // Mostrar toast informativo
+    toast({
+      title: "🎯 ¡Invitación Detectada!",
+      description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
+      duration: 5000,
+    });
   }
-}, []);
+}, [toast]);
+
   /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
