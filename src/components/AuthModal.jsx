@@ -14,37 +14,22 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [referralCode, setReferralCode] = useState(null);
 
-  // 🎯 OBTENER Y VALIDAR CÓDIGO DE REFERIDO DE LA URL
-  useEffect(() => {
-    const getReferralCode = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const refCode = urlParams.get('ref');
-      
-      // Validar que sea un código seguro (8 chars alfanum en mayúsculas)
-      if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
-        console.log('🔗 Código de referencia válido en URL:', refCode.toUpperCase());
-        return refCode.toUpperCase();
-      }
-      
-      // También verificar localStorage (backward compatibility)
-      const localRef = localStorage.getItem('pending_referral_code');
-      if (localRef && /^[A-Z0-9]{8}$/.test(localRef)) {
-        console.log('🔗 Código de referencia en localStorage:', localRef);
-        return localRef;
-      }
-      
-      return null;
-    };
-
-    const code = getReferralCode();
-    if (code) {
-      setReferralCode(code);
-      // Limpiar URL sin recargar
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    }
-  }, []);
+ // AuthModal.jsx - DEJAR SOLO ESTE useEffect
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref');
+  
+  if (refCode && /^[A-Z0-9]{8}$/i.test(refCode)) {
+    const cleanCode = refCode.toUpperCase();
+    console.log('🎯 Código de referencia detectado:', cleanCode);
+    
+    // GUARDAR SOLO EN UN LUGAR
+    localStorage.setItem('referral_code_to_process', cleanCode);
+    
+    // Limpiar URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
