@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, Lock, Mail, Sparkles, CheckCircle } from "lucide-react";
+import { X, Lock, Mail, Sparkles, CheckCircle, Gift, Coins, Award } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -13,23 +13,48 @@ export function AuthModal({ showAuth, setShowAuth, setUser, toast, playSound }) 
   const [mode, setMode] = useState("login");
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [referralCode, setReferralCode] = useState(null);
+  const [showReferralBonus, setShowReferralBonus] = useState(false);
 
- // AuthModal.jsx - DEJAR SOLO ESTE useEffect
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refCode = urlParams.get('ref');
-  
-  if (refCode && /^[A-Z0-9]{8}$/i.test(refCode)) {
-    const cleanCode = refCode.toUpperCase();
-    console.log('🎯 Código de referencia detectado:', cleanCode);
+  // 🔍 OBTENER CÓDIGO DE REFERIDO DE LA URL Y LOCALSTORAGE
+  useEffect(() => {
+    // Primero buscar en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
     
-    // GUARDAR SOLO EN UN LUGAR
-    localStorage.setItem('referral_code_to_process', cleanCode);
-    
-    // Limpiar URL
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}, []);
+    if (refCode && /^[A-Z0-9]{8}$/i.test(refCode)) {
+      const cleanCode = refCode.toUpperCase();
+      console.log('🎯 Código de referencia detectado en URL:', cleanCode);
+      
+      // Guardar en localStorage
+      localStorage.setItem('referral_code_to_process', cleanCode);
+      setReferralCode(cleanCode);
+      setShowReferralBonus(true);
+      
+      // Limpiar URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      // Si no hay en URL, verificar en localStorage
+      const storedRefCode = localStorage.getItem('referral_code_to_process');
+      if (storedRefCode && /^[A-Z0-9]{8}$/.test(storedRefCode)) {
+        console.log('🎯 Código de referencia encontrado en localStorage:', storedRefCode);
+        setReferralCode(storedRefCode);
+        setShowReferralBonus(true);
+      }
+    }
+  }, []);
+
+  // Cuando cambia el modo a registro, verificar si hay código de referido
+  useEffect(() => {
+    if (mode === "register") {
+      const storedRefCode = localStorage.getItem('referral_code_to_process');
+      if (storedRefCode && /^[A-Z0-9]{8}$/.test(storedRefCode)) {
+        setReferralCode(storedRefCode);
+        setShowReferralBonus(true);
+      }
+    } else {
+      setShowReferralBonus(false);
+    }
+  }, [mode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,11 +97,22 @@ useEffect(() => {
         
         // Mostrar éxito
         setRegistrationSuccess(true);
-        toast({
-          title: "🎉 ¡Registro Exitoso!",
-          description: "Revisa tu correo para confirmar la cuenta.",
-          duration: 5000,
-        });
+        
+        // Mostrar toast con información de bonificaciones si hay código de referido
+        if (referralCode) {
+          toast({
+            title: "🎉 ¡Registro Exitoso con Bonificaciones!",
+            description: "Revisa tu correo para confirmar la cuenta. Recibirás +10 CROC y +1000 monedas al confirmar.",
+            duration: 6000,
+          });
+        } else {
+          toast({
+            title: "🎉 ¡Registro Exitoso!",
+            description: "Revisa tu correo para confirmar la cuenta.",
+            duration: 5000,
+          });
+        }
+        
         playSound?.("reward");
         
       } else {
@@ -142,6 +178,8 @@ useEffect(() => {
     setEmail("");
     setPassword("");
     setRegistrationSuccess(false);
+    setReferralCode(null);
+    setShowReferralBonus(false);
     playSound?.("uiClose");
   };
 
@@ -186,53 +224,112 @@ useEffect(() => {
           </Button>
         </div>
 
-        {/* 🎯 BANNER DE REGISTRO EXITOSO */}
-        {mode === "register" && registrationSuccess && (
+        {/* 🎯 BANNER DE REFERIDO - MOSTRAR CUANDO HAY CÓDIGO */}
+        {mode === "register" && showReferralBonus && referralCode && !registrationSuccess && (
           <motion.div 
-            className="mb-4 p-3 bg-gradient-to-r from-green-900/80 to-emerald-800/80 border border-green-500/50 rounded-lg backdrop-blur-sm"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
+            className="mb-4 p-4 bg-gradient-to-r from-green-900/90 to-emerald-800/90 border-2 border-green-500/60 rounded-xl backdrop-blur-sm shadow-lg"
+            initial={{ scale: 0.95, opacity: 0, y: -10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            <div className="flex items-center gap-2 text-green-100 mb-2">
-              <CheckCircle className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                ¡Registro Exitoso! ✅
-              </span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-yellow-300" />
+                <h3 className="text-lg font-bold text-yellow-100">
+                  🎁 ¡Invitación Especial!
+                </h3>
+              </div>
+              <div className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                Código: {referralCode}
+              </div>
             </div>
-            <p className="text-xs text-green-200">
-              Te enviamos un correo de confirmación a <strong>{email}</strong>. 
-              Revisa tu bandeja de entrada y spam, luego inicia sesión.
+            
+            <p className="text-sm text-green-100 mb-3">
+              Estás siendo invitado por un amigo. Al crear tu cuenta recibirás:
             </p>
-          </motion.div>
-        )}
-
-        {/* 🎯 BANNER DE REFERIDO */}
-        {mode === "register" && referralCode && !registrationSuccess && (
-          <motion.div 
-            className="mb-4 p-3 bg-gradient-to-r from-green-900/80 to-emerald-800/80 border border-green-500/50 rounded-lg backdrop-blur-sm"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex items-center gap-2 text-green-100 mb-2">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                ¡Invitación Especial! 🐊
-              </span>
+            
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-green-800/60 rounded-lg p-3 border border-green-600/40 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Coins className="w-4 h-4 text-yellow-300" />
+                  <div className="text-yellow-300 text-sm font-bold">+1,000</div>
+                </div>
+                <div className="text-xs text-green-200">Monedas de Bienvenida</div>
+              </div>
+              <div className="bg-green-800/60 rounded-lg p-3 border border-green-600/40 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Award className="w-4 h-4 text-emerald-300" />
+                  <div className="text-emerald-300 text-sm font-bold">+10 CROC</div>
+                </div>
+                <div className="text-xs text-green-200">Tokens Gratis</div>
+              </div>
             </div>
-            <p className="text-xs text-green-200">
-              Estás siendo invitado por un amigo. Al registrarte recibirás <strong>+10 CROC tokens y +1000 monedas</strong> de bonificación.
-            </p>
-            <div className="mt-2 pt-2 border-t border-green-500/30">
-              <p className="text-[10px] text-green-300">
-                Código de referido: <code className="bg-black/30 px-2 py-1 rounded">{referralCode}</code>
+            
+            <div className="mt-3 pt-3 border-t border-green-500/30">
+              <p className="text-xs text-green-300">
+                <Sparkles className="w-3 h-3 inline mr-1" />
+                Estas bonificaciones se acreditarán automáticamente al confirmar tu correo.
               </p>
             </div>
           </motion.div>
         )}
 
-        {/* 🔹 Formulario */}
+        {/* 🎯 BANNER DE REGISTRO EXITOSO CON BONIFICACIONES */}
+        {mode === "register" && registrationSuccess && (
+          <motion.div 
+            className="mb-4 p-4 bg-gradient-to-r from-green-900/90 to-emerald-800/90 border-2 border-green-500/60 rounded-xl backdrop-blur-sm"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center gap-2 text-green-100 mb-3">
+              <CheckCircle className="w-5 h-5 text-green-300" />
+              <span className="text-lg font-bold">
+                ¡Registro Exitoso! ✅
+              </span>
+            </div>
+            
+            <p className="text-sm text-green-200 mb-3">
+              Te enviamos un correo de confirmación a <strong className="text-yellow-300">{email}</strong>. 
+            </p>
+            
+            {referralCode && (
+              <>
+                <div className="my-3 pt-3 border-t border-green-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-yellow-300" />
+                    <span className="text-sm font-bold text-yellow-300">
+                      ¡Bonificaciones por Invitación Activas!
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="bg-green-800/50 rounded p-2 text-center">
+                      <div className="text-yellow-300 text-xs mb-1">💰 Monedas</div>
+                      <div className="text-white font-bold text-sm">+1,000</div>
+                    </div>
+                    <div className="bg-green-800/50 rounded p-2 text-center">
+                      <div className="text-yellow-300 text-xs mb-1">🐊 CROC Tokens</div>
+                      <div className="text-white font-bold text-sm">+10</div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-green-300">
+                    Estas bonificaciones se acreditarán automáticamente cuando confirmes tu correo.
+                  </p>
+                </div>
+              </>
+            )}
+            
+            <div className="mt-3 pt-3 border-t border-green-500/30">
+              <p className="text-xs text-green-300">
+                💡 <strong>Importante:</strong> Debes confirmar tu correo antes de poder iniciar sesión.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* 🔹 Formulario (solo si no está en éxito de registro) */}
         {!registrationSuccess ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -273,10 +370,25 @@ useEffect(() => {
               )}
             </div>
 
+            {/* Mostrar código de referido si existe */}
+            {mode === "register" && referralCode && (
+              <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-300" />
+                    <span className="text-sm text-blue-300">Código de referido detectado</span>
+                  </div>
+                  <code className="text-xs font-bold bg-black/30 px-2 py-1 rounded text-blue-100">
+                    {referralCode}
+                  </code>
+                </div>
+              </div>
+            )}
+
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 transition-all duration-200"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 transition-all duration-200 shadow-lg"
               size="lg"
             >
               {loading ? (
@@ -292,7 +404,7 @@ useEffect(() => {
               ) : (
                 <>
                   <Mail className="w-4 h-4 mr-2" /> 
-                  Crear Mi Cuenta
+                  Crear Mi Cuenta {referralCode && "con Bonificaciones 🎁"}
                 </>
               )}
             </Button>
@@ -333,7 +445,7 @@ useEffect(() => {
             </div>
           </form>
         ) : (
-          // 🎯 PANTALLA DE REGISTRO EXITOSO
+          // 🎯 PANTALLA DE REGISTRO EXITOSO (alternativa)
           <div className="text-center py-4 space-y-4">
             <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-green-500" />
@@ -347,6 +459,18 @@ useEffect(() => {
               </p>
             </div>
 
+            {referralCode && (
+              <div className="p-3 bg-gradient-to-r from-green-900/40 to-emerald-800/40 rounded-lg border border-green-600/30">
+                <p className="text-sm text-green-300 mb-2">
+                  <Sparkles className="w-4 h-4 inline mr-1" />
+                  <strong>¡Bonificaciones activadas!</strong>
+                </p>
+                <p className="text-xs text-green-200">
+                  Al confirmar tu correo recibirás <strong>+10 CROC tokens y +1,000 monedas</strong>.
+                </p>
+              </div>
+            )}
+
             <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
               <p className="text-xs text-blue-300">
                 💡 <strong>Importante:</strong> Debes confirmar tu correo antes de poder iniciar sesión.
@@ -357,6 +481,8 @@ useEffect(() => {
               onClick={() => {
                 setMode("login");
                 setRegistrationSuccess(false);
+                setReferralCode(null);
+                setShowReferralBonus(false);
                 playSound?.("uiClick");
               }}
               className="w-full bg-primary hover:bg-primary/90"
