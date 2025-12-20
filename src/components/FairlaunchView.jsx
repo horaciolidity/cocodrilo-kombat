@@ -53,15 +53,15 @@ export function FairlaunchView({
   tokenPrice = 0.05,
   setTokenPrice,
   updatePriceInSupabase,
-  gameState,
-  referralStats,
+  gameState = {},
+  referralStats = {},
   getReferralLink,
-  player,
+  player = {},
   user,
-  missions
+  missions = {}
 }) {
-  // 🎯 Estados principales
-  const [timeLeft, setTimeLeft] = useState({});
+  // 🎯 Estados principales con valores por defecto
+  const [timeLeft, setTimeLeft] = useState({ months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [participationPhase, setParticipationPhase] = useState('pre-launch');
   const [totalRaised, setTotalRaised] = useState(0);
   const [userParticipation, setUserParticipation] = useState(0);
@@ -75,15 +75,15 @@ export function FairlaunchView({
   const launchDate = new Date();
   launchDate.setMonth(launchDate.getMonth() + 3); // 3 meses desde hoy
   
-  // 🎯 Datos del fairlaunch
+  // 🎯 Datos del fairlaunch con valores seguros
   const fairlaunchDetails = {
     startDate: launchDate.toISOString(),
-    endDate: new Date(launchDate.getTime() + (7 * 24 * 60 * 60 * 1000)).toISOString(), // 7 días después
+    endDate: new Date(launchDate.getTime() + (7 * 24 * 60 * 60 * 1000)).toISOString(),
     totalTokens: 100000000,
     tokensForSale: 40000000,
     hardCap: 2000000,
     softCap: 500000,
-    pricePerToken: tokenPrice,
+    pricePerToken: tokenPrice || 0.05,
     minContribution: 50,
     maxContribution: 10000,
     platform: "PinkSale",
@@ -100,46 +100,69 @@ export function FairlaunchView({
     }
   };
 
-  // 🎯 Calcular misiones completadas
+  // 🎯 Calcular misiones completadas con manejo seguro
   const calculateCompletedMissions = useCallback(() => {
-    if (!missions) return 0;
-    return Object.values(missions).filter(mission => mission.completed).length;
+    if (!missions || typeof missions !== 'object') return 0;
+    
+    try {
+      const missionValues = Object.values(missions);
+      if (!Array.isArray(missionValues)) return 0;
+      
+      return missionValues.filter(mission => 
+        mission && typeof mission === 'object' && mission.completed === true
+      ).length;
+    } catch (error) {
+      console.error('Error calculando misiones completadas:', error);
+      return 0;
+    }
   }, [missions]);
 
   const completedMissions = calculateCompletedMissions();
-  const totalMissions = missions ? Object.keys(missions).length : 0;
+  const totalMissions = missions && typeof missions === 'object' ? Object.keys(missions).length : 0;
   const missionCompletionPercentage = totalMissions > 0 ? (completedMissions / totalMissions) * 100 : 0;
+
+  // 🎯 Obtener balance del usuario de forma segura
+  const userBalance = {
+    crocTokens: gameState?.nativeTokenBalance || 0,
+    totalEarnedCroc: gameState?.crocFromRefs || 0,
+    totalEarnedCoins: gameState?.coinsFromRefs || 0
+  };
 
   // ⏰ Contador regresivo de 3 meses
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const now = new Date();
-      const startDate = new Date(fairlaunchDetails.startDate);
-      const endDate = new Date(fairlaunchDetails.endDate);
-      
-      if (now < startDate) {
-        setParticipationPhase('pre-launch');
-        const difference = startDate.getTime() - now.getTime();
-        setTimeLeft({
-          months: Math.floor(difference / (1000 * 60 * 60 * 24 * 30)),
-          days: Math.floor((difference / (1000 * 60 * 60 * 24)) % 30),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        });
-      } else if (now >= startDate && now <= endDate) {
-        setParticipationPhase('active');
-        const difference = endDate.getTime() - now.getTime();
-        setTimeLeft({
-          months: 0,
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        });
-      } else {
-        setParticipationPhase('completed');
-        setTimeLeft({ months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
+      try {
+        const now = new Date();
+        const startDate = new Date(fairlaunchDetails.startDate);
+        const endDate = new Date(fairlaunchDetails.endDate);
+        
+        if (now < startDate) {
+          setParticipationPhase('pre-launch');
+          const difference = startDate.getTime() - now.getTime();
+          setTimeLeft({
+            months: Math.floor(difference / (1000 * 60 * 60 * 24 * 30)),
+            days: Math.floor((difference / (1000 * 60 * 60 * 24)) % 30),
+            hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+            minutes: Math.floor((difference / 1000 / 60) % 60),
+            seconds: Math.floor((difference / 1000) % 60)
+          });
+        } else if (now >= startDate && now <= endDate) {
+          setParticipationPhase('active');
+          const difference = endDate.getTime() - now.getTime();
+          setTimeLeft({
+            months: 0,
+            days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+            hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+            minutes: Math.floor((difference / 1000 / 60) % 60),
+            seconds: Math.floor((difference / 1000) % 60)
+          });
+        } else {
+          setParticipationPhase('completed');
+          setTimeLeft({ months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
+        }
+      } catch (error) {
+        console.error('Error calculando tiempo restante:', error);
+        setTimeLeft({ months: 3, days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     };
 
@@ -152,7 +175,7 @@ export function FairlaunchView({
   // 📈 Simulación de participación
   useEffect(() => {
     if (simulationAmount > 0) {
-      const tokens = simulationAmount / tokenPrice;
+      const tokens = simulationAmount / (tokenPrice || 0.05);
       setSimulationTokens(tokens);
     }
   }, [simulationAmount, tokenPrice]);
@@ -161,22 +184,32 @@ export function FairlaunchView({
   const simulatePurchase = useCallback(async () => {
     setLoading(true);
     
-    // Simulación de procesamiento
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const tokens = simulationAmount / tokenPrice;
-    
-    toast({
-      title: "🎉 ¡Reserva Confirmada!",
-      description: `Has reservado $${simulationAmount} por ${tokens.toLocaleString()} tokens CROC. Los tokens se distribuirán en el lanzamiento.`,
-      duration: 5000,
-    });
-    
-    setUserParticipation(prev => prev + simulationAmount);
-    setTotalRaised(prev => prev + simulationAmount);
-    setShowSimulation(false);
-    setSimulationAmount(100);
-    setLoading(false);
+    try {
+      // Simulación de procesamiento
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const tokens = simulationAmount / (tokenPrice || 0.05);
+      
+      toast({
+        title: "🎉 ¡Reserva Confirmada!",
+        description: `Has reservado $${simulationAmount} por ${tokens.toLocaleString()} tokens CROC. Los tokens se distribuirán en el lanzamiento.`,
+        duration: 5000,
+      });
+      
+      setUserParticipation(prev => prev + simulationAmount);
+      setTotalRaised(prev => prev + simulationAmount);
+      setShowSimulation(false);
+      setSimulationAmount(100);
+    } catch (error) {
+      console.error('Error en simulación de compra:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo procesar la reserva. Intenta de nuevo.",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [simulationAmount, tokenPrice, toast]);
 
   // 💰 Función de retiro a exchange (simulada)
@@ -190,7 +223,8 @@ export function FairlaunchView({
       return;
     }
 
-    if ((gameState?.nativeTokenBalance || 0) < 10) {
+    const balance = userBalance.crocTokens || 0;
+    if (balance < 10) {
       toast({
         title: "💰 Saldo Insuficiente",
         description: "Necesitas al menos 10 CROC tokens para retirar a exchange",
@@ -201,21 +235,50 @@ export function FairlaunchView({
 
     setLoading(true);
     
-    // Simulación de procesamiento
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "🔄 Retiro Procesado",
-      description: `Se han enviado ${gameState?.nativeTokenBalance || 0} CROC tokens a tu wallet conectada.`,
-      duration: 5000,
-    });
-    
-    setLoading(false);
-  }, [user, gameState?.nativeTokenBalance, toast]);
+    try {
+      // Simulación de procesamiento
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast({
+        title: "🔄 Retiro Procesado",
+        description: `Se han enviado ${balance} CROC tokens a tu wallet conectada.`,
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Error en retiro:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo procesar el retiro. Intenta de nuevo.",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, userBalance.crocTokens, toast]);
 
   // 📊 Calcular porcentajes
-  const progressPercentage = Math.min(100, (totalRaised / fairlaunchDetails.hardCap) * 100);
-  const softCapPercentage = (fairlaunchDetails.softCap / fairlaunchDetails.hardCap) * 100;
+  const progressPercentage = Math.min(100, (totalRaised / (fairlaunchDetails.hardCap || 1)) * 100);
+  const softCapPercentage = ((fairlaunchDetails.softCap || 0) / (fairlaunchDetails.hardCap || 1)) * 100;
+
+  // 🎨 Formatear tiempo de forma segura
+  const formatTimeLeft = () => {
+    const days = timeLeft.days || 0;
+    const hours = timeLeft.hours || 0;
+    const minutes = timeLeft.minutes || 0;
+    const seconds = timeLeft.seconds || 0;
+
+    if (timeLeft.months > 0) {
+      return `${timeLeft.months}M ${days}D`;
+    } else if (days > 0) {
+      return `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
 
   // 🎯 Componente de cuenta regresiva principal
   const CountdownDisplay = () => (
@@ -240,26 +303,11 @@ export function FairlaunchView({
       </div>
 
       <div className="grid grid-cols-5 gap-2 mb-6">
-        {timeLeft.months > 0 ? (
-          <>
-            <TimeUnit value={timeLeft.months} label="Meses" />
-            <TimeUnit value={timeLeft.days} label="Días" />
-            <TimeUnit value={timeLeft.hours} label="Horas" />
-            <TimeUnit value={timeLeft.minutes} label="Minutos" />
-            <TimeUnit value={timeLeft.seconds} label="Segundos" />
-          </>
-        ) : (
-          <>
-            <TimeUnit value={timeLeft.days} label="Días" />
-            <TimeUnit value={timeLeft.hours} label="Horas" />
-            <TimeUnit value={timeLeft.minutes} label="Minutos" />
-            <TimeUnit value={timeLeft.seconds} label="Segundos" />
-            <div className="bg-gradient-to-br from-red-900/50 to-pink-900/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-red-300">🔥</div>
-              <div className="text-xs text-red-200 mt-1">¡Pronto!</div>
-            </div>
-          </>
-        )}
+        <TimeUnit value={timeLeft.months} label="Meses" />
+        <TimeUnit value={timeLeft.days} label="Días" />
+        <TimeUnit value={timeLeft.hours} label="Horas" />
+        <TimeUnit value={timeLeft.minutes} label="Minutos" />
+        <TimeUnit value={timeLeft.seconds} label="Segundos" />
       </div>
 
       <div className="mt-4 p-4 bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded-lg border border-purple-700/30">
@@ -283,14 +331,14 @@ export function FairlaunchView({
           <div className="text-2xl font-bold text-green-400">
             ${totalRaised.toLocaleString()}
           </div>
-          <div className="text-sm text-blue-300">de ${fairlaunchDetails.hardCap.toLocaleString()}</div>
+          <div className="text-sm text-blue-300">de ${(fairlaunchDetails.hardCap || 0).toLocaleString()}</div>
         </div>
       </div>
 
       <div className="relative mb-4">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-green-400">Soft Cap: ${fairlaunchDetails.softCap.toLocaleString()}</span>
-          <span className="text-yellow-400">Hard Cap: ${fairlaunchDetails.hardCap.toLocaleString()}</span>
+          <span className="text-green-400">Soft Cap: ${(fairlaunchDetails.softCap || 0).toLocaleString()}</span>
+          <span className="text-yellow-400">Hard Cap: ${(fairlaunchDetails.hardCap || 0).toLocaleString()}</span>
         </div>
         
         <div className="w-full bg-gray-700 rounded-full h-4 shadow-inner relative">
@@ -333,13 +381,13 @@ export function FairlaunchView({
         </div>
         <div className="p-3 bg-green-800/30 rounded-lg border border-green-700/30">
           <div className="text-lg font-bold text-green-300">
-            {userParticipation > 0 ? `$${userParticipation}` : '$0'}
+            ${userParticipation > 0 ? userParticipation.toLocaleString() : '0'}
           </div>
           <div className="text-xs text-green-200">Tu reserva</div>
         </div>
         <div className="p-3 bg-purple-800/30 rounded-lg border border-purple-700/30">
           <div className="text-lg font-bold text-purple-300">
-            {fairlaunchDetails.tokensForSale.toLocaleString()}
+            {(fairlaunchDetails.tokensForSale || 0).toLocaleString()}
           </div>
           <div className="text-xs text-purple-200">Tokens en venta</div>
         </div>
@@ -498,8 +546,8 @@ export function FairlaunchView({
                 </div>
                 
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
-                  <span>Mín: ${fairlaunchDetails.minContribution}</span>
-                  <span>Máx: ${fairlaunchDetails.maxContribution}</span>
+                  <span>Mín: ${fairlaunchDetails.minContribution || 50}</span>
+                  <span>Máx: ${fairlaunchDetails.maxContribution || 10000}</span>
                 </div>
               </div>
               
@@ -514,7 +562,7 @@ export function FairlaunchView({
                 <div className="p-4 bg-blue-900/30 rounded-lg border border-blue-700/30">
                   <div className="text-sm text-blue-300 mb-1">Precio por token</div>
                   <div className="text-2xl font-bold text-white">
-                    ${tokenPrice.toFixed(6)}
+                    ${(tokenPrice || 0.05).toFixed(6)}
                   </div>
                 </div>
               </div>
@@ -524,15 +572,21 @@ export function FairlaunchView({
                 <div className="grid grid-cols-3 gap-2">
                   <div className="text-center">
                     <div className="text-xs text-gray-400">1 año</div>
-                    <div className="font-bold text-green-400">${(simulationTokens * tokenPrice * 5).toLocaleString()}</div>
+                    <div className="font-bold text-green-400">
+                      ${(simulationTokens * (tokenPrice || 0.05) * 5).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-xs text-gray-400">2 años</div>
-                    <div className="font-bold text-blue-400">${(simulationTokens * tokenPrice * 10).toLocaleString()}</div>
+                    <div className="font-bold text-blue-400">
+                      ${(simulationTokens * (tokenPrice || 0.05) * 10).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-xs text-gray-400">3 años</div>
-                    <div className="font-bold text-purple-400">${(simulationTokens * tokenPrice * 20).toLocaleString()}</div>
+                    <div className="font-bold text-purple-400">
+                      ${(simulationTokens * (tokenPrice || 0.05) * 20).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -590,12 +644,12 @@ export function FairlaunchView({
           <div className="flex items-center justify-between mb-3">
             <span className="text-red-300">Balance disponible:</span>
             <span className="text-2xl font-bold text-yellow-300">
-              {gameState?.nativeTokenBalance?.toLocaleString() || 0} CROC
+              {userBalance.crocTokens.toLocaleString()} CROC
             </span>
           </div>
           <div className="text-sm text-red-200">
             Valor actual: <span className="font-bold text-green-400">
-              ${((gameState?.nativeTokenBalance || 0) * tokenPrice).toFixed(2)}
+              ${(userBalance.crocTokens * (tokenPrice || 0.05)).toFixed(2)}
             </span>
           </div>
         </div>
@@ -617,7 +671,7 @@ export function FairlaunchView({
 
         <Button
           onClick={handleWithdrawToExchange}
-          disabled={loading || (gameState?.nativeTokenBalance || 0) < 10}
+          disabled={loading || userBalance.crocTokens < 10}
           className="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3"
         >
           {loading ? (
@@ -649,11 +703,11 @@ export function FairlaunchView({
   const TokenomicsChart = () => (
     <div className="p-5 bg-gradient-to-br from-gray-900/80 to-black/80 rounded-xl border-2 border-gray-700/50">
       <h4 className="font-bold text-xl mb-4 text-white flex items-center gap-2">
-        <PieChart className="w-5 h-5 text-purple-400" />
+        <PieChartIcon className="w-5 h-5 text-purple-400" />
         Distribución de Tokens
       </h4>
       <div className="space-y-4">
-        {Object.entries(fairlaunchDetails.tokenomics).map(([key, value]) => (
+        {Object.entries(fairlaunchDetails.tokenomics || {}).map(([key, value]) => (
           <div key={key} className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -687,7 +741,7 @@ export function FairlaunchView({
   );
 
   // 🎯 PieChart icon
-  const PieChart = ({ className }) => (
+  const PieChartIcon = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
@@ -773,7 +827,7 @@ export function FairlaunchView({
                 <DetailItem 
                   icon={DollarSign}
                   label="Precio por token:" 
-                  value={`$${tokenPrice.toFixed(6)}`}
+                  value={`$${(tokenPrice || 0.05).toFixed(6)}`}
                   color="text-green-400"
                 />
                 <DetailItem 
@@ -902,13 +956,13 @@ export function FairlaunchView({
         >
           <MetricCard 
             icon={Clock}
-            value={`${timeLeft.months > 0 ? `${timeLeft.months}M` : `${timeLeft.days}D`}`}
+            value={formatTimeLeft()}
             label="Hasta el lanzamiento"
             color="purple"
           />
           <MetricCard 
             icon={Coins}
-            value={((completedMissions / totalMissions) * 100).toFixed(0) + "%"}
+            value={`${missionCompletionPercentage.toFixed(0)}%`}
             label="Progreso de misiones"
             color="yellow"
           />
@@ -920,7 +974,7 @@ export function FairlaunchView({
           />
           <MetricCard 
             icon={Users}
-            value={(totalRaised / tokenPrice).toLocaleString()}
+            value={Math.floor(totalRaised / (tokenPrice || 0.05)).toLocaleString()}
             label="Tokens reservados"
             color="blue"
           />
@@ -933,10 +987,12 @@ export function FairlaunchView({
   );
 }
 
-// 🎨 Subcomponentes
-const TimeUnit = ({ value, label }) => (
+// 🎨 Subcomponentes con manejo seguro
+const TimeUnit = ({ value = 0, label }) => (
   <div className="bg-gradient-to-br from-purple-800/50 to-pink-800/50 rounded-lg p-4 text-center">
-    <div className="text-3xl font-bold text-white font-mono">{value.toString().padStart(2, '0')}</div>
+    <div className="text-3xl font-bold text-white font-mono">
+      {Math.max(0, Number(value)).toString().padStart(2, '0')}
+    </div>
     <div className="text-xs text-purple-200 mt-1">{label}</div>
   </div>
 );
@@ -960,7 +1016,7 @@ const BenefitItem = ({ icon: Icon, title, description, color }) => {
   );
 };
 
-const DetailItem = ({ icon: Icon, label, value, color }) => (
+const DetailItem = ({ icon: Icon, label, value = '', color }) => (
   <div className="flex items-center justify-between py-2">
     <div className="flex items-center">
       <Icon className={`w-4 h-4 mr-2 ${color || 'text-gray-400'}`} />
@@ -972,7 +1028,7 @@ const DetailItem = ({ icon: Icon, label, value, color }) => (
   </div>
 );
 
-const MetricCard = ({ icon: Icon, value, label, color }) => {
+const MetricCard = ({ icon: Icon, value = '', label, color }) => {
   const colorClasses = {
     green: 'from-green-900/30 to-emerald-800/30 border-green-700/30 text-green-400',
     yellow: 'from-yellow-900/30 to-amber-800/30 border-yellow-700/30 text-yellow-400',
@@ -983,7 +1039,7 @@ const MetricCard = ({ icon: Icon, value, label, color }) => {
   return (
     <div className={`bg-gradient-to-br ${colorClasses[color]} rounded-xl p-5 border text-center`}>
       <Icon className="w-8 h-8 mx-auto mb-3" />
-      <div className="text-2xl font-bold mb-1">{value}</div>
+      <div className="text-2xl font-bold mb-1">{value || '0'}</div>
       <div className="text-xs opacity-80">{label}</div>
     </div>
   );
