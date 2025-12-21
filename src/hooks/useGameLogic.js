@@ -66,29 +66,43 @@ export function useGameLogic({
     upgradesRef.current = upgrades;
   }, [upgrades]);
 
-  // ⚡ REGENERACIÓN DE ENERGÍA
-  useEffect(() => {
-    console.log("⚡ Iniciando regeneración de energía...");
-    
-    if (energyIntervalRef.current) {
-      clearInterval(energyIntervalRef.current);
-    }
+  // ⚡ REGENERACIÓN DE ENERGÍA - CORREGIDO
+useEffect(() => {
+  console.log("⚡ Configurando regeneración de energía...");
+  
+  // Limpiar intervalo anterior si existe
+  if (energyIntervalRef.current) {
+    clearInterval(energyIntervalRef.current);
+    energyIntervalRef.current = null;
+  }
 
+  // Solo configurar si no está ya configurado
+  if (!energyIntervalRef.current && gameState.maxEnergy > 0) {
     energyIntervalRef.current = setInterval(() => {
-      if (gameState.energy < gameState.maxEnergy) {
+      // Usar refs para obtener valores actuales
+      const currentEnergy = gameStateRef.current.energy;
+      const currentMaxEnergy = gameStateRef.current.maxEnergy;
+      
+      if (currentEnergy < currentMaxEnergy) {
+        const newEnergy = Math.min(currentMaxEnergy, currentEnergy + 1);
+        console.log(`⚡ Regenerando energía: ${currentEnergy} -> ${newEnergy}`);
+        
         updateGameState({
-          energy: Math.min(gameState.maxEnergy, gameState.energy + 1)
+          energy: newEnergy
         });
       }
-    }, 3000);
+    }, 3000); // Cada 3 segundos
+  }
 
-    return () => {
-      if (energyIntervalRef.current) {
-        clearInterval(energyIntervalRef.current);
-        energyIntervalRef.current = null;
-      }
-    };
-  }, [gameState.energy, gameState.maxEnergy, updateGameState]);
+  return () => {
+    if (energyIntervalRef.current) {
+      clearInterval(energyIntervalRef.current);
+      energyIntervalRef.current = null;
+    }
+  };
+  // SOLO dependemos de maxEnergy, no de energy para evitar bucles
+}, [gameState.maxEnergy, updateGameState]);
+
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
   useEffect(() => {
