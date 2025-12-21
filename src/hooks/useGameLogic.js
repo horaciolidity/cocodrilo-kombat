@@ -66,42 +66,81 @@ export function useGameLogic({
     upgradesRef.current = upgrades;
   }, [upgrades]);
 
-  // ⚡ REGENERACIÓN DE ENERGÍA - CORREGIDO
-useEffect(() => {
-  console.log("⚡ Configurando regeneración de energía...");
-  
-  // Limpiar intervalo anterior si existe
-  if (energyIntervalRef.current) {
-    clearInterval(energyIntervalRef.current);
-    energyIntervalRef.current = null;
-  }
 
-  // Solo configurar si no está ya configurado
-  if (!energyIntervalRef.current && gameState.maxEnergy > 0) {
-    energyIntervalRef.current = setInterval(() => {
-      // Usar refs para obtener valores actuales
+
+
+
+
+
+  
+  // ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN DEFINITIVA
+useEffect(() => {
+  console.log("⚡ Iniciando sistema de regeneración de energía...");
+  
+  // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
+  const energyInterval = setInterval(() => {
+    const currentEnergy = gameStateRef.current.energy;
+    const currentMaxEnergy = gameStateRef.current.maxEnergy;
+    
+    if (currentEnergy < currentMaxEnergy) {
+      const newEnergy = currentEnergy + 1;
+      
+      console.log(`⚡ Regenerando: ${currentEnergy} -> ${newEnergy}`);
+      
+      updateGameState({
+        energy: newEnergy
+      });
+      
+      // Sincronizar con BD
+      syncGameData({
+        energy: newEnergy,
+        last_active: new Date().toISOString()
+      });
+    }
+  }, 3000);
+  
+  // 2. REGENERACIÓN POR VISIBILIDAD (cuando vuelve a la pestaña)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      console.log("👀 Usuario activo - Verificando energía pendiente...");
+      
+      // Forzar una regeneración inmediata
       const currentEnergy = gameStateRef.current.energy;
       const currentMaxEnergy = gameStateRef.current.maxEnergy;
       
       if (currentEnergy < currentMaxEnergy) {
-        const newEnergy = Math.min(currentMaxEnergy, currentEnergy + 1);
-        console.log(`⚡ Regenerando energía: ${currentEnergy} -> ${newEnergy}`);
-        
         updateGameState({
-          energy: newEnergy
+          energy: Math.min(currentMaxEnergy, currentEnergy + 1)
         });
       }
-    }, 3000); // Cada 3 segundos
-  }
-
-  return () => {
-    if (energyIntervalRef.current) {
-      clearInterval(energyIntervalRef.current);
-      energyIntervalRef.current = null;
+      
+      // Sincronizar inmediatamente
+      syncGameData({
+        last_active: new Date().toISOString()
+      });
     }
   };
-  // SOLO dependemos de maxEnergy, no de energy para evitar bucles
-}, [gameState.maxEnergy, updateGameState]);
+  
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // 3. REGENERACIÓN AL CARGAR/CERRAR
+  const handleBeforeUnload = () => {
+    console.log("📤 Guardando última energía antes de cerrar...");
+    syncGameData({
+      last_active: new Date().toISOString()
+    });
+  };
+  
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  
+  return () => {
+    clearInterval(energyInterval);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    
+    console.log("🔄 Sistema de regeneración detenido");
+  };
+}, [gameState.maxEnergy, updateGameState, syncGameData]);
 
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS

@@ -465,90 +465,82 @@ export function useGameData(user) {
     }
   };
 
-  // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR
-  const getOrCreatePlayerStats = async (playerId) => {
-    console.log('📊 Buscando player_stats para player_id:', playerId);
+  // En la función getOrCreatePlayerStats de useGameData.js
+const getOrCreatePlayerStats = async (playerId) => {
+  console.log('📊 Buscando player_stats para player_id:', playerId);
+  
+  try {
+    // Usar la función de regeneración automática
+    const { data: stats, error } = await supabase.rpc(
+      'get_player_stats_with_regeneration',
+      { player_id_param: playerId }
+    );
     
-    const { data: stats } = await supabase
-      .from('player_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .maybeSingle();
-
-    if (stats) {
-      console.log('✅ Player_stats encontradas:', { 
-        coins: stats.coins, 
-        tokens: stats.native_token_balance,
-        upgrades: Object.keys(stats.upgrades || {}).length,
-        referidos: stats.referrals_count
-      });
-      return stats;
-    }
-
-    console.log('📝 Creando player_stats nuevas para:', playerId);
-    
-    // Verificar si el jugador fue referido
-    const { data: player, error: playerError } = await supabase
-      .from('players')
-      .select('referred_by')
-      .eq('id', playerId)
-      .single();
-
-    if (playerError) {
-      console.error('❌ Error obteniendo datos del jugador:', playerError);
-    }
-
-    const isReferred = !!player?.referred_by;
-    console.log(`🎯 Jugador ${playerId} es referido: ${isReferred}`);
-    
-    const initialStats = {
-      player_id: playerId,
-      coins: isReferred ? 1000 : 0,
-      native_token_balance: isReferred ? 10 : 0,
-      level: 1,
-      clicks: 0,
-      energy: 100,
-      max_energy: 100,
-      click_power: 1,
-      coins_per_second: 0,
-      experience: 0,
-      total_coins: isReferred ? 1000 : 0,
-      croc_from_refs: 0,
-      coins_from_refs: 0,
-      referrals_count: 0,
-      upgrades: INITIAL_UPGRADES_STATE,
-      missions: INITIAL_MISSIONS_STATE,
-      owned_cards: [],
-      owned_items: [],
-      active_skin: null,
-      achievements_unlocked: [],
-      daily_rewards: { 
-        streak: 0, 
-        available: true, 
-        lastClaim: null 
-      },
-      farming_milestones: INITIAL_FARMING_MILESTONES_STATE,
-      updated_at: new Date().toISOString(),
-      last_active: new Date().toISOString()
-    };
-
-    console.log('📝 Datos iniciales de player_stats:', initialStats);
-
-    const { data: newStats, error } = await supabase
-      .from('player_stats')
-      .insert([initialStats])
-      .select()
-      .single();
-
     if (error) {
-      console.error('❌ Error creando player_stats:', error);
-      throw error;
+      console.log('⚠️ Intentando método alternativo...', error);
+      
+      // Método alternativo: consulta normal + regeneración manual
+      const { data: existingStats } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('player_id', playerId)
+        .maybeSingle();
+      
+      if (existingStats) {
+        // Regeneración manual del lado del cliente
+        const lastActive = new Date(existingStats.last_active || existingStats.updated_at);
+        const now = new Date();
+        const secondsPassed = (now - lastActive) / 1000;
+        const pointsToRegenerate = Math.floor(secondsPassed / 3);
+        
+        if (pointsToRegenerate > 0 && existingStats.energy < existingStats.max_energy) {
+          const newEnergy = Math.min(
+            existingStats.max_energy, 
+            existingStats.energy + pointsToRegenerate
+          );
+          
+          console.log(`⚡ Regeneración manual: +${pointsToRegenerate} puntos (${existingStats.energy} -> ${newEnergy})`);
+          
+          // Actualizar en BD
+          await supabase
+            .from('player_stats')
+            .update({
+              energy: newEnergy,
+              last_active: now.toISOString(),
+              updated_at: now.toISOString()
+            })
+            .eq('player_id', playerId);
+          
+          // Actualizar objeto
+          existingStats.energy = newEnergy;
+          existingStats.last_active = now.toISOString();
+          existingStats.updated_at = now.toISOString();
+        }
+        
+        console.log('✅ Player_stats encontradas:', { 
+          energy: existingStats.energy,
+          max_energy: existingStats.max_energy,
+          regenerated: pointsToRegenerate > 0
+        });
+        
+        return existingStats;
+      }
+    } else if (stats && stats.length > 0) {
+      console.log('✅ Player_stats regeneradas automáticamente:', { 
+        energy: stats[0].energy,
+        max_energy: stats[0].max_energy
+      });
+      return stats[0];
     }
     
-    console.log(`📊 Player_stats creadas para jugador ${playerId}. Referido: ${isReferred}`);
+    // Crear nuevas stats si no existen
+    return await createNewPlayerStats(playerId);
     
-    return newStats;
-  };
+  } catch (error) {
+    console.error('❌ Error en getOrCreatePlayerStats:', error);
+    throw error;
+  }
+};
 
   // 🎯 OBTENER ESTADÍSTICAS DE REFERIDOS
   const getReferralStats = async (playerId) => {
