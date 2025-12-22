@@ -105,28 +105,6 @@ useEffect(() => {
   }
 }, [toast]);
 
-// Agregar en App.jsx - Notificaciones inteligentes
-useEffect(() => {
-  // Notificar cuando energía esté al 100%
-  if (gameState.energy === gameState.maxEnergy) {
-    toast({
-      title: "⚡ ¡Energía Completa!",
-      description: "¡Tu cocodrilo tiene hambre! Ven a jugar",
-      duration: 5000,
-    });
-  }
-  
-  // Recordatorio diario a las 12 PM
-  const now = new Date();
-  if (now.getHours() === 12 && now.getMinutes() === 0) {
-    toast({
-      title: "🎮 ¡Hora de Cocodrilo Kombat!",
-      description: "No olvides tu recompensa diaria",
-      duration: 6000,
-    });
-  }
-}, [gameState.energy]);
-
 
 
   /* 🧩 Escucha sesión Supabase */
@@ -199,6 +177,32 @@ useEffect(() => {
     setSoundEnabled,
     syncAllData,
   } = gameLogic;
+
+
+
+// Agregar en App.jsx - Notificaciones inteligentes
+useEffect(() => {
+  // Notificar cuando energía esté al 100%
+  if (gameState.energy === gameState.maxEnergy) {
+    toast({
+      title: "⚡ ¡Energía Completa!",
+      description: "¡Tu cocodrilo tiene hambre! Ven a jugar",
+      duration: 5000,
+    });
+  }
+  
+  // Recordatorio diario a las 12 PM
+  const now = new Date();
+  if (now.getHours() === 12 && now.getMinutes() === 0) {
+    toast({
+      title: "🎮 ¡Hora de Cocodrilo Kombat!",
+      description: "No olvides tu recompensa diaria",
+      duration: 6000,
+    });
+  }
+}, [gameState.energy]);
+
+
 
   // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
   useEffect(() => {
