@@ -293,6 +293,16 @@ export const INITIAL_MISSIONS_STATE = MISSIONS.reduce((acc, mission) => {
   return acc;
 }, {});
 
+
+// En gameConfig.js - Agregar eventos
+export const DAILY_EVENTS = [
+  {
+    id: "double_coins_hour",
+    name: "Hora Doble Monedas",
+    time: "18:00-19:00",
+    multiplier: 2
+  }
+];
 /* =====================================================
  💬 RESTO DE CONFIG
 ===================================================== */

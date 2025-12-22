@@ -285,7 +285,15 @@ export function GameView({
   const actualTokenPrice = tokenPrice;
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
   const totalProjectedValue = projectedCrocValue;
-
+// En GameView.jsx - Desafíos élite (nivel 10+)
+const eliteChallenges = [
+  {
+    name: "Maestro del AutoClick",
+    goal: "Nivel 50 en AutoClick",
+    reward: "500 CROC + 100k monedas",
+    current: upgrades?.autoClick?.level || 0
+  }
+];
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
       {/* 📊 Stats rápidas */}
