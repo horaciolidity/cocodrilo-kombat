@@ -325,13 +325,82 @@ export const CARDS_DATA = [
   { id: "card_swamp_mastery", name: "Maestría del Pantano", description: "Aumenta monedas por segundo un 10%.", effect: { type: "cps_boost_percent", value: 10 }, rarity: "Legendaria", icon: Crown, color: "text-orange-400" },
 ];
 
+// En config/gameConfig.js, actualiza SHOP_ITEMS:
 export const SHOP_ITEMS = [
-  { id: "skin_golden_croc", name: "Cocodrilo Dorado", description: "Una skin dorada brillante para tu cocodrilo.", price: 10000, type: "skin", icon: Palette, image: "/skins/golden_croc.jpg" },
-  { id: "skin_camo_croc", name: "Cocodrilo Camuflaje", description: "Perfecto para emboscadas en el pantano.", price: 7500, type: "skin", icon: Palette, image: "/skins/camo_croc.jpg" },
-  { id: "skin_cyborg_croc", name: "Cocodrilo Cyborg", description: "Mejoras cibernéticas para el depredador definitivo.", price: 15000, type: "skin", icon: Palette, image: "/skins/cyborg_croc.jpg" },
-  { id: "item_sharp_teeth", name: "Dientes Afilados", description: "+5 monedas por clic.", price: 5000, type: "item", icon: ZapIcon, effect: { type: "click_boost", value: 5 } },
-  { id: "item_swamp_amulet", name: "Amuleto del Pantano", description: "+10 monedas por segundo.", price: 8000, type: "item", icon: Shield, effect: { type: "cps_boost", value: 10 } },
-  { id: "item_energy_drink", name: "Bebida Energética Croc", description: "Rellena instantáneamente 50 de energía (consumible).", price: 1000, type: "consumable", icon: ZapIcon, effect: { type: "energy_fill", value: 50 } },
+  // Skins con precios en monedas y CROC
+  {
+    id: 'skin_golden_croc',
+    name: 'Cocodrilo Dorado',
+    type: 'skin',
+    price: 10000, // Precio en monedas
+    priceCroc: 500, // Precio en CROC (opcional)
+    currency: 'both', // 'coins', 'croc', o 'both'
+    image: '/skins/golden_croc.png',
+    description: 'Un cocodrilo cubierto de oro puro. Brilla en la oscuridad.',
+    rarity: 'legendary',
+    requiredLevel: 10,
+    effect: { 
+      prestige: 50,
+      clickMultiplier: 1.1 // +10% en clicks
+    }
+  },
+  {
+    id: 'skin_camo_croc',
+    name: 'Cocodrilo Camuflaje',
+    type: 'skin',
+    price: 5000,
+    priceCroc: 250,
+    currency: 'both',
+    image: '/skins/camo_croc.png',
+    description: 'Perfecto para acechar en el pantano sin ser detectado.',
+    rarity: 'rare',
+    requiredLevel: 5,
+    effect: {
+      stealth: 30,
+      energyRegen: 1.05 // +5% regeneración de energía
+    }
+  },
+  // Items con efectos
+  {
+    id: 'auto_clicker',
+    name: 'Auto-Clicker 3000',
+    type: 'item',
+    price: 25000,
+    priceCroc: 1000,
+    currency: 'both',
+    description: 'Hace clics automáticamente por ti.',
+    effect: {
+      autoClicks: 5, // 5 clics por segundo
+      duration: 'permanent'
+    }
+  },
+  // Consumibles
+  {
+    id: 'energy_potion',
+    name: 'Poción de Energía XL',
+    type: 'consumable',
+    price: 1000,
+    priceCroc: 50,
+    currency: 'both',
+    description: 'Restaura 100 puntos de energía inmediatamente.',
+    effect: {
+      energy: 100
+    }
+  },
+  // Boosts
+  {
+    id: 'double_coins_boost',
+    name: 'Boost x2 Monedas',
+    type: 'boost',
+    price: 2000,
+    priceCroc: 100,
+    currency: 'both',
+    description: 'Duplica todas las monedas obtenidas por 1 hora.',
+    effect: {
+      coinMultiplier: 2,
+      duration: 3600 // segundos
+    }
+  }
 ];
 
 export const RANKING_DATA = [

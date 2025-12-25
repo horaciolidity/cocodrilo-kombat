@@ -492,11 +492,16 @@ useEffect(() => {
 
             {currentView === "shop" && (
               <ShopView
-                coins={gameState.coins}
-                ownedItems={ownedItems}
-                activeSkin={activeSkin}
-                buyShopItem={handleBuyShopItem}
-                equipSkin={handleEquipSkin}
+                 coins={gameState.coins}
+                 nativeTokenBalance={gameState.nativeTokenBalance}
+                 ownedItems={ownedItems}
+                 activeSkin={activeSkin}
+                 buyShopItem={(itemId, useCroc) => gameLogic.buyShopItem(itemId, useCroc)}
+                 equipSkin={handleEquipSkin}
+
+                 tokenPrice={tokenPrice}
+                 gameData={gameData} // Pasar el hook completo
+                 syncGameData={syncAllData}
               />
             )}
 
