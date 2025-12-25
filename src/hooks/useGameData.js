@@ -465,75 +465,63 @@ export function useGameData(user) {
     }
   };
 
-  // En la función getOrCreatePlayerStats de useGameData.js
+  // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR
 const getOrCreatePlayerStats = async (playerId) => {
   console.log('📊 Buscando player_stats para player_id:', playerId);
   
   try {
-    // Usar la función de regeneración automática
-    const { data: stats, error } = await supabase.rpc(
-      'get_player_stats_with_regeneration',
-      { player_id_param: playerId }
-    );
+    // Primero, obtener estadísticas existentes
+    const { data: existingStats } = await supabase
+      .from('player_stats')
+      .select('*')
+      .eq('player_id', playerId)
+      .maybeSingle();
     
-    if (error) {
-      console.log('⚠️ Intentando método alternativo...', error);
-      
-      // Método alternativo: consulta normal + regeneración manual
-      const { data: existingStats } = await supabase
-        .from('player_stats')
-        .select('*')
-        .eq('player_id', playerId)
-        .maybeSingle();
-      
-      if (existingStats) {
-        // Regeneración manual del lado del cliente
-        const lastActive = new Date(existingStats.last_active || existingStats.updated_at);
-        const now = new Date();
-        const secondsPassed = (now - lastActive) / 1000;
-        const pointsToRegenerate = Math.floor(secondsPassed / 3);
-        
-        if (pointsToRegenerate > 0 && existingStats.energy < existingStats.max_energy) {
-          const newEnergy = Math.min(
-            existingStats.max_energy, 
-            existingStats.energy + pointsToRegenerate
-          );
-          
-          console.log(`⚡ Regeneración manual: +${pointsToRegenerate} puntos (${existingStats.energy} -> ${newEnergy})`);
-          
-          // Actualizar en BD
-          await supabase
-            .from('player_stats')
-            .update({
-              energy: newEnergy,
-              last_active: now.toISOString(),
-              updated_at: now.toISOString()
-            })
-            .eq('player_id', playerId);
-          
-          // Actualizar objeto
-          existingStats.energy = newEnergy;
-          existingStats.last_active = now.toISOString();
-          existingStats.updated_at = now.toISOString();
-        }
-        
-        console.log('✅ Player_stats encontradas:', { 
-          energy: existingStats.energy,
-          max_energy: existingStats.max_energy,
-          regenerated: pointsToRegenerate > 0
-        });
-        
-        return existingStats;
-      }
-    } else if (stats && stats.length > 0) {
-      console.log('✅ Player_stats regeneradas automáticamente:', { 
-        energy: stats[0].energy,
-        max_energy: stats[0].max_energy
+    if (existingStats) {
+      console.log('✅ Player_stats encontradas:', { 
+        dailyRewards: existingStats.daily_rewards,
+        lastClaim: existingStats.daily_rewards?.lastClaim
       });
-      return stats[0];
+      
+      // Verificar si la recompensa diaria debe estar disponible
+      const now = new Date();
+      const lastClaimDate = existingStats.daily_rewards?.lastClaim 
+        ? new Date(existingStats.daily_rewards.lastClaim) 
+        : null;
+      
+      let dailyRewardsAvailable = true;
+      
+      if (lastClaimDate) {
+        const diffTime = Math.abs(now - lastClaimDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        dailyRewardsAvailable = diffDays >= 1;
+      }
+      
+      // Asegurarse de que el objeto daily_rewards tenga la estructura correcta
+      const updatedDailyRewards = {
+        lastClaim: existingStats.daily_rewards?.lastClaim || null,
+        streak: existingStats.daily_rewards?.streak || 0,
+        available: dailyRewardsAvailable
+      };
+      
+      // Actualizar en BD si es necesario
+      if (JSON.stringify(existingStats.daily_rewards) !== JSON.stringify(updatedDailyRewards)) {
+        await supabase
+          .from('player_stats')
+          .update({
+            daily_rewards: updatedDailyRewards,
+            updated_at: new Date().toISOString()
+          })
+          .eq('player_id', playerId);
+        
+        console.log('✅ Daily rewards actualizado en BD');
+        existingStats.daily_rewards = updatedDailyRewards;
+      }
+      
+      return existingStats;
     }
     
-    // Crear nuevas stats si no existen
+    // Si no existen, crear nuevas
     return await createNewPlayerStats(playerId);
     
   } catch (error) {
@@ -1177,9 +1165,21 @@ const getOrCreatePlayerStats = async (playerId) => {
     setGameData(prev => ({ ...prev, achievementsUnlocked: newAchievements }));
   }, []);
 
-  const updateDailyRewards = useCallback((newDailyRewards) => {
-    setGameData(prev => ({ ...prev, dailyRewards: newDailyRewards }));
-  }, []);
+ const updateDailyRewards = useCallback((newDailyRewards) => {
+  console.log('🔄 Actualizando dailyRewards local:', newDailyRewards);
+  
+  setGameData(prev => { 
+    const updated = { 
+      ...prev, 
+      dailyRewards: newDailyRewards 
+    };
+    
+    // Sincronizar inmediatamente con BD
+    syncGameData({ daily_rewards: newDailyRewards });
+    
+    return updated;
+  });
+}, [syncGameData]);
 
   const updateFarmingMilestones = useCallback((newFarmingMilestones) => {
     setGameData(prev => ({ ...prev, farmingMilestones: newFarmingMilestones }));

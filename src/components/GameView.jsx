@@ -958,7 +958,18 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
 }
 
 function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
+  // Agregar para depuración
+  useEffect(() => {
+    console.log('🎯 DailyRewardPanel actualizado:', {
+      lastClaim: dailyRewards.lastClaim,
+      streak: dailyRewards.streak,
+      available: dailyRewards.available,
+      fechaActual: new Date().toISOString()
+    });
+  }, [dailyRewards]);
+
   const handleClaim = () => {
+    console.log('🎯 Botón de recompensa diaria clickeado');
     claimDailyReward();
   };
 

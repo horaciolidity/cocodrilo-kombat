@@ -202,7 +202,32 @@ useEffect(() => {
   }
 }, [gameState.energy]);
 
+// 🔄 VERIFICAR RECOMPENSAS DIARIAS CADA 30 SEGUNDOS
+useEffect(() => {
+  const checkDailyReward = () => {
+    if (!gameState || !dailyRewards) return;
+    
+    const now = new Date();
+    const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+    
+    if (!lastClaimDate) return;
+    
+    const diffTime = Math.abs(now - lastClaimDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Si ha pasado un día completo
+    if (diffDays >= 1) {
+      // Forzar actualización de disponibilidad
+      gameData.updateDailyRewards({ 
+        ...dailyRewards, 
+        available: true 
+      });
+    }
+  };
 
+  const interval = setInterval(checkDailyReward, 30000); // Cada 30 segundos
+  return () => clearInterval(interval);
+}, [gameState, dailyRewards, gameData]);
 
   // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
   useEffect(() => {

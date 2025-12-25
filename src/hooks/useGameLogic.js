@@ -554,80 +554,121 @@ useEffect(() => {
     });
   }, [missions, ownedCards, gameState, updateGameState, updateOwnedCards, updateMissions, toast, playSound, syncGameData]);
 
-  // 📅 RECOMPENSA DIARIA
-  const claimDailyReward = useCallback(() => {
-    const now = new Date();
-    const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-    
-    if (!lastClaimDate || now.toDateString() !== lastClaimDate.toDateString()) {
-      let newStreak = dailyRewards.streak;
-      
-      if (lastClaimDate) {
-        const diffTime = Math.abs(now - lastClaimDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays === 1) {
-          newStreak += 1;
-        } else {
-          newStreak = 1; 
-        }
-      } else {
-        newStreak = 1;
-      }
 
-      const reward = 100 * newStreak;
-      
-      // Actualizar monedas
-      const newGameState = {
-        coins: gameState.coins + reward,
-        totalCoins: gameState.totalCoins + reward
-      };
-      
-      updateGameState(newGameState);
-      
-      // Actualizar recompensa diaria
-      const newDailyRewards = { 
-        lastClaim: now.toISOString(), 
-        streak: newStreak, 
-        available: false 
-      };
-      
-      updateDailyRewards(newDailyRewards);
-      
-      toast({ 
-        title: "🎁 ¡Recompensa Diaria!", 
-        description: `+${reward} monedas (Racha: ${newStreak} días)`, 
-        duration: 3000 
-      });
-      
-      playSound('reward');
-      
-      // Sincronizar
-      syncGameData({
-        coins: newGameState.coins,
-        total_coins: newGameState.totalCoins,
-        daily_rewards: newDailyRewards
-      });
-    } else {
-      toast({ 
-        title: "🤔 Ya Reclamaste Hoy", 
-        description: "Vuelve mañana para tu próxima recompensa.", 
-        duration: 2000 
-      });
-      playSound('uiClick');
-    }
-  }, [dailyRewards, gameState, updateGameState, updateDailyRewards, toast, playSound, syncGameData]);
+// 📅 RECOMPENSA DIARIA - VERSIÓN CORREGIDA
+const claimDailyReward = useCallback(() => {
+  console.log('🎁 Intentando reclamar recompensa diaria...');
+  
+  if (!dailyRewards.available) {
+    toast({ 
+      title: "⏳ Ya Reclamaste Hoy", 
+      description: "Vuelve mañana para tu próxima recompensa.", 
+      duration: 2000 
+    });
+    playSound('uiClick');
+    return;
+  }
 
-  // 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA
-  useEffect(() => {
-    const now = new Date();
-    const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+  const now = new Date();
+  const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+  
+  // Calcular nueva racha
+  let newStreak = 1;
+  
+  if (lastClaimDate) {
+    const diffTime = Math.abs(now - lastClaimDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (!lastClaimDate || now.toDateString() !== lastClaimDate.toDateString()) {
-      updateDailyRewards(prev => ({ ...prev, available: true }));
-    } else {
-      updateDailyRewards(prev => ({ ...prev, available: false }));
+    if (diffDays === 1) {
+      // Reclamación consecutiva
+      newStreak = dailyRewards.streak + 1;
+    } else if (diffDays > 1) {
+      // Se perdió la racha
+      newStreak = 1;
+      toast({
+        title: "🔄 Racha Reiniciada",
+        description: `Pasaron ${diffDays} días desde tu última reclamación.`,
+        duration: 3000,
+      });
     }
-  }, [dailyRewards.lastClaim, updateDailyRewards]);
+  }
+
+  // Calcular recompensa (base 100 + bonus por racha)
+  const baseReward = 100;
+  const streakBonus = (newStreak - 1) * 50; // +50 monedas por cada día de racha
+  const totalReward = baseReward + streakBonus;
+
+  console.log(`🎁 Recompensa: ${totalReward} monedas (Racha: ${newStreak})`);
+
+  // Actualizar estado del juego
+  const newGameState = {
+    coins: gameState.coins + totalReward,
+    totalCoins: gameState.totalCoins + totalReward
+  };
+  
+  updateGameState(newGameState);
+
+  // Actualizar recompensa diaria
+  const newDailyRewards = { 
+    lastClaim: now.toISOString(), 
+    streak: newStreak, 
+    available: false 
+  };
+  
+  updateDailyRewards(newDailyRewards);
+
+  toast({ 
+    title: "🎁 ¡Recompensa Diaria Reclamada!", 
+    description: `+${totalReward} monedas (Racha: ${newStreak} días)`, 
+    duration: 4000 
+  });
+  
+  playSound('reward');
+
+  // Sincronizar con Supabase
+  syncGameData({
+    coins: newGameState.coins,
+    total_coins: newGameState.totalCoins,
+    daily_rewards: newDailyRewards
+  });
+
+}, [dailyRewards, gameState, updateGameState, updateDailyRewards, toast, playSound, syncGameData]);
+
+
+// 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA
+useEffect(() => {
+  const now = new Date();
+  const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+  
+  // Si no hay última reclamación, está disponible
+  if (!lastClaimDate) {
+    if (!dailyRewards.available) {
+      updateDailyRewards({ ...dailyRewards, available: true });
+    }
+    return;
+  }
+  
+  // Calcular diferencia en días
+  const diffTime = Math.abs(now - lastClaimDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Si ha pasado al menos un día desde la última reclamación
+  if (diffDays >= 1) {
+    // Verificar si es un nuevo día (no necesariamente 24 horas exactas)
+    const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
+    
+    if (isNewDay && !dailyRewards.available) {
+      console.log('🎁 Nueva recompensa diaria disponible');
+      updateDailyRewards({ ...dailyRewards, available: true });
+    } else if (!isNewDay && dailyRewards.available) {
+      console.log('🎁 Recompensa ya reclamada hoy');
+      updateDailyRewards({ ...dailyRewards, available: false });
+    }
+  } else if (dailyRewards.available) {
+    // Si no ha pasado un día pero el estado dice que está disponible, corregirlo
+    updateDailyRewards({ ...dailyRewards, available: false });
+  }
+}, [dailyRewards.lastClaim, updateDailyRewards]);
 
   // 🛍️ TIENDA
   const buyShopItem = useCallback((itemId) => {
