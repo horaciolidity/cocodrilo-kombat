@@ -73,48 +73,60 @@ export function useGameLogic({
 
 
   
-  // ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN DEFINITIVA
+// ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN CORREGIDA Y ESTABLE
 useEffect(() => {
-  console.log("⚡ Iniciando sistema de regeneración de energía...");
+  if (!gameState || !updateGameState) return;
   
-  // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
-  const energyInterval = setInterval(() => {
-    const currentEnergy = gameStateRef.current.energy;
-    const currentMaxEnergy = gameStateRef.current.maxEnergy;
+  console.log("⚡ Iniciando sistema de regeneración de energía (estable)...");
+  
+  let isMounted = true;
+  let energyInterval = null;
+  
+  const startEnergySystem = () => {
+    if (!isMounted) return;
     
-    if (currentEnergy < currentMaxEnergy) {
-      const newEnergy = currentEnergy + 1;
-      
-      console.log(`⚡ Regenerando: ${currentEnergy} -> ${newEnergy}`);
-      
-      updateGameState({
-        energy: newEnergy
-      });
-      
-      // Sincronizar con BD
-      syncGameData({
-        energy: newEnergy,
-        last_active: new Date().toISOString()
-      });
+    // Limpiar intervalo existente
+    if (energyInterval) {
+      clearInterval(energyInterval);
+      energyInterval = null;
     }
-  }, 3000);
-  
-  // 2. REGENERACIÓN POR VISIBILIDAD (cuando vuelve a la pestaña)
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
-      console.log("👀 Usuario activo - Verificando energía pendiente...");
+    
+    // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
+    energyInterval = setInterval(() => {
+      if (!isMounted || !gameStateRef.current) return;
       
-      // Forzar una regeneración inmediata
       const currentEnergy = gameStateRef.current.energy;
       const currentMaxEnergy = gameStateRef.current.maxEnergy;
       
       if (currentEnergy < currentMaxEnergy) {
+        const newEnergy = currentEnergy + 1;
+        
+        console.log(`⚡ Regenerando: ${currentEnergy} -> ${newEnergy}`);
+        
         updateGameState({
-          energy: Math.min(currentMaxEnergy, currentEnergy + 1)
+          energy: newEnergy
         });
+        
+        // Sincronizar con BD cada 10 regeneraciones
+        if (newEnergy % 10 === 0) {
+          syncGameData({
+            energy: newEnergy,
+            last_active: new Date().toISOString()
+          });
+        }
       }
+    }, 3000);
+  };
+  
+  // Iniciar sistema
+  startEnergySystem();
+  
+  // 2. REGENERACIÓN POR VISIBILIDAD
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && isMounted) {
+      console.log("👀 Usuario activo - Verificando energía...");
       
-      // Sincronizar inmediatamente
+      // Solo sincronizar, no regenerar inmediatamente
       syncGameData({
         last_active: new Date().toISOString()
       });
@@ -123,24 +135,18 @@ useEffect(() => {
   
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
-  // 3. REGENERACIÓN AL CARGAR/CERRAR
-  const handleBeforeUnload = () => {
-    console.log("📤 Guardando última energía antes de cerrar...");
-    syncGameData({
-      last_active: new Date().toISOString()
-    });
-  };
-  
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  
   return () => {
-    clearInterval(energyInterval);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    window.removeEventListener('beforeunload', handleBeforeUnload);
+    console.log("🔄 Sistema de regeneración limpiado");
+    isMounted = false;
     
-    console.log("🔄 Sistema de regeneración detenido");
+    if (energyInterval) {
+      clearInterval(energyInterval);
+      energyInterval = null;
+    }
+    
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
   };
-}, [gameState.maxEnergy, updateGameState, syncGameData]);
+}, [gameState.maxEnergy]); // Solo depende de maxEnergy, no de updateGameState o syncGameData
 
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
@@ -635,40 +641,59 @@ const claimDailyReward = useCallback(() => {
 }, [dailyRewards, gameState, updateGameState, updateDailyRewards, toast, playSound, syncGameData]);
 
 
-// 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA
+// 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA - VERSIÓN CORREGIDA
 useEffect(() => {
-  const now = new Date();
-  const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-  
-  // Si no hay última reclamación, está disponible
-  if (!lastClaimDate) {
-    if (!dailyRewards.available) {
-      updateDailyRewards({ ...dailyRewards, available: true });
-    }
-    return;
-  }
-  
-  // Calcular diferencia en días
-  const diffTime = Math.abs(now - lastClaimDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  // Si ha pasado al menos un día desde la última reclamación
-  if (diffDays >= 1) {
-    // Verificar si es un nuevo día (no necesariamente 24 horas exactas)
-    const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
+  const checkDailyReward = () => {
+    if (!dailyRewards || !updateDailyRewards) return;
     
-    if (isNewDay && !dailyRewards.available) {
-      console.log('🎁 Nueva recompensa diaria disponible');
-      updateDailyRewards({ ...dailyRewards, available: true });
-    } else if (!isNewDay && dailyRewards.available) {
-      console.log('🎁 Recompensa ya reclamada hoy');
-      updateDailyRewards({ ...dailyRewards, available: false });
+    const now = new Date();
+    const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+    
+    let shouldUpdate = false;
+    let newDailyRewards = { ...dailyRewards };
+    
+    // Si no hay última reclamación, está disponible
+    if (!lastClaimDate) {
+      if (!dailyRewards.available) {
+        newDailyRewards.available = true;
+        shouldUpdate = true;
+      }
+    } else {
+      // Calcular diferencia en días
+      const diffTime = Math.abs(now - lastClaimDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
+      
+      // Si ha pasado al menos un día y es un nuevo día
+      if (diffDays >= 1 && isNewDay) {
+        if (!dailyRewards.available) {
+          newDailyRewards.available = true;
+          shouldUpdate = true;
+        }
+      } else if (diffDays < 1 && dailyRewards.available) {
+        // Si no ha pasado un día pero dice que está disponible, corregir
+        newDailyRewards.available = false;
+        shouldUpdate = true;
+      }
     }
-  } else if (dailyRewards.available) {
-    // Si no ha pasado un día pero el estado dice que está disponible, corregirlo
-    updateDailyRewards({ ...dailyRewards, available: false });
-  }
-}, [dailyRewards.lastClaim, updateDailyRewards]);
+    
+    // Solo actualizar si hay cambios
+    if (shouldUpdate) {
+      console.log('🎁 Actualizando estado de recompensa diaria');
+      updateDailyRewards(newDailyRewards);
+    }
+  };
+  
+  // Ejecutar una vez al cargar
+  checkDailyReward();
+  
+  // Verificar cada 5 minutos (no cada render)
+  const interval = setInterval(checkDailyReward, 5 * 60 * 1000);
+  
+  return () => clearInterval(interval);
+}, [dailyRewards?.lastClaim]); // Solo dependemos de lastClaim
+
+
 
  // 🛍️ TIENDA - VERSIÓN COMPLETA CON CROC Y DESCUENTOS
 const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {

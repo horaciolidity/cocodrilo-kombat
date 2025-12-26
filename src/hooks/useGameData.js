@@ -45,71 +45,70 @@ export function useGameData(user) {
 
   // ============ 🎯 FUNCIONES PRINCIPALES ============
 
-  // 🎯 CARGAR DATOS DEL JUEGO
-  const loadGameData = useCallback(async () => {
-    if (!user) {
-      setGameData(prev => ({ 
-        ...prev, 
-        loading: false,
-        player: null,
-        gameState: INITIAL_GAME_STATE
-      }));
-      return;
-    }
+ // 🎯 CARGAR DATOS DEL JUEGO - VERSIÓN OPTIMIZADA
+const loadGameData = useCallback(async () => {
+  if (!user) {
+    console.log('👤 No hay usuario, usando datos iniciales');
+    setGameData(prev => ({ 
+      ...prev, 
+      loading: false,
+      player: null,
+      gameState: INITIAL_GAME_STATE
+    }));
+    return;
+  }
 
-    try {
-      setGameData(prev => ({ ...prev, loading: true, error: null }));
-      console.log('🎮 Cargando datos para usuario:', user.id);
-      
-      // 1. Obtener o crear jugador
-      const player = await getOrCreatePlayer(user);
-      if (!player) throw new Error('No se pudo crear/obtener jugador');
-      
-      // 2. Obtener estadísticas
-      const stats = await getOrCreatePlayerStats(player.id);
-      
-      // 3. Obtener estadísticas de referidos
-      const referralStats = await getReferralStats(player.id);
-      
-      // 4. Actualizar estado
-      setGameData(prev => ({
-        ...prev,
-        player,
-        gameState: mapStatsToGameState(stats),
-        upgrades: stats.upgrades || INITIAL_UPGRADES_STATE,
-        missions: stats.missions || INITIAL_MISSIONS_STATE,
-        ownedCards: stats.owned_cards || [],
-        ownedItems: stats.owned_items || [],
-        activeSkin: stats.active_skin || null,
-        achievementsUnlocked: stats.achievements_unlocked || [],
-        dailyRewards: stats.daily_rewards || { lastClaim: null, streak: 0, available: true },
-        farmingMilestones: stats.farming_milestones || INITIAL_FARMING_MILESTONES_STATE,
-        referralStats,
-        statsForRanking: stats,
-        loading: false,
-        lastSync: new Date().toISOString()
-      }));
-      
-      console.log('✅ Datos cargados:', {
-        player: player.username,
-        coins: stats.coins,
-        tokens: stats.native_token_balance,
-        referidos: referralStats.referralsCount
-      });
-      
-      // 5. FORZAR ACTUALIZACIÓN DE REFERIDOS INMEDIATAMENTE
-      console.log('🔁 Forzando actualización de referidos...');
-      await refreshReferralStats();
-      
-    } catch (error) {
-      console.error('❌ Error cargando datos:', error);
-      setGameData(prev => ({ 
-        ...prev, 
-        error: error.message, 
-        loading: false 
-      }));
-    }
-  }, [user]);
+  // Evitar llamadas duplicadas mientras ya se está cargando
+  if (gameData.loading) {
+    console.log('⏳ Ya se están cargando datos...');
+    return;
+  }
+
+  try {
+    console.log('🎮 Cargando datos para usuario:', user.id);
+    setGameData(prev => ({ ...prev, loading: true, error: null }));
+    
+    // 1. Obtener o crear jugador (con debounce)
+    const player = await getOrCreatePlayer(user);
+    if (!player) throw new Error('No se pudo crear/obtener jugador');
+    
+    // 2. Obtener estadísticas
+    const stats = await getOrCreatePlayerStats(player.id);
+    
+    // 3. Obtener estadísticas de referidos
+    const referralStats = await getReferralStats(player.id);
+    
+    // 4. Actualizar estado UNA SOLA VEZ
+    setGameData(prev => ({
+      ...prev,
+      player,
+      gameState: mapStatsToGameState(stats),
+      upgrades: stats.upgrades || INITIAL_UPGRADES_STATE,
+      missions: stats.missions || INITIAL_MISSIONS_STATE,
+      ownedCards: stats.owned_cards || [],
+      ownedItems: stats.owned_items || [],
+      activeSkin: stats.active_skin || null,
+      achievementsUnlocked: stats.achievements_unlocked || [],
+      dailyRewards: stats.daily_rewards || { lastClaim: null, streak: 0, available: true },
+      farmingMilestones: stats.farming_milestones || INITIAL_FARMING_MILESTONES_STATE,
+      referralStats,
+      statsForRanking: stats,
+      loading: false,
+      lastSync: new Date().toISOString()
+    }));
+    
+    console.log('✅ Datos cargados exitosamente');
+    
+  } catch (error) {
+    console.error('❌ Error cargando datos:', error);
+    setGameData(prev => ({ 
+      ...prev, 
+      error: error.message, 
+      loading: false 
+    }));
+  }
+}, [user, gameData.loading]); // Agregar gameData.loading como dependencia
+
 
   // 🎯 OBTENER O CREAR JUGADOR - VERSIÓN CORREGIDA
   const getOrCreatePlayer = async (user) => {
