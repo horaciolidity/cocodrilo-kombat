@@ -673,7 +673,8 @@ const getOrCreatePlayerStats = async (playerId) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', gameData.player.id);
-
+        
+    return { success: true }; // Retornar resultado
     } catch (error) {
       console.error('❌ Error en sync:', error);
       setGameData(prev => ({ ...prev, syncInProgress: false }));
@@ -1152,13 +1153,24 @@ const getOrCreatePlayerStats = async (playerId) => {
     setGameData(prev => ({ ...prev, ownedCards: newOwnedCards }));
   }, []);
 
-  const updateOwnedItems = useCallback((newOwnedItems) => {
-    setGameData(prev => ({ ...prev, ownedItems: newOwnedItems }));
-  }, []);
+ // 🎯 FUNCIONES DE ACTUALIZACIÓN MEJORADAS
+const updateOwnedItems = useCallback((newOwnedItems) => {
+  setGameData(prev => {
+    const updated = { ...prev, ownedItems: newOwnedItems };
+    // Sincronizar inmediatamente
+    syncGameData({ owned_items: newOwnedItems });
+    return updated;
+  });
+}, [syncGameData]);
 
-  const updateActiveSkin = useCallback((newActiveSkin) => {
-    setGameData(prev => ({ ...prev, activeSkin: newActiveSkin }));
-  }, []);
+const updateActiveSkin = useCallback((newActiveSkin) => {
+  setGameData(prev => {
+    const updated = { ...prev, activeSkin: newActiveSkin };
+    // Sincronizar inmediatamente
+    syncGameData({ active_skin: newActiveSkin });
+    return updated;
+  });
+}, [syncGameData]);
 
   const updateAchievementsUnlocked = useCallback((newAchievements) => {
     setGameData(prev => ({ ...prev, achievementsUnlocked: newAchievements }));
@@ -1193,6 +1205,34 @@ const getOrCreatePlayerStats = async (playerId) => {
     return `${window.location.origin}?ref=${gameData.player.referral_code}`;
   }, [gameData.player]);
 
+
+  // 🛍️ REFRESCAR DATOS DE LA TIENDA
+const refreshShopData = useCallback(async () => {
+  if (!gameData.player?.id) return;
+  
+  try {
+    const { data: stats } = await supabase
+      .from('player_stats')
+      .select('owned_items, active_skin, coins, native_token_balance')
+      .eq('player_id', gameData.player.id)
+      .single();
+    
+    if (stats) {
+      setGameData(prev => ({
+        ...prev,
+        ownedItems: stats.owned_items || [],
+        activeSkin: stats.active_skin || null,
+        gameState: {
+          ...prev.gameState,
+          coins: Number(stats.coins) || 0,
+          nativeTokenBalance: Number(stats.native_token_balance) || 0
+        }
+      }));
+    }
+  } catch (error) {
+    console.error('❌ Error refrescando datos de tienda:', error);
+  }
+}, [gameData.player?.id]);
   // 📥 CARGA INICIAL
   useEffect(() => {
     isMounted.current = true;
@@ -1234,6 +1274,8 @@ const getOrCreatePlayerStats = async (playerId) => {
     updateDailyRewards,
     updateFarmingMilestones,
     updateReferralStats,
+    refreshShopData,
+
     
     // 🎯 FUNCIONES DE SINCRONIZACIÓN
     syncGameData,

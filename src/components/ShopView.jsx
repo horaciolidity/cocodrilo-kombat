@@ -169,45 +169,28 @@ export function ShopView({
     return Math.min(25, baseDiscount);
   };
 
-  // 🛒 Manejar compra de item - CONFIRMACIÓN (VERSIÓN CORREGIDA)
-  const handleBuyItem = (item, useCroc = false) => {
-    if (!buyShopItem) {
-      toast({
-        title: "❌ Error del sistema",
-        description: "Función de compra no disponible",
-        duration: 3000,
-      });
-      return;
-    }
-    
-    const status = getItemStatus(item);
-    const discount = calculateCollectionDiscount();
-    
-    // Verificar si hay suficiente saldo
-    const price = useCroc ? status.priceCroc : status.price;
-    const finalPrice = Math.floor(price * (1 - discount / 100));
-    const balance = useCroc ? nativeTokenBalance : coins;
-    
-    if (balance < finalPrice) {
-      toast({ 
-        title: useCroc ? "🪙 CROC Insuficientes" : "💰 Monedas Insuficientes", 
-        description: `Necesitas ${finalPrice - balance} ${useCroc ? 'CROC' : 'monedas'} más para "${item.name}"`, 
-        duration: 3000 
-      });
-      playSound("error");
-      return;
-    }
-    
-    // Mostrar confirmación para items costosos
-    if (finalPrice > 5000 || (useCroc && finalPrice > 100)) {
-      setShowConfirm({ item, useCroc, price: finalPrice, discount });
-      playSound("uiClick");
-      return;
-    }
-    
-    // Comprar directamente
-    confirmPurchase(item, useCroc, discount);
-  };
+  // 🛒 Manejar compra de item - VERSIÓN SIMPLIFICADA
+const handleBuyItem = (item, useCroc = false) => {
+  const status = getItemStatus(item);
+  
+  if (status.disabled && item.type !== "consumable") {
+    return;
+  }
+
+  // Llamar directamente a buyShopItem sin parámetros extra
+  buyShopItem(item.id, useCroc, 0);
+};
+
+// ✅ FUNCIÓN PARA EQUIPAR SKIN
+const handleEquipSkin = (skinId) => {
+  equipSkin(skinId);
+  playSound("equip");
+  toast({
+    title: "🎨 Skin Equipada",
+    description: "¡Skin cambiada exitosamente!",
+    duration: 3000
+  });
+};
 
   // ✅ Confirmar compra - VERSIÓN MEJORADA
   const confirmPurchase = (item, useCroc = false, discount = 0) => {

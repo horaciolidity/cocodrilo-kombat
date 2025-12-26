@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
@@ -47,6 +47,21 @@ import {
   SHOP_ITEMS,
 } from "@/config/gameConfig";
 
+// 🎯 Componente ShopView memoizado para evitar parpadeos
+const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
+  console.log('🛍️ ShopView renderizado (memoizado)');
+  return <ShopView {...props} />;
+}, (prevProps, nextProps) => {
+  // Comparación personalizada para evitar re-renders innecesarios
+  return (
+    prevProps.coins === nextProps.coins &&
+    prevProps.nativeTokenBalance === nextProps.nativeTokenBalance &&
+    prevProps.activeSkin === nextProps.activeSkin &&
+    prevProps.tokenPrice === nextProps.tokenPrice &&
+    JSON.stringify(prevProps.ownedItems) === JSON.stringify(nextProps.ownedItems)
+  );
+});
+
 function App() {
   const { toast } = useToast();
   const { playSound } = useSound();
@@ -78,48 +93,64 @@ function App() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
 
- // En App.jsx, actualiza el useEffect para capturar referidos:
+  // 🎯 Referencias para evitar re-renders
+  const syncInProgressRef = useRef(false);
+  const lastToastTimeRef = useRef(0);
 
-useEffect(() => {
-  // 🔗 Verificar parámetro de referencia en la URL y guardarlo
-  const urlParams = new URLSearchParams(window.location.search);
-  const refCode = urlParams.get('ref');
-  
-  if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
-    console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
-    console.log('📝 Guardando en localStorage como pending_referral_code');
-    
-    // Guardar en MAYÚSCULAS
-    localStorage.setItem('pending_referral_code', refCode.toUpperCase());
-    
-    // Limpiar la URL sin recargar la página
-    const newUrl = window.location.pathname;
-    window.history.replaceState({}, document.title, newUrl);
-    
-    // Mostrar toast informativo
-    toast({
-      title: "🎯 ¡Invitación Detectada!",
-      description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
-      duration: 5000,
-    });
-  }
-}, [toast]);
+ // 🔗 Capturar referidos desde URL
+ useEffect(() => {
+   // Verificar parámetro de referencia en la URL y guardarlo
+   const urlParams = new URLSearchParams(window.location.search);
+   const refCode = urlParams.get('ref');
+   
+   if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
+     console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
+     
+     // Guardar en MAYÚSCULAS
+     localStorage.setItem('pending_referral_code', refCode.toUpperCase());
+     
+     // Limpiar la URL sin recargar la página
+     const newUrl = window.location.pathname;
+     window.history.replaceState({}, document.title, newUrl);
+     
+     // Mostrar toast informativo (con debounce)
+     const now = Date.now();
+     if (now - lastToastTimeRef.current > 5000) {
+       toast({
+         title: "🎯 ¡Invitación Detectada!",
+         description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
+         duration: 5000,
+       });
+       lastToastTimeRef.current = now;
+     }
+   }
+ }, [toast]);
 
-
-
-  /* 🧩 Escucha sesión Supabase */
+  /* 🧩 Escucha sesión Supabase - OPTIMIZADO */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user || null);
+    let isMounted = true;
+    
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (isMounted) {
+        setSession(session);
+        setUser(session?.user || null);
+      }
+    };
+    
+    initializeSession();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) {
+        setSession(session);
+        setUser(session?.user || null);
+      }
     });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user || null);
-    });
-
-    return () => listener.subscription.unsubscribe();
+    
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   /* 🎯 HOOK CENTRAL DE DATOS */
@@ -178,90 +209,203 @@ useEffect(() => {
     syncAllData,
   } = gameLogic;
 
+  // 🎯 DATOS MEMOIZADOS PARA COMPONENTES
+  const memoizedGameData = useMemo(() => ({
+    gameState,
+    upgrades,
+    missions,
+    ownedCards,
+    ownedItems,
+    activeSkin,
+    achievementsUnlocked,
+    dailyRewards,
+    farmingMilestonesState: farmingMilestonesState,
+    referralStats,
+    player
+  }), [
+    gameState,
+    upgrades,
+    missions,
+    ownedCards,
+    ownedItems,
+    activeSkin,
+    achievementsUnlocked,
+    dailyRewards,
+    farmingMilestonesState,
+    referralStats,
+    player
+  ]);
 
+  // 🎯 FUNCIONES MEMOIZADAS
+  const memoizedHandleBuyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
+    const item = SHOP_ITEMS.find((i) => i.id === itemId);
+    if (!item || !user) return;
+    
+    buyShopItem(itemId, useCroc, discount);
+  }, [user, buyShopItem]);
 
-// Agregar en App.jsx - Notificaciones inteligentes
-useEffect(() => {
-  // Notificar cuando energía esté al 100%
-  if (gameState.energy === gameState.maxEnergy) {
+  const memoizedHandleEquipSkin = useCallback((skinId) => {
+    if (!user) return;
+    gameData.updateActiveSkin(skinId);
+    playSound("equip");
+  }, [user, gameData, playSound]);
+
+  const memoizedHandleBuyToken = useCallback(async () => {
     toast({
-      title: "⚡ ¡Energía Completa!",
-      description: "¡Tu cocodrilo tiene hambre! Ven a jugar",
+      title: '🚧 Comprar Token CROC',
+      description: 'Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).',
       duration: 5000,
     });
-  }
-  
-  // Recordatorio diario a las 12 PM
-  const now = new Date();
-  if (now.getHours() === 12 && now.getMinutes() === 0) {
-    toast({
-      title: "🎮 ¡Hora de Cocodrilo Kombat!",
-      description: "No olvides tu recompensa diaria",
-      duration: 6000,
-    });
-  }
-}, [gameState.energy]);
+    playSound('uiClick');
+  }, [toast, playSound]);
 
-// 🔄 VERIFICAR RECOMPENSAS DIARIAS CADA 30 SEGUNDOS
-useEffect(() => {
-  const checkDailyReward = () => {
-    if (!gameState || !dailyRewards) return;
-    
-    const now = new Date();
-    const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-    
-    if (!lastClaimDate) return;
-    
-    const diffTime = Math.abs(now - lastClaimDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    // Si ha pasado un día completo
-    if (diffDays >= 1) {
-      // Forzar actualización de disponibilidad
-      gameData.updateDailyRewards({ 
-        ...dailyRewards, 
-        available: true 
-      });
-    }
-  };
-
-  const interval = setInterval(checkDailyReward, 30000); // Cada 30 segundos
-  return () => clearInterval(interval);
-}, [gameState, dailyRewards, gameData]);
-
-  // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
+  // 🎯 EFECTO DE NOTIFICACIONES - OPTIMIZADO
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        refreshPrice && refreshPrice();
+    let notificationInterval;
+    
+    const checkNotifications = () => {
+      // Notificar cuando energía esté al 100% (solo si no está en modo sleep)
+      if (gameState.energy === gameState.maxEnergy && document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastToastTimeRef.current > 30000) { // Mínimo 30 segundos entre notificaciones
+          toast({
+            title: "⚡ ¡Energía Completa!",
+            description: "¡Tu cocodrilo tiene hambre! Ven a jugar",
+            duration: 5000,
+          });
+          lastToastTimeRef.current = now;
+        }
       }
-    }, 60000);
+      
+      // Recordatorio diario a las 12 PM
+      const now = new Date();
+      if (now.getHours() === 12 && now.getMinutes() === 0 && document.visibilityState === 'visible') {
+        const todayKey = `daily_reminder_${now.toDateString()}`;
+        const hasShownToday = localStorage.getItem(todayKey);
+        
+        if (!hasShownToday) {
+          toast({
+            title: "🎮 ¡Hora de Cocodrilo Kombat!",
+            description: "No olvides tu recompensa diaria",
+            duration: 6000,
+          });
+          localStorage.setItem(todayKey, 'true');
+        }
+      }
+    };
+    
+    // Solo verificar cada minuto, no en cada render
+    notificationInterval = setInterval(checkNotifications, 60000);
+    checkNotifications(); // Ejecutar al inicio
+    
+    return () => clearInterval(notificationInterval);
+  }, [gameState.energy, gameState.maxEnergy, toast]);
 
-    return () => clearInterval(interval);
+  // 🔄 VERIFICAR RECOMPENSAS DIARIAS - OPTIMIZADO
+  useEffect(() => {
+    let checkInterval;
+    
+    const checkDailyReward = () => {
+      if (!gameState || !dailyRewards || !gameData?.updateDailyRewards) return;
+      
+      const now = new Date();
+      const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+      
+      if (!lastClaimDate) {
+        if (!dailyRewards.available) {
+          gameData.updateDailyRewards({ 
+            ...dailyRewards, 
+            available: true 
+          });
+        }
+        return;
+      }
+      
+      const diffTime = Math.abs(now - lastClaimDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Si ha pasado un día completo y el usuario está activo
+      if (diffDays >= 1 && document.visibilityState === 'visible') {
+        if (!dailyRewards.available) {
+          console.log('🎁 Forzando disponibilidad de recompensa diaria');
+          gameData.updateDailyRewards({ 
+            ...dailyRewards, 
+            available: true 
+          });
+        }
+      }
+    };
+    
+    checkInterval = setInterval(checkDailyReward, 60000); // Cada minuto
+    checkDailyReward(); // Ejecutar al inicio
+    
+    return () => clearInterval(checkInterval);
+  }, [gameState, dailyRewards, gameData]);
+
+  // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE - OPTIMIZADO
+  useEffect(() => {
+    let priceInterval;
+    
+    const refreshPriceSafely = () => {
+      if (document.visibilityState === 'visible' && refreshPrice) {
+        refreshPrice();
+      }
+    };
+    
+    priceInterval = setInterval(refreshPriceSafely, 60000); // Cada minuto
+    
+    return () => {
+      if (priceInterval) clearInterval(priceInterval);
+    };
   }, [refreshPrice]);
 
-  // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
+  // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR - OPTIMIZADO
   useEffect(() => {
     if (!player?.id) return;
-
-    const handleBeforeUnload = () => {
-      console.log("📤 Sincronizando antes de cerrar...");
-      syncAllData();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        console.log("📤 Sincronizando al cambiar de pestaña...");
-        syncAllData();
+    
+    let syncTimeout;
+    let isSyncing = false;
+    
+    const syncData = async () => {
+      if (isSyncing || syncInProgressRef.current) return;
+      
+      isSyncing = true;
+      syncInProgressRef.current = true;
+      
+      try {
+        console.log("📤 Sincronizando datos...");
+        await syncAllData();
+      } catch (error) {
+        console.error("❌ Error sincronizando:", error);
+      } finally {
+        isSyncing = false;
+        syncInProgressRef.current = false;
       }
     };
-
+    
+    const debouncedSync = () => {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(syncData, 1000);
+    };
+    
+    const handleBeforeUnload = () => {
+      // Sincronizar inmediatamente antes de cerrar
+      syncData();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        debouncedSync();
+      }
+    };
+    
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
+    
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(syncTimeout);
     };
   }, [player?.id, syncAllData]);
 
@@ -269,30 +413,51 @@ useEffect(() => {
   useEffect(() => {
     const hasPlayedBefore = localStorage.getItem("cocodriloKombatPlayed");
     if (!hasPlayedBefore) {
-      setShowTutorial(true);
-      localStorage.setItem("cocodriloKombatPlayed", "true");
+      setTimeout(() => {
+        setShowTutorial(true);
+        localStorage.setItem("cocodriloKombatPlayed", "true");
+      }, 1000); // Retraso para que cargue la UI primero
     }
   }, []);
 
-  /* 🚪 Logout */
+
+  // 🔄 REFRESCAR DATOS DE TIENDA CADA 30 SEGUNDOS
+useEffect(() => {
+  if (!user) return;
+  
+  const interval = setInterval(() => {
+    gameData.refreshShopData?.();
+  }, 30000);
+  
+  return () => clearInterval(interval);
+}, [user, gameData.refreshShopData]);
+
+  /* 🚪 Logout - OPTIMIZADO */
   const logout = useCallback(async () => {
-    syncAllData();
-    await supabase.auth.signOut();
-    setUser(null);
-    toast({
-      title: "👋 Sesión cerrada",
-      description: "Tu sesión fue cerrada correctamente",
-      duration: 2000,
-    });
-    playSound("logout");
+    try {
+      await syncAllData();
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({
+        title: "👋 Sesión cerrada",
+        description: "Tu sesión fue cerrada correctamente",
+        duration: 2000,
+      });
+      playSound("logout");
+    } catch (error) {
+      console.error("❌ Error al cerrar sesión:", error);
+    }
   }, [syncAllData, toast, playSound]);
 
-  /* 🎓 Tutorial */
+  /* 🎓 Tutorial - OPTIMIZADO */
   const nextTutorialStep = useCallback(() => {
-    setTutorialStep((prev) =>
-      prev < TUTORIAL_STEPS_CONTENT.length - 1 ? prev + 1 : 0
-    );
-    if (tutorialStep >= TUTORIAL_STEPS_CONTENT.length - 1) setShowTutorial(false);
+    const nextStep = tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1 ? tutorialStep + 1 : 0;
+    setTutorialStep(nextStep);
+    
+    if (nextStep >= TUTORIAL_STEPS_CONTENT.length - 1) {
+      setTimeout(() => setShowTutorial(false), 300);
+    }
+    
     playSound("uiClick");
   }, [tutorialStep, playSound]);
 
@@ -302,13 +467,13 @@ useEffect(() => {
     playSound("uiClick");
   }, [playSound]);
 
-  /* 🔀 Navegación */
-  const handleNavigation = (view) => {
+  /* 🔀 Navegación - OPTIMIZADA */
+  const handleNavigation = useCallback((view) => {
     setCurrentView(view);
     playSound("uiClick");
-  };
+  }, [playSound]);
 
-  const navigationItems = [
+  const navigationItems = useMemo(() => [
     { view: "game", label: "Juego", icon: Home },
     { view: "missions", label: "Misiones", icon: ListChecks },
     { view: "farming_milestones", label: "Hitos", icon: TargetIcon },
@@ -320,32 +485,7 @@ useEffect(() => {
     { view: "wallet", label: "Wallet", icon: Wallet },
     { view: "stats", label: "Stats", icon: BarChart3 },
     { view: "settings", label: "Config", icon: Settings },
-  ];
-
-  // ✅ FUNCIÓN PARA COMPRAR ITEMS
-  const handleBuyShopItem = useCallback((itemId) => {
-    const item = SHOP_ITEMS.find((i) => i.id === itemId);
-    if (!item || !user) return;
-    
-    buyShopItem(itemId);
-  }, [user, buyShopItem]);
-
-  // ✅ FUNCIÓN PARA EQUIPAR SKIN
-  const handleEquipSkin = useCallback((skinId) => {
-    if (!user) return;
-    gameData.updateActiveSkin(skinId);
-    playSound("equip");
-  }, [user, gameData, playSound]);
-
-  // ✅ FUNCIÓN PARA COMPRAR TOKENS CROC
-  const handleBuyToken = useCallback(async () => {
-    toast({
-      title: '🚧 Comprar Token CROC',
-      description: 'Próximamente podrás adquirir CROC en un exchange descentralizado (DEX).',
-      duration: 5000,
-    });
-    playSound('uiClick');
-  }, [toast, playSound]);
+  ], []);
 
   /* 💡 UI Loading global */
   if (loading) {
@@ -378,14 +518,14 @@ useEffect(() => {
   }
 
   // 💰 PAQUETE COMPLETO DE DATOS DE PRECIO PARA PASAR A COMPONENTES
-  const tokenPriceData = {
+  const tokenPriceData = useMemo(() => ({
     tokenPrice,
     priceHistory,
     liquidity,
     getChartData,
     getPriceStats,
     refreshPrice
-  };
+  }), [tokenPrice, priceHistory, liquidity, getChartData, getPriceStats, refreshPrice]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -459,7 +599,7 @@ useEffect(() => {
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={gameData.getReferralLink}
-                onBuyToken={handleBuyToken}
+                onBuyToken={memoizedHandleBuyToken}
               />
             )}
 
@@ -491,17 +631,16 @@ useEffect(() => {
             )}
 
             {currentView === "shop" && (
-              <ShopView
+              <ShopViewMemo
                  coins={gameState.coins}
                  nativeTokenBalance={gameState.nativeTokenBalance}
                  ownedItems={ownedItems}
                  activeSkin={activeSkin}
-                 buyShopItem={(itemId, useCroc) => gameLogic.buyShopItem(itemId, useCroc)}
+                 buyShopItem={buyShopItem} 
                  equipSkin={handleEquipSkin}
-
                  tokenPrice={tokenPrice}
-                 gameData={gameData} // Pasar el hook completo
-                 syncGameData={syncAllData}
+                 toast={toast}
+                 playSound={playSound}
               />
             )}
 
@@ -653,7 +792,7 @@ useEffect(() => {
             <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-full border border-yellow-600/30">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-[10px] text-yellow-300">
-                Precio CROC actualizado cada 8 segundos
+                Precio CROC actualizado cada 60 segundos
               </span>
             </div>
           </div>

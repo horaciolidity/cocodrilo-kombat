@@ -695,8 +695,8 @@ useEffect(() => {
 
 
 
- // 🛍️ TIENDA - VERSIÓN COMPLETA CON CROC Y DESCUENTOS
-const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
+// 🛍️ TIENDA - VERSIÓN CORREGIDA Y OPTIMIZADA
+const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
   console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
   
   const item = SHOP_ITEMS.find(i => i.id === itemId);
@@ -708,16 +708,13 @@ const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
       duration: 2000 
     });
     playSound('error');
-    return;
+    return false;
   }
 
   // 🔍 Verificar si ya es dueño (para items no consumibles)
   const isAlreadyOwnedNonConsumable = ownedItems.some(owned => {
-    if (typeof owned === 'string') {
-      return owned === itemId;
-    } else if (typeof owned === 'object') {
-      return owned.id === itemId && item.type !== 'consumable' && item.type !== 'boost';
-    }
+    if (typeof owned === 'string') return owned === itemId;
+    if (typeof owned === 'object') return owned.id === itemId;
     return false;
   });
 
@@ -728,7 +725,7 @@ const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
       duration: 2000 
     });
     playSound('error');
-    return;
+    return false;
   }
   
   // 🎨 Verificar si la skin ya está activa
@@ -739,10 +736,10 @@ const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
       duration: 2000 
     });
     playSound('uiClick');
-    return;
+    return false;
   }
 
-  // 💰 Calcular precio (considerando descuentos y moneda)
+  // 💰 Calcular precio
   const basePrice = useCroc ? (item.priceCroc || Math.floor(item.price * 0.1)) : item.price;
   const finalPrice = Math.floor(basePrice * (1 - discount / 100));
   
@@ -758,200 +755,178 @@ const buyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
       duration: 3000 
     });
     playSound('error');
-    return;
+    return false;
   }
 
-  // 🎯 Iniciar compra
-  console.log(`✅ Compra aprobada: ${item.name} por ${finalPrice} ${currencyName} (descuento: ${discount}%)`);
+  try {
+    console.log(`✅ Compra aprobada: ${item.name} por ${finalPrice} ${currencyName} (descuento: ${discount}%)`);
 
-  // 📉 Restar del saldo correspondiente
-  const newGameState = { 
-    ...gameState,
-    coins: useCroc ? gameState.coins : Math.max(0, gameState.coins - finalPrice),
-    nativeTokenBalance: useCroc ? Math.max(0, gameState.nativeTokenBalance - finalPrice) : gameState.nativeTokenBalance
-  };
-  
-  updateGameState(newGameState);
-  
-  // 🎁 Manejar diferentes tipos de items
-  let newOwnedItems = [...ownedItems];
-  let newActiveSkin = activeSkin;
-  let shouldApplyEffect = false;
-  let effectMessage = null;
+    // 🎯 CALCULAR TODOS LOS CAMBIOS EN UN SOLO OBJETO
+    const updates = {
+      coins: useCroc ? gameState.coins : gameState.coins - finalPrice,
+      nativeTokenBalance: useCroc ? gameState.nativeTokenBalance - finalPrice : gameState.nativeTokenBalance,
+      totalCoins: gameState.totalCoins,
+      energy: gameState.energy,
+      coinsPerSecond: gameState.coinsPerSecond,
+      experience: gameState.experience
+    };
 
-  switch (item.type) {
-    case 'skin':
-      // Equipar skin automáticamente
-      newActiveSkin = itemId;
-      updateActiveSkin(itemId);
+    // 🎁 MANEJAR EFECTOS ESPECÍFICOS DEL ITEM
+    let newOwnedItems = [...ownedItems];
+    let newActiveSkin = activeSkin;
+    let effectApplied = false;
+
+    switch (item.type) {
+      case 'skin':
+        newActiveSkin = itemId;
+        if (!newOwnedItems.includes(itemId)) {
+          newOwnedItems.push(itemId);
+        }
+        
+        // Bonus por skin legendaria
+        if (item.rarity === 'legendary') {
+          const bonusCroc = Math.floor(finalPrice * 0.05);
+          updates.nativeTokenBalance += bonusCroc;
+        }
+        break;
+
+      case 'item':
+      case 'boost':
+        if (!newOwnedItems.includes(itemId)) {
+          newOwnedItems.push(itemId);
+        }
+        
+        if (item.effect?.autoClicks) {
+          updates.coinsPerSecond += item.effect.autoClicks;
+          effectApplied = true;
+        }
+        break;
+
+      case 'consumable':
+        const existingIndex = newOwnedItems.findIndex(i => 
+          typeof i === 'object' && i.id === itemId
+        );
+        
+        if (existingIndex > -1) {
+          newOwnedItems[existingIndex] = { 
+            ...newOwnedItems[existingIndex], 
+            quantity: (newOwnedItems[existingIndex].quantity || 0) + 1 
+          };
+        } else {
+          newOwnedItems.push({ id: itemId, quantity: 1 });
+        }
+        
+        if (item.effect?.energy) {
+          updates.energy = Math.min(gameState.maxEnergy, gameState.energy + item.effect.energy);
+          effectApplied = true;
+        }
+        
+        if (item.effect?.coins) {
+          updates.coins += item.effect.coins;
+          updates.totalCoins += item.effect.coins;
+          effectApplied = true;
+        }
+        break;
+
+      default:
+        console.warn('⚠️ Tipo de item desconocido:', item.type);
+        break;
+    }
+
+    // 📦 APLICAR TODAS LAS ACTUALIZACIONES DE UNA VEZ
+    updateGameState(updates);
+    
+    if (item.type === 'skin') {
+      updateActiveSkin(newActiveSkin);
+    }
+    
+    updateOwnedItems(newOwnedItems);
+
+    // 🏆 VERIFICAR LOGROS
+    if (item.type === 'skin') {
+      const ownedSkins = newOwnedItems.filter(id => {
+        const it = SHOP_ITEMS.find(s => s.id === id);
+        return it && it.type === 'skin';
+      }).length;
       
-      // Añadir a items poseídos si no está
-      if (!newOwnedItems.includes(itemId)) {
-        newOwnedItems.push(itemId);
-      }
-      
-      // Mostrar efecto especial
-      toast({ 
-        title: "🎨 ¡Skin Equipada!", 
-        description: `¡Ahora usas "${item.name}"!`, 
-        duration: 4000 
-      });
-      
-      // Bonus por skin legendaria
-      if (item.rarity === 'legendary') {
-        const bonusCroc = Math.floor(finalPrice * 0.05); // 5% de bonificación
-        const updatedTokens = gameState.nativeTokenBalance + bonusCroc;
-        updateGameState({ ...newGameState, nativeTokenBalance: updatedTokens });
+      if (ownedSkins >= 3 && !achievementsUnlocked.includes('skin_collector_1')) {
+        const newAchievements = [...achievementsUnlocked, 'skin_collector_1'];
+        updateAchievementsUnlocked(newAchievements);
         
         toast({
-          title: "✨ ¡Bonus Legendario!",
-          description: `¡Skin legendaria! +${bonusCroc} CROC de bonificación.`,
+          title: "🏆 Logro Desbloqueado!",
+          description: "¡Coleccionista de Skins Nivel 1!",
           duration: 5000,
         });
       }
-      
-      playSound('equip');
-      break;
-
-    case 'item':
-    case 'boost':
-      // Añadir item a la colección
-      if (!newOwnedItems.includes(itemId)) {
-        newOwnedItems.push(itemId);
-      }
-      
-      // Aplicar efectos inmediatos si los tiene
-      if (item.effect) {
-        shouldApplyEffect = true;
-        effectMessage = `¡${item.name} activado!`;
-        
-        if (item.effect.autoClicks) {
-          // Auto-clicker: aumentar clics automáticos
-          const newCPS = gameState.coinsPerSecond + item.effect.autoClicks;
-          updateGameState({ ...newGameState, coinsPerSecond: newCPS });
-          effectMessage += ` +${item.effect.autoClicks} clics/segundo`;
-        }
-        
-        if (item.effect.coinMultiplier) {
-          // Multiplicador de monedas
-          effectMessage += ` x${item.effect.coinMultiplier} monedas`;
-        }
-      }
-      
-      toast({ 
-        title: "✅ Ítem Comprado", 
-        description: `¡Has adquirido "${item.name}"! ${effectMessage || ''}`, 
-        duration: 4000 
-      });
-      playSound('buy');
-      break;
-
-    case 'consumable':
-      // Manejar consumibles con cantidad
-      const existingIndex = newOwnedItems.findIndex(i => 
-        typeof i === 'object' && i.id === itemId
-      );
-      
-      if (existingIndex > -1) {
-        // Incrementar cantidad
-        newOwnedItems[existingIndex] = { 
-          ...newOwnedItems[existingIndex], 
-          quantity: (newOwnedItems[existingIndex].quantity || 0) + 1 
-        };
-      } else {
-        // Nuevo consumible
-        newOwnedItems.push({ ...item, quantity: 1 });
-      }
-      
-      // Aplicar efecto inmediato
-      shouldApplyEffect = true;
-      if (item.effect) {
-        if (item.effect.energy) {
-          const updatedEnergy = Math.min(gameState.maxEnergy, gameState.energy + item.effect.energy);
-          updateGameState({ ...newGameState, energy: updatedEnergy });
-          effectMessage = `+${item.effect.energy} energía`;
-        }
-        
-        if (item.effect.coins) {
-          const newCoins = gameState.coins + item.effect.coins;
-          updateGameState({ ...newGameState, coins: newCoins });
-          effectMessage = `+${item.effect.coins} monedas`;
-        }
-      }
-      
-      toast({ 
-        title: "⚡ Consumible Activado", 
-        description: `¡Usaste "${item.name}"! ${effectMessage || ''}`, 
-        duration: 3000 
-      });
-      playSound('powerUp');
-      break;
-
-    default:
-      console.warn('⚠️ Tipo de item desconocido:', item.type);
-      break;
-  }
-
-  // 📦 Actualizar items poseídos
-  updateOwnedItems(newOwnedItems);
-
-  // 🏆 Verificar logros de colección
-  if (item.type === 'skin') {
-    const ownedSkins = newOwnedItems.filter(id => {
-      const it = SHOP_ITEMS.find(s => s.id === id);
-      return it && it.type === 'skin';
-    }).length;
-    
-    // Logro por coleccionar skins
-    if (ownedSkins >= 3 && !achievementsUnlocked.includes('skin_collector_1')) {
-      const newAchievements = [...achievementsUnlocked, 'skin_collector_1'];
-      updateAchievementsUnlocked(newAchievements);
-      
-      toast({
-        title: "🏆 Logro Desbloqueado!",
-        description: "¡Coleccionista de Skins Nivel 1!",
-        duration: 5000,
-      });
-      
-      syncGameData({ achievements_unlocked: newAchievements });
     }
-  }
 
-  // 💾 Preparar datos para sincronización
-  const syncData = {
-    coins: newGameState.coins,
-    native_token_balance: newGameState.nativeTokenBalance,
-    owned_items: newOwnedItems,
-    active_skin: item.type === 'skin' ? itemId : activeSkin,
-    energy: shouldApplyEffect && item.effect?.energy 
-      ? Math.min(gameState.maxEnergy, gameState.energy + (item.effect.energy || 0))
-      : gameState.energy,
-    coins_per_second: shouldApplyEffect && item.effect?.autoClicks
-      ? gameState.coinsPerSecond + item.effect.autoClicks
-      : gameState.coinsPerSecond,
-    total_coins: gameState.totalCoins // No restamos de total_coins
-  };
+    // 💾 PREPARAR DATOS PARA SINCRONIZACIÓN
+    const syncData = {
+      coins: updates.coins,
+      native_token_balance: updates.nativeTokenBalance,
+      owned_items: newOwnedItems,
+      active_skin: item.type === 'skin' ? itemId : activeSkin,
+      energy: updates.energy,
+      coins_per_second: updates.coinsPerSecond,
+      total_coins: updates.totalCoins,
+      experience: updates.experience
+    };
 
-  // 📤 Sincronizar con Supabase
-  syncGameData(syncData);
+    // 📤 SINCRONIZAR CON SUPABASE - VERSIÓN MEJORADA
+    const syncResult = await syncGameData(syncData);
+    
+    if (!syncResult) {
+      console.warn('⚠️ Sincronización falló, pero los cambios locales se mantienen');
+    }
 
-  // 🎉 Notificación final
-  if (discount > 0) {
-    toast({
-      title: "🎯 ¡Compra con Descuento!",
-      description: `Ahorraste ${Math.floor(basePrice * (discount/100))} ${currencyName} (${discount}%)`,
-      duration: 4000,
+    // 🎉 NOTIFICACIONES
+    let title = "✅ Compra Exitosa!";
+    let description = `Has adquirido "${item.name}" por ${finalPrice} ${currencyName}`;
+    
+    if (item.type === 'skin') {
+      title = "🎨 ¡Skin Equipada!";
+      description = `¡Ahora usas "${item.name}"!`;
+    } else if (item.type === 'consumable') {
+      title = "⚡ Consumible Activado";
+    }
+    
+    if (discount > 0) {
+      description += ` (${discount}% descuento)`;
+    }
+    
+    toast({ 
+      title, 
+      description, 
+      duration: 4000 
     });
+    
+    // 🔊 SONIDO
+    if (item.type === 'skin') playSound('equip');
+    else if (item.type === 'consumable') playSound('powerUp');
+    else playSound('buy');
+
+    console.log('✅ Compra completada exitosamente:', {
+      item: item.name,
+      precio: finalPrice,
+      moneda: currencyName,
+      descuento: discount,
+      nuevoSaldo: useCroc ? updates.nativeTokenBalance : updates.coins,
+      syncResult
+    });
+
+    return true;
+
+  } catch (error) {
+    console.error('❌ Error en la compra:', error);
+    toast({
+      title: "❌ Error en la compra",
+      description: "No se pudo completar la transacción. Intenta nuevamente.",
+      duration: 3000,
+    });
+    playSound('error');
+    return false;
   }
-
-  console.log('✅ Compra completada exitosamente:', {
-    item: item.name,
-    precio: finalPrice,
-    moneda: currencyName,
-    descuento: discount,
-    nuevoSaldo: useCroc ? newGameState.nativeTokenBalance : newGameState.coins
-  });
-
 }, [
   gameState, 
   ownedItems, 
