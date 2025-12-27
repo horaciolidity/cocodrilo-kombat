@@ -44,7 +44,6 @@ import {
 import {
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
-  SHOP_ITEMS,
 } from "@/config/gameConfig";
 
 // 🎯 Componente ShopView memoizado para evitar parpadeos
@@ -53,12 +52,14 @@ const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
   return <ShopView {...props} />;
 }, (prevProps, nextProps) => {
   // Comparación personalizada para evitar re-renders innecesarios
+  const ownedItemsEqual = JSON.stringify(prevProps.ownedItems) === JSON.stringify(nextProps.ownedItems);
   return (
     prevProps.coins === nextProps.coins &&
     prevProps.nativeTokenBalance === nextProps.nativeTokenBalance &&
     prevProps.activeSkin === nextProps.activeSkin &&
     prevProps.tokenPrice === nextProps.tokenPrice &&
-    JSON.stringify(prevProps.ownedItems) === JSON.stringify(nextProps.ownedItems)
+    ownedItemsEqual &&
+    prevProps.user?.id === nextProps.user?.id
   );
 });
 
@@ -69,20 +70,15 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-  const tokenPriceHook = useTokenPrice();
 
-  /* 💰 PRECIO GLOBAL CROC - CENTRALIZADO EN SUPABASE */
+  /* 💰 PRECIO GLOBAL CROC */
   const {
     tokenPrice = 0.05,
-    setTokenPrice,
     priceHistory = [],
     liquidity = 50000,
     getChartData,
     getPriceStats,
-    isLoading: tokenPriceLoading,
-    error: tokenPriceError,
     refreshPrice,
-    updatePrice
   } = useTokenPrice();
   
   /* 🎮 Estados UI */
@@ -97,36 +93,35 @@ function App() {
   const syncInProgressRef = useRef(false);
   const lastToastTimeRef = useRef(0);
 
- // 🔗 Capturar referidos desde URL
- useEffect(() => {
-   // Verificar parámetro de referencia en la URL y guardarlo
-   const urlParams = new URLSearchParams(window.location.search);
-   const refCode = urlParams.get('ref');
-   
-   if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
-     console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
-     
-     // Guardar en MAYÚSCULAS
-     localStorage.setItem('pending_referral_code', refCode.toUpperCase());
-     
-     // Limpiar la URL sin recargar la página
-     const newUrl = window.location.pathname;
-     window.history.replaceState({}, document.title, newUrl);
-     
-     // Mostrar toast informativo (con debounce)
-     const now = Date.now();
-     if (now - lastToastTimeRef.current > 5000) {
-       toast({
-         title: "🎯 ¡Invitación Detectada!",
-         description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
-         duration: 5000,
-       });
-       lastToastTimeRef.current = now;
-     }
-   }
- }, [toast]);
+  // 🔗 Capturar referidos desde URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
+      console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
+      
+      // Guardar en MAYÚSCULAS
+      localStorage.setItem('pending_referral_code', refCode.toUpperCase());
+      
+      // Limpiar la URL sin recargar la página
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // Mostrar toast informativo
+      const now = Date.now();
+      if (now - lastToastTimeRef.current > 5000) {
+        toast({
+          title: "🎯 ¡Invitación Detectada!",
+          description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
+          duration: 5000,
+        });
+        lastToastTimeRef.current = now;
+      }
+    }
+  }, [toast]);
 
-  /* 🧩 Escucha sesión Supabase - OPTIMIZADO */
+  /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     let isMounted = true;
     
@@ -156,7 +151,7 @@ function App() {
   /* 🎯 HOOK CENTRAL DE DATOS */
   const gameData = useGameData(user);
 
-  /* ⚙️ Lógica del juego que usa el hook central */
+  /* ⚙️ Lógica del juego */
   const gameLogic = useGameLogic({
     gameData,
     updateGameState: gameData.updateGameState,
@@ -191,9 +186,6 @@ function App() {
     referralStats,
     loading,
     error,
-    floatingNumbers,
-    clickEffect,
-    soundEnabled,
     handleClick,
     buyUpgrade,
     completeMission,
@@ -203,53 +195,12 @@ function App() {
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
-    setFloatingNumbers,
-    setClickEffect,
+    soundEnabled,
     setSoundEnabled,
     syncAllData,
   } = gameLogic;
 
-  // 🎯 DATOS MEMOIZADOS PARA COMPONENTES
-  const memoizedGameData = useMemo(() => ({
-    gameState,
-    upgrades,
-    missions,
-    ownedCards,
-    ownedItems,
-    activeSkin,
-    achievementsUnlocked,
-    dailyRewards,
-    farmingMilestonesState: farmingMilestonesState,
-    referralStats,
-    player
-  }), [
-    gameState,
-    upgrades,
-    missions,
-    ownedCards,
-    ownedItems,
-    activeSkin,
-    achievementsUnlocked,
-    dailyRewards,
-    farmingMilestonesState,
-    referralStats,
-    player
-  ]);
-
   // 🎯 FUNCIONES MEMOIZADAS
-  const memoizedHandleBuyShopItem = useCallback((itemId, useCroc = false, discount = 0) => {
-    const item = SHOP_ITEMS.find((i) => i.id === itemId);
-    if (!item || !user) return;
-    
-    buyShopItem(itemId, useCroc, discount);
-  }, [user, buyShopItem]);
-
-  const memoizedHandleEquipSkin = useCallback((skinId) => {
-    if (!user) return;
-    gameData.updateActiveSkin(skinId);
-    playSound("equip");
-  }, [user, gameData, playSound]);
-
   const memoizedHandleBuyToken = useCallback(async () => {
     toast({
       title: '🚧 Comprar Token CROC',
@@ -259,15 +210,30 @@ function App() {
     playSound('uiClick');
   }, [toast, playSound]);
 
-  // 🎯 EFECTO DE NOTIFICACIONES - OPTIMIZADO
+  const memoizedHandleEquipSkin = useCallback((skinId) => {
+    if (!user || !gameData) return;
+    
+    console.log('🎨 Equipando skin:', skinId);
+    
+    gameData.updateActiveSkin(skinId);
+    playSound("equip");
+    
+    toast({
+      title: "🎨 Skin Equipada",
+      description: "¡Skin cambiada exitosamente!",
+      duration: 3000
+    });
+  }, [user, gameData, playSound, toast]);
+
+  // 🎯 EFECTO DE NOTIFICACIONES
   useEffect(() => {
     let notificationInterval;
     
     const checkNotifications = () => {
-      // Notificar cuando energía esté al 100% (solo si no está en modo sleep)
+      // Notificar cuando energía esté al 100%
       if (gameState.energy === gameState.maxEnergy && document.visibilityState === 'visible') {
         const now = Date.now();
-        if (now - lastToastTimeRef.current > 30000) { // Mínimo 30 segundos entre notificaciones
+        if (now - lastToastTimeRef.current > 30000) {
           toast({
             title: "⚡ ¡Energía Completa!",
             description: "¡Tu cocodrilo tiene hambre! Ven a jugar",
@@ -294,14 +260,13 @@ function App() {
       }
     };
     
-    // Solo verificar cada minuto, no en cada render
     notificationInterval = setInterval(checkNotifications, 60000);
-    checkNotifications(); // Ejecutar al inicio
+    checkNotifications();
     
     return () => clearInterval(notificationInterval);
   }, [gameState.energy, gameState.maxEnergy, toast]);
 
-  // 🔄 VERIFICAR RECOMPENSAS DIARIAS - OPTIMIZADO
+  // 🔄 VERIFICAR RECOMPENSAS DIARIAS
   useEffect(() => {
     let checkInterval;
     
@@ -324,10 +289,8 @@ function App() {
       const diffTime = Math.abs(now - lastClaimDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      // Si ha pasado un día completo y el usuario está activo
       if (diffDays >= 1 && document.visibilityState === 'visible') {
         if (!dailyRewards.available) {
-          console.log('🎁 Forzando disponibilidad de recompensa diaria');
           gameData.updateDailyRewards({ 
             ...dailyRewards, 
             available: true 
@@ -336,13 +299,13 @@ function App() {
       }
     };
     
-    checkInterval = setInterval(checkDailyReward, 60000); // Cada minuto
-    checkDailyReward(); // Ejecutar al inicio
+    checkInterval = setInterval(checkDailyReward, 60000);
+    checkDailyReward();
     
     return () => clearInterval(checkInterval);
   }, [gameState, dailyRewards, gameData]);
 
-  // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE - OPTIMIZADO
+  // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
   useEffect(() => {
     let priceInterval;
     
@@ -352,14 +315,14 @@ function App() {
       }
     };
     
-    priceInterval = setInterval(refreshPriceSafely, 60000); // Cada minuto
+    priceInterval = setInterval(refreshPriceSafely, 60000);
     
     return () => {
       if (priceInterval) clearInterval(priceInterval);
     };
   }, [refreshPrice]);
 
-  // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR - OPTIMIZADO
+  // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
   useEffect(() => {
     if (!player?.id) return;
     
@@ -373,7 +336,6 @@ function App() {
       syncInProgressRef.current = true;
       
       try {
-        console.log("📤 Sincronizando datos...");
         await syncAllData();
       } catch (error) {
         console.error("❌ Error sincronizando:", error);
@@ -389,7 +351,6 @@ function App() {
     };
     
     const handleBeforeUnload = () => {
-      // Sincronizar inmediatamente antes de cerrar
       syncData();
     };
     
@@ -416,23 +377,11 @@ function App() {
       setTimeout(() => {
         setShowTutorial(true);
         localStorage.setItem("cocodriloKombatPlayed", "true");
-      }, 1000); // Retraso para que cargue la UI primero
+      }, 1000);
     }
   }, []);
 
-
-  // 🔄 REFRESCAR DATOS DE TIENDA CADA 30 SEGUNDOS
-useEffect(() => {
-  if (!user) return;
-  
-  const interval = setInterval(() => {
-    gameData.refreshShopData?.();
-  }, 30000);
-  
-  return () => clearInterval(interval);
-}, [user, gameData.refreshShopData]);
-
-  /* 🚪 Logout - OPTIMIZADO */
+  /* 🚪 Logout */
   const logout = useCallback(async () => {
     try {
       await syncAllData();
@@ -449,7 +398,7 @@ useEffect(() => {
     }
   }, [syncAllData, toast, playSound]);
 
-  /* 🎓 Tutorial - OPTIMIZADO */
+  /* 🎓 Tutorial */
   const nextTutorialStep = useCallback(() => {
     const nextStep = tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1 ? tutorialStep + 1 : 0;
     setTutorialStep(nextStep);
@@ -467,7 +416,7 @@ useEffect(() => {
     playSound("uiClick");
   }, [playSound]);
 
-  /* 🔀 Navegación - OPTIMIZADA */
+  /* 🔀 Navegación */
   const handleNavigation = useCallback((view) => {
     setCurrentView(view);
     playSound("uiClick");
@@ -517,19 +466,9 @@ useEffect(() => {
     );
   }
 
-  // 💰 PAQUETE COMPLETO DE DATOS DE PRECIO PARA PASAR A COMPONENTES
-  const tokenPriceData = useMemo(() => ({
-    tokenPrice,
-    priceHistory,
-    liquidity,
-    getChartData,
-    getPriceStats,
-    refreshPrice
-  }), [tokenPrice, priceHistory, liquidity, getChartData, getPriceStats, refreshPrice]);
-
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* 🔝 Barra superior - SIN BOTONES DEBUG, SYNC, INTEGRIDAD */}
+      {/* 🔝 Barra superior */}
       <nav className="bg-card/80 backdrop-blur-lg border-b border-border p-2 md:p-4 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
@@ -583,18 +522,14 @@ useEffect(() => {
                 upgrades={upgrades}
                 buyUpgrade={buyUpgrade}
                 handleClick={handleClick}
-                floatingNumbers={floatingNumbers}
-                clickEffect={clickEffect}
                 dailyRewards={dailyRewards}
                 claimDailyReward={claimDailyReward}
-                tutorialStep={tutorialStep}
-                showTutorial={showTutorial}
                 activeSkin={activeSkin}
                 toast={toast}
                 user={user}
                 tokenPrice={tokenPrice}
-                liquidity={liquidity}  
-                priceData={getChartData()} 
+                liquidity={liquidity}
+                priceData={getChartData?.() || []}
                 referralStats={referralStats}
                 refreshReferralStats={gameData.refreshReferralStats}
                 calculateRealClickPower={calculateRealClickPower}
@@ -632,15 +567,16 @@ useEffect(() => {
 
             {currentView === "shop" && (
               <ShopViewMemo
-                 coins={gameState.coins}
-                 nativeTokenBalance={gameState.nativeTokenBalance}
-                 ownedItems={ownedItems}
-                 activeSkin={activeSkin}
-                 buyShopItem={buyShopItem} 
-                 equipSkin={handleEquipSkin}
-                 tokenPrice={tokenPrice}
-                 toast={toast}
-                 playSound={playSound}
+                coins={gameState.coins}
+                nativeTokenBalance={gameState.nativeTokenBalance}
+                ownedItems={ownedItems}
+                activeSkin={activeSkin}
+                buyShopItem={buyShopItem}
+                equipSkin={memoizedHandleEquipSkin}
+                tokenPrice={tokenPrice}
+                user={user}
+                toast={toast}
+                playSound={playSound}
               />
             )}
 
@@ -659,8 +595,7 @@ useEffect(() => {
               <FairlaunchView 
                 toast={toast} 
                 tokenPrice={tokenPrice}
-                setTokenPrice={setTokenPrice}
-                updatePriceInSupabase={updatePrice}
+                refreshPrice={refreshPrice}
               />
             )}
 
@@ -691,9 +626,6 @@ useEffect(() => {
                 tokenPrice={tokenPrice}
                 liquidity={liquidity}
                 priceHistory={priceHistory}
-                tokenPriceData={tokenPriceData}
-                getChartData={getChartData}
-                getPriceStats={getPriceStats}
                 refreshPrice={refreshPrice}
               />
             )}
@@ -709,7 +641,6 @@ useEffect(() => {
                 resetProgress={resetProgress}
                 playSound={playSound}
                 syncGameData={syncAllData}
-                gameData={gameData}
                 refreshTokenPrice={refreshPrice}
               />
             )}
@@ -739,7 +670,7 @@ useEffect(() => {
         milestone={lastReachedMilestone}
       />
 
-      {/* 🔻 Footer - SIMPLIFICADO */}
+      {/* 🔻 Footer */}
       <footer className="relative bg-card/90 backdrop-blur-md border-t border-border p-3 md:p-4 mt-16 z-10">
         <div className="max-w-7xl mx-auto">
           <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
@@ -787,7 +718,7 @@ useEffect(() => {
             )}
           </div>
           
-          {/* INDICADOR DE PRECIO EN TIEMPO REAL - SIMPLIFICADO */}
+          {/* INDICADOR DE PRECIO EN TIEMPO REAL */}
           <div className="mt-2 text-center">
             <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-full border border-yellow-600/30">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>

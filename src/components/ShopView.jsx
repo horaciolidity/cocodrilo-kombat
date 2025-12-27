@@ -43,64 +43,111 @@ export function ShopView({
   buyShopItem,
   equipSkin,
   tokenPrice = 0.05,
-  gameData,
-  syncGameData
+  user,
+  toast: toastProp,
+  playSound: playSoundProp
 }) {
-  const { playSound } = useSound();
-  const { toast } = useToast();
+  // 🔧 Inicializar hooks y props con fallbacks
+  const soundHook = useSound();
+  const toastHook = useToast();
+  const { playSound: playSoundHook } = soundHook;
+  const { toast: toastHookFn } = toastHook;
+  
+  // Usar props si están disponibles, de lo contrario usar hooks
+  const playSound = playSoundProp || playSoundHook;
+  const toast = toastProp || toastHookFn;
+  
+  // 🔍 Validaciones críticas
+  if (!buyShopItem || typeof buyShopItem !== 'function') {
+    console.error('❌ buyShopItem no está disponible o no es una función');
+    return (
+      <div className="min-h-screen game-bg p-4 md:p-6 flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <h2 className="text-2xl font-bold mb-4">⚠️ Error en la tienda</h2>
+          <p>La función de compra no está disponible</p>
+          <Button 
+            onClick={() => window.location.reload()}
+            className="mt-4"
+          >
+            Recargar página
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   const [selectedTab, setSelectedTab] = useState("skins");
   const [previewSkin, setPreviewSkin] = useState(activeSkin);
   const [showConfirm, setShowConfirm] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalItems: 0,
     ownedSkins: 0,
     totalSkins: 0,
     totalValue: 0,
-    dailyOffers: []
+    dailyOffers: [],
+    completionRate: 0
   });
 
   // 🔍 Calcular estadísticas de la tienda
   useEffect(() => {
-    if (!SHOP_ITEMS || !Array.isArray(SHOP_ITEMS)) return;
+    const calculateStats = () => {
+      if (!SHOP_ITEMS || !Array.isArray(SHOP_ITEMS)) {
+        console.warn('SHOP_ITEMS no está definido o no es un array');
+        return;
+      }
+      
+      const safeItems = SHOP_ITEMS.filter(item => item && item.id);
+      
+      if (safeItems.length === 0) {
+        console.warn('No hay items válidos en SHOP_ITEMS');
+        return;
+      }
+      
+      // Calcular estadísticas
+      const ownedSkins = ownedItems.filter(itemId => {
+        const item = safeItems.find(i => i.id === itemId);
+        return item && item.type === 'skin';
+      }).length;
+      
+      const totalSkins = safeItems.filter(item => item.type === 'skin').length;
+      const totalItems = safeItems.length;
+      
+      // Calcular valor total de la colección
+      const totalValue = ownedItems.reduce((sum, itemId) => {
+        const item = safeItems.find(i => i.id === itemId);
+        return sum + (item?.price || 0);
+      }, 0);
+      
+      // Generar ofertas diarias (rotan cada día)
+      const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+      const dailyOffers = safeItems
+        .filter(item => item.type === 'skin' || item.type === 'item')
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map(item => ({
+          ...item,
+          discount: Math.floor(Math.random() * 30) + 10, // 10-40% descuento
+          expiresIn: 24 // Horas
+        }));
+      
+      setStats({
+        totalItems,
+        ownedSkins,
+        totalSkins,
+        totalValue,
+        dailyOffers,
+        completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
+      });
+    };
+
+    // Simular carga inicial
+    const timer = setTimeout(() => {
+      calculateStats();
+      setLoading(false);
+    }, 300);
     
-    const safeItems = SHOP_ITEMS.filter(item => item && item.id);
-    
-    // Calcular estadísticas
-    const ownedSkins = ownedItems.filter(itemId => {
-      const item = safeItems.find(i => i.id === itemId);
-      return item && item.type === 'skin';
-    }).length;
-    
-    const totalSkins = safeItems.filter(item => item.type === 'skin').length;
-    const totalItems = safeItems.length;
-    
-    // Calcular valor total de la colección
-    const totalValue = ownedItems.reduce((sum, itemId) => {
-      const item = safeItems.find(i => i.id === itemId);
-      return sum + (item?.price || 0);
-    }, 0);
-    
-    // Generar ofertas diarias (rotan cada día)
-    const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-    const dailyOffers = safeItems
-      .filter(item => item.type === 'skin' || item.type === 'item')
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
-      .map(item => ({
-        ...item,
-        discount: Math.floor(Math.random() * 30) + 10, // 10-40% descuento
-        expiresIn: 24 // Horas
-      }));
-    
-    setStats({
-      totalItems,
-      ownedSkins,
-      totalSkins,
-      totalValue,
-      dailyOffers,
-      completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
-    });
+    return () => clearTimeout(timer);
   }, [ownedItems]);
 
   // ✅ Previene errores si SHOP_ITEMS no existe o está vacío
@@ -142,18 +189,18 @@ export function ShopView({
     return {
       text: `Comprar`,
       disabled: false,
-      price: item.price,
-      priceCroc: item.priceCroc || Math.floor(item.price * 0.1) // 10% del precio en CROC
+      price: item.price || 0,
+      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1) // 10% del precio en CROC
     };
   };
 
   // 👁️ Manejar preview de skin
   const handlePreview = (skinId) => {
     setPreviewSkin(skinId);
-    playSound("uiClick");
+    if (playSound) playSound("uiClick");
     
     const skin = safeItems.find(i => i.id === skinId);
-    if (skin) {
+    if (skin && toast) {
       toast({
         title: `👁️ Vista Previa: ${skin.name}`,
         description: skin.description,
@@ -169,71 +216,91 @@ export function ShopView({
     return Math.min(25, baseDiscount);
   };
 
-  // 🛒 Manejar compra de item - VERSIÓN SIMPLIFICADA
-const handleBuyItem = (item, useCroc = false) => {
-  const status = getItemStatus(item);
-  
-  if (status.disabled && item.type !== "consumable") {
-    return;
-  }
-
-  // Llamar directamente a buyShopItem sin parámetros extra
-  buyShopItem(item.id, useCroc, 0);
-};
-
-// ✅ FUNCIÓN PARA EQUIPAR SKIN
-const handleEquipSkin = (skinId) => {
-  equipSkin(skinId);
-  playSound("equip");
-  toast({
-    title: "🎨 Skin Equipada",
-    description: "¡Skin cambiada exitosamente!",
-    duration: 3000
-  });
-};
-
-  // ✅ Confirmar compra - VERSIÓN MEJORADA
-  const confirmPurchase = (item, useCroc = false, discount = 0) => {
-    console.log('🛍️ Confirmando compra:', { item: item.name, useCroc, discount });
+  // 🛒 Manejar compra de item - VERSIÓN SIMPLIFICADA Y SEGURA
+  const handleBuyItem = (item, useCroc = false) => {
+    if (!buyShopItem) {
+      console.error('buyShopItem no disponible');
+      return;
+    }
     
     const status = getItemStatus(item);
-    const price = useCroc ? status.priceCroc : status.price;
-    const finalPrice = Math.floor(price * (1 - discount / 100));
+    
+    if (status.disabled && item.type !== "consumable") {
+      return;
+    }
+
+    // Verificar saldo rápidamente
+    const basePrice = useCroc ? (status.priceCroc || 0) : (status.price || 0);
+    const balance = useCroc ? nativeTokenBalance : coins;
+    
+    if (balance < basePrice) {
+      const needed = basePrice - balance;
+      const currencyName = useCroc ? 'CROC' : 'monedas';
+      
+      if (toast) {
+        toast({ 
+          title: `💰 ${currencyName} Insuficientes`, 
+          description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`, 
+          duration: 3000 
+        });
+      }
+      if (playSound) playSound("error");
+      return;
+    }
+
+    // Mostrar confirmación para items costosos
+    if (basePrice > 5000 || (useCroc && basePrice > 100)) {
+      const discount = calculateCollectionDiscount();
+      const finalPrice = Math.floor(basePrice * (1 - discount / 100));
+      setShowConfirm({ item, useCroc, price: finalPrice, discount });
+      if (playSound) playSound("uiClick");
+      return;
+    }
+
+    // Comprar directamente
+    buyShopItem(item.id, useCroc, 0);
+  };
+
+  // ✅ FUNCIÓN PARA EQUIPAR SKIN - USAR DIRECTAMENTE LA PROP
+  const handleEquipSkin = (skinId) => {
+    if (!equipSkin || typeof equipSkin !== 'function') {
+      console.error('equipSkin no disponible');
+      return;
+    }
+    
+    equipSkin(skinId);
+  };
+
+  // ✅ Confirmar compra
+  const confirmPurchase = () => {
+    if (!showConfirm || !buyShopItem) return;
+    
+    const { item, useCroc, discount } = showConfirm;
     
     try {
-      // IMPORTANTE: Llamar a buyShopItem con los tres parámetros
       buyShopItem(item.id, useCroc, discount);
       
-      toast({ 
-        title: "🎉 ¡Compra Exitosa!", 
-        description: `Has adquirido "${item.name}" por ${finalPrice} ${useCroc ? 'CROC' : 'monedas'}${discount > 0 ? ` (${discount}% descuento)` : ''}`,
-        duration: 4000 
-      });
+      if (toast) {
+        toast({ 
+          title: "🎉 ¡Compra Exitosa!", 
+          description: `Has adquirido "${item.name}" por ${showConfirm.price} ${useCroc ? 'CROC' : 'monedas'}${discount > 0 ? ` (${discount}% descuento)` : ''}`,
+          duration: 4000 
+        });
+      }
       
-      playSound("buy");
+      if (playSound) playSound("buy");
       setShowConfirm(null);
-      
-      // Sincronizar con BD inmediatamente
-      if (syncGameData) {
-        setTimeout(() => {
-          syncGameData();
-          console.log('✅ Datos sincronizados con Supabase');
-        }, 1000);
-      }
-      
-      // Actualizar estadísticas locales
-      if (gameData?.refreshReferralStats) {
-        setTimeout(() => gameData.refreshReferralStats(), 1500);
-      }
       
     } catch (error) {
       console.error('❌ Error en confirmPurchase:', error);
-      toast({
-        title: "❌ Error en la compra",
-        description: "No se pudo completar la transacción. Intenta nuevamente.",
-        duration: 3000,
-      });
-      playSound("error");
+      if (toast) {
+        toast({
+          title: "❌ Error en la compra",
+          description: "No se pudo completar la transacción. Intenta nuevamente.",
+          duration: 3000,
+        });
+      }
+      if (playSound) playSound("error");
     }
   };
 
@@ -243,9 +310,9 @@ const handleEquipSkin = (skinId) => {
     
     const status = getItemStatus(item);
     const Icon = item.icon || ShoppingCart;
-    const discount = isDailyOffer ? item.discount : calculateCollectionDiscount();
-    const finalPrice = Math.floor(item.price * (1 - discount/100));
-    const finalPriceCroc = Math.floor((item.priceCroc || Math.floor(item.price * 0.1)) * (1 - discount/100));
+    const discount = isDailyOffer ? (item.discount || 0) : calculateCollectionDiscount();
+    const finalPrice = Math.floor((item.price || 0) * (1 - discount/100));
+    const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount/100)));
     const isSkin = item.type === "skin";
     
     // Determinar rareza
@@ -288,7 +355,7 @@ const handleEquipSkin = (skinId) => {
         {isDailyOffer && (
           <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg animate-pulse">
             <Ticket className="w-3 h-3" />
-            <span>-{item.discount}%</span>
+            <span>-{item.discount || 0}%</span>
           </div>
         )}
 
@@ -314,7 +381,7 @@ const handleEquipSkin = (skinId) => {
             {/* Rareza */}
             {item.rarity && (
               <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
-                {item.rarity.toUpperCase()}
+                {item.rarity ? item.rarity.toUpperCase() : 'COMÚN'}
               </div>
             )}
           </div>
@@ -340,7 +407,7 @@ const handleEquipSkin = (skinId) => {
             <div className="absolute top-3 right-3 bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
               {item.type === 'item' && <Gem className="w-3 h-3" />}
               {item.type === 'boost' && <Zap className="w-3 h-3" />}
-              <span className="capitalize">{item.type}</span>
+              <span className="capitalize">{item.type || 'item'}</span>
             </div>
           </div>
         )}
@@ -350,7 +417,7 @@ const handleEquipSkin = (skinId) => {
           <div className="mb-4">
             <div className="flex items-start justify-between mb-2">
               <h3 className={`font-bold ${isSkin ? 'text-xl' : 'text-lg'} text-white`}>
-                {item.name}
+                {item.name || 'Item sin nombre'}
               </h3>
               
               {/* Nivel requerido */}
@@ -362,7 +429,7 @@ const handleEquipSkin = (skinId) => {
             </div>
             
             <p className="text-sm text-gray-300 mb-4 min-h-[40px]">
-              {item.description}
+              {item.description || 'Sin descripción disponible'}
             </p>
             
             {/* 📊 Efectos */}
@@ -386,7 +453,7 @@ const handleEquipSkin = (skinId) => {
                 {discount > 0 ? (
                   <>
                     <div className="text-sm line-through text-gray-500">
-                      {item.price?.toLocaleString() || 0} 💰
+                      {(item.price || 0).toLocaleString()} 💰
                     </div>
                     <div className="text-lg font-bold text-yellow-400">
                       {finalPrice.toLocaleString()} 💰
@@ -394,7 +461,7 @@ const handleEquipSkin = (skinId) => {
                   </>
                 ) : (
                   <div className="text-lg font-bold text-yellow-400">
-                    {item.price?.toLocaleString() || 0} 💰
+                    {(item.price || 0).toLocaleString()} 💰
                   </div>
                 )}
               </div>
@@ -405,7 +472,7 @@ const handleEquipSkin = (skinId) => {
                 {discount > 0 ? (
                   <>
                     <div className="text-sm line-through text-gray-500">
-                      {status.priceCroc?.toLocaleString() || 0} 🪙
+                      {(status.priceCroc || 0).toLocaleString()} 🪙
                     </div>
                     <div className="text-lg font-bold text-emerald-400">
                       {finalPriceCroc.toLocaleString()} 🪙
@@ -413,7 +480,7 @@ const handleEquipSkin = (skinId) => {
                   </>
                 ) : (
                   <div className="text-lg font-bold text-emerald-400">
-                    {status.priceCroc?.toLocaleString() || 0} 🪙
+                    {(status.priceCroc || 0).toLocaleString()} 🪙
                   </div>
                 )}
               </div>
@@ -455,7 +522,7 @@ const handleEquipSkin = (skinId) => {
                 }`}
               >
                 <Coins className="w-4 h-4 mr-2" />
-                Comprar
+                {status.text === "Equipar" ? "Equipar" : "Comprar"}
               </Button>
               
               <Button
@@ -520,6 +587,17 @@ const handleEquipSkin = (skinId) => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen game-bg p-4 md:p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <div className="mt-4 text-lg font-semibold gradient-text">🛍️ Cargando tienda...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen game-bg p-4 md:p-6">
       {/* Modal de confirmación */}
@@ -561,7 +639,7 @@ const handleEquipSkin = (skinId) => {
                   Cancelar
                 </Button>
                 <Button
-                  onClick={() => confirmPurchase(showConfirm.item, showConfirm.useCroc, showConfirm.discount)}
+                  onClick={confirmPurchase}
                   className={`flex-1 ${showConfirm.useCroc ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
                 >
                   Confirmar Compra
@@ -726,7 +804,7 @@ const handleEquipSkin = (skinId) => {
                   {previewSkinData && (
                     <>
                       <p className="text-sm text-gray-300">
-                        {previewSkinData.description}
+                        {previewSkinData.description || "Sin descripción"}
                       </p>
                       
                       <div className="grid grid-cols-2 gap-3 mt-4">
@@ -737,7 +815,7 @@ const handleEquipSkin = (skinId) => {
                         <div className="bg-purple-900/30 p-3 rounded-lg border border-purple-700/30">
                           <div className="text-xs text-purple-400 mb-1">Precio</div>
                           <div className="font-semibold text-purple-400">
-                            {previewSkinData.price?.toLocaleString() || "0"} 💰
+                            {(previewSkinData.price || 0).toLocaleString()} 💰
                           </div>
                         </div>
                       </div>
@@ -745,14 +823,7 @@ const handleEquipSkin = (skinId) => {
                       {/* Botón de equipar si ya está comprada */}
                       {ownedItems.includes(previewSkin) && activeSkin !== previewSkin && (
                         <Button
-                          onClick={() => {
-                            equipSkin(previewSkin);
-                            toast({
-                              title: "🎨 Skin Equipada",
-                              description: `Ahora usas ${previewSkinData.name}`,
-                              duration: 3000
-                            });
-                          }}
+                          onClick={() => handleEquipSkin(previewSkin)}
                           className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                           <Palette className="w-4 h-4 mr-2" />
@@ -840,7 +911,7 @@ const handleEquipSkin = (skinId) => {
                     key={tab.id}
                     onClick={() => {
                       setSelectedTab(tab.id);
-                      playSound("uiClick");
+                      if (playSound) playSound("uiClick");
                     }}
                     variant={selectedTab === tab.id ? "default" : "outline"}
                     className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${
@@ -947,7 +1018,7 @@ const handleEquipSkin = (skinId) => {
           <Button
             onClick={() => {
               setSelectedTab("skins");
-              playSound("uiClick");
+              if (playSound) playSound("uiClick");
             }}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-8 py-6 text-lg font-bold rounded-xl shadow-lg shadow-purple-500/30"
           >
