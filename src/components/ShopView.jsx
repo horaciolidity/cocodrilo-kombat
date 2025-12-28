@@ -30,7 +30,7 @@ import {
   Heart,
   Target,
   ChevronRight,
-  Snowflake,
+  CloudSnow, // Cambiado de Snowflake a CloudSnow
   Flame,
   Cpu
 } from "lucide-react";

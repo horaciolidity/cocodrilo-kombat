@@ -93,6 +93,7 @@ import {
   BookOpen,
   BarChartHorizontalBig,
   Lightbulb,
+  // Agrega estos iconos adicionales:
   Zap,
   ShoppingCart,
   Coins as CoinsIcon,
@@ -104,6 +105,8 @@ import {
   Heart,
   ChevronRight,
   TrendingDown as TrendingDownIcon,
+  CloudSnow, // Usaremos CloudSnow en lugar de Snowflake
+  Snowflake // Si no existe, usa CloudSnow
 } from "lucide-react";
 
 export const INITIAL_GAME_STATE = {
@@ -336,7 +339,7 @@ export const CARDS_DATA = [
 ];
 
 /* =====================================================
- 🛍️ SHOP ITEMS CORREGIDOS
+ 🛍️ SHOP ITEMS CORREGIDOS (sin Snowflake)
 ===================================================== */
 
 export const SHOP_ITEMS = [
@@ -424,7 +427,7 @@ export const SHOP_ITEMS = [
       energyRegen: 1.15,
       cpsBoost: 1.5
     },
-    icon: Snowflake
+    icon: CloudSnow // Cambiado de Snowflake a CloudSnow
   },
   
   // Items
