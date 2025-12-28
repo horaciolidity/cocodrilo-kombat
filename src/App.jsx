@@ -46,20 +46,32 @@ import {
   TUTORIAL_STEPS_CONTENT,
 } from "@/config/gameConfig";
 
-// 🎯 Componente ShopView memoizado para evitar parpadeos
+// REEMPLAZA el componente ShopViewMemo con esto:
 const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
   console.log('🛍️ ShopView renderizado (memoizado)');
   return <ShopView {...props} />;
 }, (prevProps, nextProps) => {
-  // Comparación personalizada para evitar re-renders innecesarios
-  const ownedItemsEqual = JSON.stringify(prevProps.ownedItems) === JSON.stringify(nextProps.ownedItems);
+  // ✅ Comparación eficiente sin JSON.stringify
+  const ownedItemsEqual = (
+    prevProps.ownedItems.length === nextProps.ownedItems.length &&
+    prevProps.ownedItems.every((item, index) => {
+      const prevItem = typeof item === 'string' ? item : item.id;
+      const nextItem = typeof nextProps.ownedItems[index] === 'string' 
+        ? nextProps.ownedItems[index] 
+        : nextProps.ownedItems[index]?.id;
+      return prevItem === nextItem;
+    })
+  );
+  
+  const userEqual = prevProps.user?.id === nextProps.user?.id;
+  
   return (
     prevProps.coins === nextProps.coins &&
     prevProps.nativeTokenBalance === nextProps.nativeTokenBalance &&
     prevProps.activeSkin === nextProps.activeSkin &&
     prevProps.tokenPrice === nextProps.tokenPrice &&
     ownedItemsEqual &&
-    prevProps.user?.id === nextProps.user?.id
+    userEqual
   );
 });
 

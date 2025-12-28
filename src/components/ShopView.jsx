@@ -1,40 +1,296 @@
-// src/components/ShopView.jsx
-import React, { useState, useEffect } from "react";
+// src/components/ShopView.jsx - VERSIÓN OPTIMIZADA
+import React, { useState, useMemo, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
-  ShoppingCart, 
-  Palette, 
-  Gem, 
-  Zap, 
-  Check, 
-  Eye,
-  Coins,
-  Sparkles,
-  Crown,
-  Shield,
-  Award,
-  ShoppingBag,
-  Package,
-  AlertCircle,
-  TrendingUp,
-  RefreshCw,
-  Info,
-  Star,
-  DollarSign,
-  Users,
-  Ticket,
-  Percent,
-  Clock,
-  Gift,
-  Heart,
-  Target,
-  ChevronRight
+  ShoppingCart, Palette, Gem, Zap, Check, Eye,
+  Coins, Sparkles, Crown, Shield, Award, ShoppingBag,
+  Package, AlertCircle, TrendingUp, RefreshCw, Info,
+  Star, DollarSign, Users, Ticket, Percent, Clock,
+  Gift, Heart, Target, ChevronRight
 } from "lucide-react";
 import { SHOP_ITEMS } from "@/config/gameConfig";
 import { useSound } from "@/hooks/useSound";
 import { useToast } from "@/hooks/use-toast";
 
+// 🎯 COMPONENTE ItemCard MEMOIZADO
+const ItemCard = memo(function ItemCardComponent({ 
+  item, 
+  index, 
+  isDailyOffer = false,
+  onPreview,
+  onBuyItem,
+  ownedItems,
+  activeSkin,
+  coins,
+  nativeTokenBalance,
+  collectionDiscount,
+  tokenPrice,
+  playSound,
+  toast
+}) {
+  if (!item) return null;
+  
+  // ✅ Determinar rareza
+  const getRarityColor = useCallback((rarity) => {
+    switch(rarity) {
+      case 'legendary': return 'from-yellow-600 to-amber-600';
+      case 'epic': return 'from-purple-600 to-pink-600';
+      case 'rare': return 'from-blue-600 to-cyan-600';
+      case 'uncommon': return 'from-green-600 to-emerald-600';
+      default: return 'from-gray-600 to-gray-500';
+    }
+  }, []);
+
+  // ✅ Obtener estado del item
+  const getItemStatus = useCallback((item) => {
+    const isOwned = ownedItems.some(owned => {
+      if (typeof owned === 'string') return owned === item.id;
+      if (typeof owned === 'object') return owned.id === item.id;
+      return false;
+    });
+
+    if (item.type === "skin") {
+      if (activeSkin === item.id) return { text: "Equipada", disabled: true };
+      if (isOwned) return { text: "Equipar", disabled: false };
+    } else if (item.type === "item" || item.type === "boost") {
+      if (isOwned) return { text: "Comprado", disabled: true };
+    }
+    
+    return {
+      text: `Comprar`,
+      disabled: false,
+      price: item.price || 0,
+      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
+    };
+  }, [ownedItems, activeSkin]);
+
+  const status = getItemStatus(item);
+  const Icon = item.icon || ShoppingCart;
+  const discount = isDailyOffer ? (item.discount || 0) : collectionDiscount;
+  const finalPrice = Math.floor((item.price || 0) * (1 - discount/100));
+  const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount/100)));
+  const isSkin = item.type === "skin";
+
+  return (
+    <motion.div
+      className={`relative rounded-2xl overflow-hidden flex flex-col hover-lift transition-all duration-300 ${
+        isSkin ? "bg-gradient-to-br from-gray-900/50 to-gray-800/50" : "bg-gradient-to-br from-gray-800/50 to-gray-900/50"
+      } ${isDailyOffer ? 'border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' : 'border border-gray-700/30'}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.02, y: -5 }}
+    >
+      {/* 🎯 Estado de equipado/comprado */}
+      {status.text === "Equipada" && (
+        <div className="absolute top-3 left-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+          <Check className="w-3 h-3" />
+          <span>Equipada</span>
+        </div>
+      )}
+
+      {status.text === "Comprado" && (
+        <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
+          <Check className="w-3 h-3" />
+          <span>Comprado</span>
+        </div>
+      )}
+
+      {/* 🔥 Oferta diaria badge */}
+      {isDailyOffer && (
+        <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg animate-pulse">
+          <Ticket className="w-3 h-3" />
+          <span>-{item.discount || 0}%</span>
+        </div>
+      )}
+
+      {/* 🖼️ Imagen de portada para skins - BORDE OVALADO */}
+      {isSkin && item.image && (
+        <div className="relative pt-8 pb-4 flex items-center justify-center">
+          <div className="relative w-48 h-48 rounded-full border-4 border-gradient bg-gradient-to-br from-purple-900/30 via-pink-900/20 to-transparent p-2 shadow-2xl">
+            <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/10">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-full object-cover scale-110 hover:scale-125 transition-transform duration-500"
+                onError={(e) => {
+                  e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}`;
+                }}
+              />
+            </div>
+            
+            {/* Efecto de brillo */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent pointer-events-none" />
+          </div>
+          
+          {/* Rareza */}
+          {item.rarity && (
+            <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
+              {item.rarity ? item.rarity.toUpperCase() : 'COMÚN'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Para items no skins */}
+      {!isSkin && (
+        <div className="relative h-40 overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
+          {item.image ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Icon className="w-16 h-16 text-gray-500" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+          
+          {/* Badge de tipo */}
+          <div className="absolute top-3 right-3 bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+            {item.type === 'item' && <Gem className="w-3 h-3" />}
+            {item.type === 'boost' && <Zap className="w-3 h-3" />}
+            <span className="capitalize">{item.type || 'item'}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="p-5 flex flex-col justify-between flex-1">
+        {/* 🎨 Información */}
+        <div className="mb-4">
+          <div className="flex items-start justify-between mb-2">
+            <h3 className={`font-bold ${isSkin ? 'text-xl' : 'text-lg'} text-white`}>
+              {item.name || 'Item sin nombre'}
+            </h3>
+            
+            {/* Nivel requerido */}
+            {item.requiredLevel > 1 && (
+              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
+                Nv. {item.requiredLevel}
+              </span>
+            )}
+          </div>
+          
+          <p className="text-sm text-gray-300 mb-4 min-h-[40px]">
+            {item.description || 'Sin descripción disponible'}
+          </p>
+          
+          {/* 📊 Efectos */}
+          {item.effect && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {Object.entries(item.effect).map(([key, value]) => (
+                <span key={key} className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded">
+                  +{value} {key}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 💰 Precios */}
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            {/* Precio en monedas */}
+            <div className={`text-center p-2 rounded-lg ${discount > 0 ? 'bg-yellow-500/10' : 'bg-gray-800/50'}`}>
+              <div className="text-xs text-gray-400 mb-1">Monedas</div>
+              {discount > 0 ? (
+                <>
+                  <div className="text-sm line-through text-gray-500">
+                    {(item.price || 0).toLocaleString()} 💰
+                  </div>
+                  <div className="text-lg font-bold text-yellow-400">
+                    {finalPrice.toLocaleString()} 💰
+                  </div>
+                </>
+              ) : (
+                <div className="text-lg font-bold text-yellow-400">
+                  {(item.price || 0).toLocaleString()} 💰
+                </div>
+              )}
+            </div>
+            
+            {/* Precio en CROC */}
+            <div className="text-center p-2 rounded-lg bg-emerald-500/10">
+              <div className="text-xs text-gray-400 mb-1">CROC Tokens</div>
+              {discount > 0 ? (
+                <>
+                  <div className="text-sm line-through text-gray-500">
+                    {(status.priceCroc || 0).toLocaleString()} 🪙
+                  </div>
+                  <div className="text-lg font-bold text-emerald-400">
+                    {finalPriceCroc.toLocaleString()} 🪙
+                  </div>
+                </>
+              ) : (
+                <div className="text-lg font-bold text-emerald-400">
+                  {(status.priceCroc || 0).toLocaleString()} 🪙
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Descuento */}
+          {discount > 0 && (
+            <div className="mt-2 text-center">
+              <span className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded-full">
+                🎯 {discount}% DE DESCUENTO
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* 🎮 Botones de acción */}
+        <div className="flex flex-col gap-2">
+          {/* Botón de preview para skins */}
+          {isSkin && (
+            <Button
+              onClick={() => onPreview(item.id)}
+              variant="outline"
+              size="sm"
+              className="w-full border-purple-600/50 text-purple-400 hover:bg-purple-600/20 hover:text-white"
+            >
+              <Eye className="w-4 h-4 mr-2" /> Vista Previa
+            </Button>
+          )}
+
+          {/* Botones de compra */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={() => onBuyItem(item, false, discount)}
+              disabled={status.disabled && item.type !== "consumable"}
+              className={`w-full font-semibold ${
+                status.disabled && item.type !== "consumable" 
+                  ? "bg-gray-700 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
+              }`}
+            >
+              <Coins className="w-4 h-4 mr-2" />
+              {status.text === "Equipar" ? "Equipar" : "Comprar"}
+            </Button>
+            
+            <Button
+              onClick={() => onBuyItem(item, true, discount)}
+              disabled={status.disabled && item.type !== "consumable"}
+              className={`w-full font-semibold ${
+                status.disabled && item.type !== "consumable" 
+                  ? "bg-gray-700 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+              }`}
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              Con CROC
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+// 🛍️ COMPONENTE PRINCIPAL ShopView
 export function ShopView({
   coins = 0,
   nativeTokenBalance = 0,
@@ -79,123 +335,102 @@ export function ShopView({
   const [selectedTab, setSelectedTab] = useState("skins");
   const [previewSkin, setPreviewSkin] = useState(activeSkin);
   const [showConfirm, setShowConfirm] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalItems: 0,
-    ownedSkins: 0,
-    totalSkins: 0,
-    totalValue: 0,
-    dailyOffers: [],
-    completionRate: 0
-  });
 
-  // 🔍 Calcular estadísticas de la tienda
-  useEffect(() => {
-    const calculateStats = () => {
-      if (!SHOP_ITEMS || !Array.isArray(SHOP_ITEMS)) {
-        console.warn('SHOP_ITEMS no está definido o no es un array');
-        return;
-      }
-      
-      const safeItems = SHOP_ITEMS.filter(item => item && item.id);
-      
-      if (safeItems.length === 0) {
-        console.warn('No hay items válidos en SHOP_ITEMS');
-        return;
-      }
-      
-      // Calcular estadísticas
-      const ownedSkins = ownedItems.filter(itemId => {
-        const item = safeItems.find(i => i.id === itemId);
-        return item && item.type === 'skin';
-      }).length;
-      
-      const totalSkins = safeItems.filter(item => item.type === 'skin').length;
-      const totalItems = safeItems.length;
-      
-      // Calcular valor total de la colección
-      const totalValue = ownedItems.reduce((sum, itemId) => {
-        const item = safeItems.find(i => i.id === itemId);
-        return sum + (item?.price || 0);
-      }, 0);
-      
-      // Generar ofertas diarias (rotan cada día)
-      const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-      const dailyOffers = safeItems
-        .filter(item => item.type === 'skin' || item.type === 'item')
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3)
-        .map(item => ({
-          ...item,
-          discount: Math.floor(Math.random() * 30) + 10, // 10-40% descuento
-          expiresIn: 24 // Horas
-        }));
-      
-      setStats({
-        totalItems,
-        ownedSkins,
-        totalSkins,
-        totalValue,
-        dailyOffers,
-        completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
-      });
+  // ✅ CALCULAR ESTADÍSTICAS CON useMemo (SÍNCRONO)
+  const stats = useMemo(() => {
+    const safeItems = Array.isArray(SHOP_ITEMS) 
+      ? SHOP_ITEMS.filter(item => item && item.id)
+      : [];
+    
+    if (safeItems.length === 0) {
+      return {
+        totalItems: 0,
+        ownedSkins: 0,
+        totalSkins: 0,
+        totalValue: 0,
+        dailyOffers: [],
+        completionRate: 0
+      };
+    }
+    
+    const ownedSkins = ownedItems.filter(itemId => {
+      const item = safeItems.find(i => i.id === itemId);
+      return item && item.type === 'skin';
+    }).length;
+    
+    const totalSkins = safeItems.filter(item => item.type === 'skin').length;
+    const totalItems = safeItems.length;
+    
+    const totalValue = ownedItems.reduce((sum, itemId) => {
+      const item = safeItems.find(i => i.id === itemId);
+      return sum + (item?.price || 0);
+    }, 0);
+    
+    // ✅ OFERTAS DIARIAS DETERMINÍSTICAS (cambian una vez al día)
+    const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const seed = dayOfYear;
+    
+    // Generador pseudoaleatorio determinístico
+    const seededRandom = (index) => {
+      const x = Math.sin(seed + index) * 10000;
+      return x - Math.floor(x);
     };
-
-    // Simular carga inicial
-    const timer = setTimeout(() => {
-      calculateStats();
-      setLoading(false);
-    }, 300);
     
-    return () => clearTimeout(timer);
-  }, [ownedItems]);
-
-  // ✅ Previene errores si SHOP_ITEMS no existe o está vacío
-  const safeItems = Array.isArray(SHOP_ITEMS) 
-    ? SHOP_ITEMS.filter(item => item && item.id)
-    : [];
-
-  const filteredItems = (type) =>
-    safeItems.filter((item) => item.type === type);
-
-  // 🎯 Obtener estado del item
-  const getItemStatus = (item) => {
-    if (!item) return { text: "Error", disabled: true };
-
-    const isOwned = ownedItems.some(owned => {
-      if (typeof owned === 'string') return owned === item.id;
-      if (typeof owned === 'object') return owned.id === item.id;
-      return false;
-    });
-
-    // Para skins
-    if (item.type === "skin") {
-      if (activeSkin === item.id) {
-        return { text: "Equipada", disabled: true };
-      }
-      if (isOwned) {
-        return { text: "Equipar", disabled: false };
-      }
-    }
+    const dailyOffers = safeItems
+      .filter(item => item.type === 'skin' || item.type === 'item')
+      .sort((a, b) => {
+        const indexA = safeItems.findIndex(i => i.id === a.id);
+        const indexB = safeItems.findIndex(i => i.id === b.id);
+        return seededRandom(indexA) - seededRandom(indexB);
+      })
+      .slice(0, 3)
+      .map((item, index) => ({
+        ...item,
+        discount: Math.floor(seededRandom(index) * 30) + 10, // 10-40% descuento
+        expiresIn: 24
+      }));
     
-    // Para items no consumibles
-    else if (item.type === "item" || item.type === "boost") {
-      if (isOwned) {
-        return { text: "Comprado", disabled: true };
-      }
-    }
-    
-    // Item no poseído y se puede comprar
     return {
-      text: `Comprar`,
-      disabled: false,
-      price: item.price || 0,
-      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1) // 10% del precio en CROC
+      totalItems,
+      ownedSkins,
+      totalSkins,
+      totalValue,
+      dailyOffers,
+      completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
     };
-  };
+  }, [ownedItems]); // ✅ Solo depende de ownedItems
 
-  // 👁️ Manejar preview de skin
-  const handlePreview = (skinId) => {
+  const safeItems = useMemo(() => 
+    Array.isArray(SHOP_ITEMS) 
+      ? SHOP_ITEMS.filter(item => item && item.id)
+      : []
+  , []); // ✅ Array estático, no cambia
+
+  const collectionDiscount = useMemo(() => {
+    if (stats.totalSkins === 0) return 0;
+    const baseDiscount = Math.floor((stats.ownedSkins / stats.totalSkins) * 25);
+    return Math.min(25, baseDiscount);
+  }, [stats.ownedSkins, stats.totalSkins]);
+
+  const filteredItems = useMemo(() => {
+    if (selectedTab === "all") return safeItems;
+    return safeItems.filter((item) => item.type === selectedTab);
+  }, [selectedTab, safeItems]);
+
+  // 🎭 Obtener datos de la skin en preview
+  const previewSkinData = useMemo(() => 
+    safeItems.find((i) => i.id === previewSkin) || 
+    safeItems.find((i) => i.id === activeSkin) ||
+    safeItems.find((i) => i.type === "skin")
+  , [previewSkin, activeSkin, safeItems]);
+  
+  const previewImage = useMemo(() => 
+    previewSkinData?.image || 
+    `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${previewSkin || activeSkin || "default"}`
+  , [previewSkinData, previewSkin, activeSkin]);
+
+  // ✅ FUNCIONES MEMOIZADAS
+  const memoizedHandlePreview = useCallback((skinId) => {
     setPreviewSkin(skinId);
     if (playSound) playSound("uiClick");
     
@@ -207,21 +442,32 @@ export function ShopView({
         duration: 3000,
       });
     }
-  };
+  }, [playSound, toast, safeItems]);
 
-  // 📊 Calcular descuento por colección
-  const calculateCollectionDiscount = () => {
-    if (stats.totalSkins === 0) return 0;
-    const baseDiscount = Math.floor((stats.ownedSkins / stats.totalSkins) * 25);
-    return Math.min(25, baseDiscount);
-  };
+  const memoizedHandleBuyItem = useCallback((item, useCroc = false, discount = 0) => {
+    if (!buyShopItem) return;
+    
+    const getItemStatus = (item) => {
+      const isOwned = ownedItems.some(owned => {
+        if (typeof owned === 'string') return owned === item.id;
+        if (typeof owned === 'object') return owned.id === item.id;
+        return false;
+      });
 
-  // 🛒 Manejar compra de item - VERSIÓN SIMPLIFICADA Y SEGURA
-  const handleBuyItem = (item, useCroc = false) => {
-    if (!buyShopItem) {
-      console.error('buyShopItem no disponible');
-      return;
-    }
+      if (item.type === "skin") {
+        if (activeSkin === item.id) return { text: "Equipada", disabled: true };
+        if (isOwned) return { text: "Equipar", disabled: false };
+      } else if (item.type === "item" || item.type === "boost") {
+        if (isOwned) return { text: "Comprado", disabled: true };
+      }
+      
+      return {
+        text: `Comprar`,
+        disabled: false,
+        price: item.price || 0,
+        priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
+      };
+    };
     
     const status = getItemStatus(item);
     
@@ -250,7 +496,6 @@ export function ShopView({
 
     // Mostrar confirmación para items costosos
     if (basePrice > 5000 || (useCroc && basePrice > 100)) {
-      const discount = calculateCollectionDiscount();
       const finalPrice = Math.floor(basePrice * (1 - discount / 100));
       setShowConfirm({ item, useCroc, price: finalPrice, discount });
       if (playSound) playSound("uiClick");
@@ -258,21 +503,24 @@ export function ShopView({
     }
 
     // Comprar directamente
-    buyShopItem(item.id, useCroc, 0);
-  };
+    buyShopItem(item.id, useCroc, discount);
+  }, [buyShopItem, ownedItems, activeSkin, coins, nativeTokenBalance, playSound, toast]);
 
-  // ✅ FUNCIÓN PARA EQUIPAR SKIN - USAR DIRECTAMENTE LA PROP
-  const handleEquipSkin = (skinId) => {
-    if (!equipSkin || typeof equipSkin !== 'function') {
-      console.error('equipSkin no disponible');
-      return;
+  const memoizedHandleEquipSkin = useCallback((skinId) => {
+    if (equipSkin) {
+      equipSkin(skinId);
+      if (playSound) playSound("equip");
+      if (toast) {
+        toast({
+          title: "🎨 Skin Equipada",
+          description: "¡Skin cambiada exitosamente!",
+          duration: 3000
+        });
+      }
     }
-    
-    equipSkin(skinId);
-  };
+  }, [equipSkin, playSound, toast]);
 
-  // ✅ Confirmar compra
-  const confirmPurchase = () => {
+  const confirmPurchase = useCallback(() => {
     if (!showConfirm || !buyShopItem) return;
     
     const { item, useCroc, discount } = showConfirm;
@@ -302,259 +550,11 @@ export function ShopView({
       }
       if (playSound) playSound("error");
     }
-  };
-
-  // 🎨 Componente de tarjeta de item MEJORADO
-  const ItemCard = ({ item, index, isDailyOffer = false }) => {
-    if (!item) return null;
-    
-    const status = getItemStatus(item);
-    const Icon = item.icon || ShoppingCart;
-    const discount = isDailyOffer ? (item.discount || 0) : calculateCollectionDiscount();
-    const finalPrice = Math.floor((item.price || 0) * (1 - discount/100));
-    const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount/100)));
-    const isSkin = item.type === "skin";
-    
-    // Determinar rareza
-    const getRarityColor = (rarity) => {
-      switch(rarity) {
-        case 'legendary': return 'from-yellow-600 to-amber-600';
-        case 'epic': return 'from-purple-600 to-pink-600';
-        case 'rare': return 'from-blue-600 to-cyan-600';
-        case 'uncommon': return 'from-green-600 to-emerald-600';
-        default: return 'from-gray-600 to-gray-500';
-      }
-    };
-
-    return (
-      <motion.div
-        className={`relative rounded-2xl overflow-hidden flex flex-col hover-lift transition-all duration-300 ${
-          isSkin ? "bg-gradient-to-br from-gray-900/50 to-gray-800/50" : "bg-gradient-to-br from-gray-800/50 to-gray-900/50"
-        } ${isDailyOffer ? 'border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' : 'border border-gray-700/30'}`}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
-        whileHover={{ scale: 1.02, y: -5 }}
-      >
-        {/* 🎯 Estado de equipado/comprado */}
-        {status.text === "Equipada" && (
-          <div className="absolute top-3 left-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
-            <Check className="w-3 h-3" />
-            <span>Equipada</span>
-          </div>
-        )}
-
-        {status.text === "Comprado" && (
-          <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg">
-            <Check className="w-3 h-3" />
-            <span>Comprado</span>
-          </div>
-        )}
-
-        {/* 🔥 Oferta diaria badge */}
-        {isDailyOffer && (
-          <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white text-xs px-3 py-1.5 rounded-full z-10 flex items-center gap-1 shadow-lg animate-pulse">
-            <Ticket className="w-3 h-3" />
-            <span>-{item.discount || 0}%</span>
-          </div>
-        )}
-
-        {/* 🖼️ Imagen de portada para skins - BORDE OVALADO */}
-        {isSkin && item.image && (
-          <div className="relative pt-8 pb-4 flex items-center justify-center">
-            <div className="relative w-48 h-48 rounded-full border-4 border-gradient bg-gradient-to-br from-purple-900/30 via-pink-900/20 to-transparent p-2 shadow-2xl">
-              <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/10">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-full object-cover scale-110 hover:scale-125 transition-transform duration-500"
-                  onError={(e) => {
-                    e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}`;
-                  }}
-                />
-              </div>
-              
-              {/* Efecto de brillo */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent pointer-events-none" />
-            </div>
-            
-            {/* Rareza */}
-            {item.rarity && (
-              <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
-                {item.rarity ? item.rarity.toUpperCase() : 'COMÚN'}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Para items no skins */}
-        {!isSkin && (
-          <div className="relative h-40 overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
-            {item.image ? (
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Icon className="w-16 h-16 text-gray-500" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-            
-            {/* Badge de tipo */}
-            <div className="absolute top-3 right-3 bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              {item.type === 'item' && <Gem className="w-3 h-3" />}
-              {item.type === 'boost' && <Zap className="w-3 h-3" />}
-              <span className="capitalize">{item.type || 'item'}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="p-5 flex flex-col justify-between flex-1">
-          {/* 🎨 Información */}
-          <div className="mb-4">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className={`font-bold ${isSkin ? 'text-xl' : 'text-lg'} text-white`}>
-                {item.name || 'Item sin nombre'}
-              </h3>
-              
-              {/* Nivel requerido */}
-              {item.requiredLevel > 1 && (
-                <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
-                  Nv. {item.requiredLevel}
-                </span>
-              )}
-            </div>
-            
-            <p className="text-sm text-gray-300 mb-4 min-h-[40px]">
-              {item.description || 'Sin descripción disponible'}
-            </p>
-            
-            {/* 📊 Efectos */}
-            {item.effect && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {Object.entries(item.effect).map(([key, value]) => (
-                  <span key={key} className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded">
-                    +{value} {key}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 💰 Precios */}
-          <div className="mb-4">
-            <div className="grid grid-cols-2 gap-2">
-              {/* Precio en monedas */}
-              <div className={`text-center p-2 rounded-lg ${discount > 0 ? 'bg-yellow-500/10' : 'bg-gray-800/50'}`}>
-                <div className="text-xs text-gray-400 mb-1">Monedas</div>
-                {discount > 0 ? (
-                  <>
-                    <div className="text-sm line-through text-gray-500">
-                      {(item.price || 0).toLocaleString()} 💰
-                    </div>
-                    <div className="text-lg font-bold text-yellow-400">
-                      {finalPrice.toLocaleString()} 💰
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-lg font-bold text-yellow-400">
-                    {(item.price || 0).toLocaleString()} 💰
-                  </div>
-                )}
-              </div>
-              
-              {/* Precio en CROC */}
-              <div className="text-center p-2 rounded-lg bg-emerald-500/10">
-                <div className="text-xs text-gray-400 mb-1">CROC Tokens</div>
-                {discount > 0 ? (
-                  <>
-                    <div className="text-sm line-through text-gray-500">
-                      {(status.priceCroc || 0).toLocaleString()} 🪙
-                    </div>
-                    <div className="text-lg font-bold text-emerald-400">
-                      {finalPriceCroc.toLocaleString()} 🪙
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-lg font-bold text-emerald-400">
-                    {(status.priceCroc || 0).toLocaleString()} 🪙
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Descuento */}
-            {discount > 0 && (
-              <div className="mt-2 text-center">
-                <span className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded-full">
-                  🎯 {discount}% DE DESCUENTO
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* 🎮 Botones de acción */}
-          <div className="flex flex-col gap-2">
-            {/* Botón de preview para skins */}
-            {isSkin && (
-              <Button
-                onClick={() => handlePreview(item.id)}
-                variant="outline"
-                size="sm"
-                className="w-full border-purple-600/50 text-purple-400 hover:bg-purple-600/20 hover:text-white"
-              >
-                <Eye className="w-4 h-4 mr-2" /> Vista Previa
-              </Button>
-            )}
-
-            {/* Botones de compra */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={() => handleBuyItem(item, false)}
-                disabled={status.disabled && item.type !== "consumable"}
-                className={`w-full font-semibold ${
-                  status.disabled && item.type !== "consumable" 
-                    ? "bg-gray-700 cursor-not-allowed" 
-                    : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
-                }`}
-              >
-                <Coins className="w-4 h-4 mr-2" />
-                {status.text === "Equipar" ? "Equipar" : "Comprar"}
-              </Button>
-              
-              <Button
-                onClick={() => handleBuyItem(item, true)}
-                disabled={status.disabled && item.type !== "consumable"}
-                className={`w-full font-semibold ${
-                  status.disabled && item.type !== "consumable" 
-                    ? "bg-gray-700 cursor-not-allowed" 
-                    : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-                }`}
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
-                Con CROC
-              </Button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
-  };
-
-  // 🎭 Obtener datos de la skin en preview
-  const previewSkinData = safeItems.find((i) => i.id === previewSkin) || 
-    safeItems.find((i) => i.id === activeSkin) ||
-    safeItems.find((i) => i.type === "skin");
-  
-  const previewImage = previewSkinData?.image || 
-    `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${previewSkin || activeSkin || "default"}`;
+  }, [showConfirm, buyShopItem, toast, playSound]);
 
   // 🎯 Renderizar pestaña actual
-  const renderTabContent = () => {
-    const items = filteredItems(selectedTab);
+  const renderTabContent = useCallback(() => {
+    const items = filteredItems;
     
     if (items.length === 0) {
       return (
@@ -581,22 +581,24 @@ export function ShopView({
             key={item.id} 
             item={item} 
             index={index}
+            isDailyOffer={stats.dailyOffers.some(offer => offer.id === item.id)}
+            onPreview={memoizedHandlePreview}
+            onBuyItem={memoizedHandleBuyItem}
+            ownedItems={ownedItems}
+            activeSkin={activeSkin}
+            coins={coins}
+            nativeTokenBalance={nativeTokenBalance}
+            collectionDiscount={collectionDiscount}
+            tokenPrice={tokenPrice}
+            playSound={playSound}
+            toast={toast}
           />
         ))}
       </div>
     );
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen game-bg p-4 md:p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <div className="mt-4 text-lg font-semibold gradient-text">🛍️ Cargando tienda...</div>
-        </div>
-      </div>
-    );
-  }
+  }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview, 
+      memoizedHandleBuyItem, ownedItems, activeSkin, coins, nativeTokenBalance, 
+      collectionDiscount, tokenPrice, playSound, toast]);
 
   return (
     <div className="min-h-screen game-bg p-4 md:p-6">
@@ -716,7 +718,7 @@ export function ShopView({
               <div className="flex items-center justify-center mb-2">
                 <Award className="w-6 h-6 mr-2 text-blue-400" />
                 <span className="text-xl font-bold text-blue-400">
-                  {calculateCollectionDiscount()}%
+                  {collectionDiscount}%
                 </span>
               </div>
               <p className="text-sm text-blue-200/70">Descuento por colección</p>
@@ -758,6 +760,16 @@ export function ShopView({
                   item={item} 
                   index={index}
                   isDailyOffer={true}
+                  onPreview={memoizedHandlePreview}
+                  onBuyItem={memoizedHandleBuyItem}
+                  ownedItems={ownedItems}
+                  activeSkin={activeSkin}
+                  coins={coins}
+                  nativeTokenBalance={nativeTokenBalance}
+                  collectionDiscount={collectionDiscount}
+                  tokenPrice={tokenPrice}
+                  playSound={playSound}
+                  toast={toast}
                 />
               ))}
             </div>
@@ -823,7 +835,7 @@ export function ShopView({
                       {/* Botón de equipar si ya está comprada */}
                       {ownedItems.includes(previewSkin) && activeSkin !== previewSkin && (
                         <Button
-                          onClick={() => handleEquipSkin(previewSkin)}
+                          onClick={() => memoizedHandleEquipSkin(previewSkin)}
                           className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                           <Palette className="w-4 h-4 mr-2" />
@@ -868,7 +880,7 @@ export function ShopView({
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-green-300">Descuento activo:</span>
                     <span className="font-bold text-green-400 text-xl">
-                      {calculateCollectionDiscount()}%
+                      {collectionDiscount}%
                     </span>
                   </div>
                   <p className="text-xs text-green-300/70">
