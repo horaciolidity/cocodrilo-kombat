@@ -1,5 +1,5 @@
 // src/components/ShopView.jsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,45 +29,11 @@ import {
   Gift,
   Heart,
   Target,
-  ChevronRight,
-  CloudSnow, // Cambiado de Snowflake a CloudSnow
-  Flame,
-  Cpu
+  ChevronRight
 } from "lucide-react";
 import { SHOP_ITEMS } from "@/config/gameConfig";
-
-// 🔧 Función para obtener imagen segura
-const getSafeImageUrl = (item) => {
-  if (item.image && item.image.startsWith('http')) {
-    return item.image;
-  }
-  
-  // Si es un skin, usar dicebear con colores temáticos
-  if (item.type === 'skin') {
-    const colorMap = {
-      'skin_golden_croc': 'ffd700,ffed4e,fbbf24',
-      'skin_camo_croc': '22c55e,16a34a,15803d',
-      'skin_cyborg_croc': '3b82f6,1d4ed8,1e40af',
-      'skin_fire_croc': 'dc2626,b91c1c,991b1b',
-      'skin_ice_croc': '0ea5e9,0284c7,0369a1',
-    };
-    
-    const colors = colorMap[item.id] || '4ade80,22c55e,16a34a';
-    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${item.id}&backgroundColor=${colors}&scale=90`;
-  }
-  
-  // Para items, usar shapes
-  const shapeColors = {
-    'auto_clicker': '8b5cf6,7c3aed,6d28d9',
-    'energy_potion': '10b981,059669,047857',
-    'double_coins_boost': 'fbbf24,f59e0b,d97706',
-    'lucky_charm': 'a855f7,9333ea,7e22ce',
-    'xp_booster': 'ec4899,db2777,be185d'
-  };
-  
-  const colors = shapeColors[item.id] || '6b7280,4b5563,374151';
-  return `https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}&backgroundColor=${colors}`;
-};
+import { useSound } from "@/hooks/useSound";
+import { useToast } from "@/hooks/use-toast";
 
 export function ShopView({
   coins = 0,
@@ -78,10 +44,20 @@ export function ShopView({
   equipSkin,
   tokenPrice = 0.05,
   user,
-  toast,
-  playSound
+  toast: toastProp,
+  playSound: playSoundProp
 }) {
-  // 🔍 Validación crítica
+  // 🔧 Inicializar hooks y props con fallbacks
+  const soundHook = useSound();
+  const toastHook = useToast();
+  const { playSound: playSoundHook } = soundHook;
+  const { toast: toastHookFn } = toastHook;
+  
+  // Usar props si están disponibles, de lo contrario usar hooks
+  const playSound = playSoundProp || playSoundHook;
+  const toast = toastProp || toastHookFn;
+  
+  // 🔍 Validaciones críticas
   if (!buyShopItem || typeof buyShopItem !== 'function') {
     console.error('❌ buyShopItem no está disponible o no es una función');
     return (
@@ -113,105 +89,77 @@ export function ShopView({
     completionRate: 0
   });
 
-  // 🔍 Calcular estadísticas de la tienda - OPTIMIZADO
+  // 🔍 Calcular estadísticas de la tienda
   useEffect(() => {
     const calculateStats = () => {
-      const shopItems = SHOP_ITEMS || [];
-      
-      if (!Array.isArray(shopItems) || shopItems.length === 0) {
-        console.warn('SHOP_ITEMS no está definido o está vacío');
-        setStats({
-          totalItems: 0,
-          ownedSkins: 0,
-          totalSkins: 0,
-          totalValue: 0,
-          dailyOffers: [],
-          completionRate: 0
-        });
-        setLoading(false);
+      if (!SHOP_ITEMS || !Array.isArray(SHOP_ITEMS)) {
+        console.warn('SHOP_ITEMS no está definido o no es un array');
         return;
       }
-
-      try {
-        // Calcular estadísticas básicas
-        const totalSkins = shopItems.filter(item => item.type === 'skin').length;
-        const totalItems = shopItems.length;
-        
-        const ownedSkins = ownedItems.filter(itemId => {
-          const item = shopItems.find(i => i.id === itemId);
-          return item && item.type === 'skin';
-        }).length;
-
-        // Calcular valor total
-        const totalValue = ownedItems.reduce((sum, itemId) => {
-          const item = shopItems.find(i => i.id === itemId);
-          return sum + (item?.price || 0);
-        }, 0);
-
-        // Generar ofertas diarias (consistente por día)
-        const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-        const seededRandom = (seed) => {
-          let x = Math.sin(seed) * 10000;
-          return x - Math.floor(x);
-        };
-
-        // Obtener 3 items para ofertas diarias
-        const dailyOffers = [...shopItems]
-          .filter(item => item.type === 'skin' || item.type === 'item')
-          .sort((a, b) => {
-            const randA = seededRandom(dayOfYear + a.id.charCodeAt(0));
-            const randB = seededRandom(dayOfYear + b.id.charCodeAt(0));
-            return randA - randB;
-          })
-          .slice(0, 3)
-          .map(item => ({
-            ...item,
-            discount: Math.floor(seededRandom(dayOfYear + item.id.length) * 30) + 10,
-            expiresIn: 24
-          }));
-
-        setStats({
-          totalItems,
-          ownedSkins,
-          totalSkins,
-          totalValue,
-          dailyOffers,
-          completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
-        });
-      } catch (error) {
-        console.error('Error calculando estadísticas:', error);
-        setStats({
-          totalItems: 0,
-          ownedSkins: 0,
-          totalSkins: 0,
-          totalValue: 0,
-          dailyOffers: [],
-          completionRate: 0
-        });
-      } finally {
-        setLoading(false);
+      
+      const safeItems = SHOP_ITEMS.filter(item => item && item.id);
+      
+      if (safeItems.length === 0) {
+        console.warn('No hay items válidos en SHOP_ITEMS');
+        return;
       }
+      
+      // Calcular estadísticas
+      const ownedSkins = ownedItems.filter(itemId => {
+        const item = safeItems.find(i => i.id === itemId);
+        return item && item.type === 'skin';
+      }).length;
+      
+      const totalSkins = safeItems.filter(item => item.type === 'skin').length;
+      const totalItems = safeItems.length;
+      
+      // Calcular valor total de la colección
+      const totalValue = ownedItems.reduce((sum, itemId) => {
+        const item = safeItems.find(i => i.id === itemId);
+        return sum + (item?.price || 0);
+      }, 0);
+      
+      // Generar ofertas diarias (rotan cada día)
+      const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+      const dailyOffers = safeItems
+        .filter(item => item.type === 'skin' || item.type === 'item')
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map(item => ({
+          ...item,
+          discount: Math.floor(Math.random() * 30) + 10, // 10-40% descuento
+          expiresIn: 24 // Horas
+        }));
+      
+      setStats({
+        totalItems,
+        ownedSkins,
+        totalSkins,
+        totalValue,
+        dailyOffers,
+        completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
+      });
     };
 
-    // Usar setTimeout para evitar bloqueo del render inicial
-    const timer = setTimeout(calculateStats, 50);
+    // Simular carga inicial
+    const timer = setTimeout(() => {
+      calculateStats();
+      setLoading(false);
+    }, 300);
+    
     return () => clearTimeout(timer);
   }, [ownedItems]);
 
-  // ✅ Obtener items seguros
-  const safeItems = useMemo(() => {
-    return Array.isArray(SHOP_ITEMS) 
-      ? SHOP_ITEMS.filter(item => item && item.id && item.type)
-      : [];
-  }, []);
+  // ✅ Previene errores si SHOP_ITEMS no existe o está vacío
+  const safeItems = Array.isArray(SHOP_ITEMS) 
+    ? SHOP_ITEMS.filter(item => item && item.id)
+    : [];
 
-  // ✅ Filtrar items por pestaña
-  const filteredItems = useMemo(() => {
-    return safeItems.filter((item) => item.type === selectedTab);
-  }, [selectedTab, safeItems]);
+  const filteredItems = (type) =>
+    safeItems.filter((item) => item.type === type);
 
-  // 🎯 Obtener estado del item - MEMOIZADO
-  const getItemStatus = useCallback((item) => {
+  // 🎯 Obtener estado del item
+  const getItemStatus = (item) => {
     if (!item) return { text: "Error", disabled: true };
 
     const isOwned = ownedItems.some(owned => {
@@ -242,12 +190,12 @@ export function ShopView({
       text: `Comprar`,
       disabled: false,
       price: item.price || 0,
-      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
+      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1) // 10% del precio en CROC
     };
-  }, [activeSkin, ownedItems]);
+  };
 
   // 👁️ Manejar preview de skin
-  const handlePreview = useCallback((skinId) => {
+  const handlePreview = (skinId) => {
     setPreviewSkin(skinId);
     if (playSound) playSound("uiClick");
     
@@ -259,18 +207,21 @@ export function ShopView({
         duration: 3000,
       });
     }
-  }, [safeItems, playSound, toast]);
+  };
 
   // 📊 Calcular descuento por colección
-  const calculateCollectionDiscount = useCallback(() => {
+  const calculateCollectionDiscount = () => {
     if (stats.totalSkins === 0) return 0;
     const baseDiscount = Math.floor((stats.ownedSkins / stats.totalSkins) * 25);
     return Math.min(25, baseDiscount);
-  }, [stats.ownedSkins, stats.totalSkins]);
+  };
 
-  // 🛒 Manejar compra de item
-  const handleBuyItem = useCallback((item, useCroc = false) => {
-    if (!buyShopItem) return;
+  // 🛒 Manejar compra de item - VERSIÓN SIMPLIFICADA Y SEGURA
+  const handleBuyItem = (item, useCroc = false) => {
+    if (!buyShopItem) {
+      console.error('buyShopItem no disponible');
+      return;
+    }
     
     const status = getItemStatus(item);
     
@@ -278,7 +229,7 @@ export function ShopView({
       return;
     }
 
-    // Verificar saldo
+    // Verificar saldo rápidamente
     const basePrice = useCroc ? (status.priceCroc || 0) : (status.price || 0);
     const balance = useCroc ? nativeTokenBalance : coins;
     
@@ -308,20 +259,20 @@ export function ShopView({
 
     // Comprar directamente
     buyShopItem(item.id, useCroc, 0);
-  }, [buyShopItem, coins, nativeTokenBalance, getItemStatus, toast, playSound, calculateCollectionDiscount]);
+  };
 
-  // ✅ FUNCIÓN PARA EQUIPAR SKIN
-  const handleEquipSkin = useCallback((skinId) => {
+  // ✅ FUNCIÓN PARA EQUIPAR SKIN - USAR DIRECTAMENTE LA PROP
+  const handleEquipSkin = (skinId) => {
     if (!equipSkin || typeof equipSkin !== 'function') {
       console.error('equipSkin no disponible');
       return;
     }
     
     equipSkin(skinId);
-  }, [equipSkin]);
+  };
 
   // ✅ Confirmar compra
-  const confirmPurchase = useCallback(() => {
+  const confirmPurchase = () => {
     if (!showConfirm || !buyShopItem) return;
     
     const { item, useCroc, discount } = showConfirm;
@@ -351,10 +302,10 @@ export function ShopView({
       }
       if (playSound) playSound("error");
     }
-  }, [showConfirm, buyShopItem, toast, playSound]);
+  };
 
-  // 🎨 Componente de tarjeta de item
-  const ItemCard = useCallback(({ item, index, isDailyOffer = false }) => {
+  // 🎨 Componente de tarjeta de item MEJORADO
+  const ItemCard = ({ item, index, isDailyOffer = false }) => {
     if (!item) return null;
     
     const status = getItemStatus(item);
@@ -374,9 +325,6 @@ export function ShopView({
         default: return 'from-gray-600 to-gray-500';
       }
     };
-
-    // Obtener imagen segura
-    const imageUrl = getSafeImageUrl(item);
 
     return (
       <motion.div
@@ -411,43 +359,48 @@ export function ShopView({
           </div>
         )}
 
-        {/* 🖼️ Imagen de portada */}
-        {isSkin ? (
+        {/* 🖼️ Imagen de portada para skins - BORDE OVALADO */}
+        {isSkin && item.image && (
           <div className="relative pt-8 pb-4 flex items-center justify-center">
             <div className="relative w-48 h-48 rounded-full border-4 border-gradient bg-gradient-to-br from-purple-900/30 via-pink-900/20 to-transparent p-2 shadow-2xl">
               <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/10">
                 <img
-                  src={imageUrl}
+                  src={item.image}
                   alt={item.name}
                   className="w-full h-full object-cover scale-110 hover:scale-125 transition-transform duration-500"
-                  loading="lazy"
                   onError={(e) => {
-                    console.warn(`Error cargando imagen: ${imageUrl}`);
-                    e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}&scale=90`;
+                    e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}`;
                   }}
                 />
               </div>
               
-              {/* Rareza */}
-              {item.rarity && (
-                <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
-                  {item.rarity ? item.rarity.toUpperCase() : 'COMÚN'}
-                </div>
-              )}
+              {/* Efecto de brillo */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent pointer-events-none" />
             </div>
+            
+            {/* Rareza */}
+            {item.rarity && (
+              <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
+                {item.rarity ? item.rarity.toUpperCase() : 'COMÚN'}
+              </div>
+            )}
           </div>
-        ) : (
+        )}
+
+        {/* Para items no skins */}
+        {!isSkin && (
           <div className="relative h-40 overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
-            <img
-              src={imageUrl}
-              alt={item.name}
-              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
-              loading="lazy"
-              onError={(e) => {
-                console.warn(`Error cargando imagen: ${imageUrl}`);
-                e.target.src = `https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`;
-              }}
-            />
+            {item.image ? (
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Icon className="w-16 h-16 text-gray-500" />
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
             
             {/* Badge de tipo */}
@@ -589,19 +542,21 @@ export function ShopView({
         </div>
       </motion.div>
     );
-  }, [getItemStatus, calculateCollectionDiscount, handlePreview, handleBuyItem]);
+  };
 
   // 🎭 Obtener datos de la skin en preview
-  const previewSkinData = useMemo(() => {
-    return safeItems.find((i) => i.id === previewSkin) || 
-           safeItems.find((i) => i.id === activeSkin) ||
-           safeItems.find((i) => i.type === "skin") ||
-           null;
-  }, [previewSkin, activeSkin, safeItems]);
+  const previewSkinData = safeItems.find((i) => i.id === previewSkin) || 
+    safeItems.find((i) => i.id === activeSkin) ||
+    safeItems.find((i) => i.type === "skin");
+  
+  const previewImage = previewSkinData?.image || 
+    `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${previewSkin || activeSkin || "default"}`;
 
   // 🎯 Renderizar pestaña actual
   const renderTabContent = () => {
-    if (filteredItems.length === 0) {
+    const items = filteredItems(selectedTab);
+    
+    if (items.length === 0) {
       return (
         <motion.div 
           className="text-center py-12"
@@ -621,7 +576,7 @@ export function ShopView({
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.map((item, index) => (
+        {items.map((item, index) => (
           <ItemCard 
             key={item.id} 
             item={item} 
@@ -825,16 +780,16 @@ export function ShopView({
               </h3>
               
               <div className="flex flex-col items-center">
+                {/* BORDE OVALADO PARA LA SKIN */}
                 <div className="relative mb-6">
                   <div className="w-48 h-48 rounded-full border-4 border-gradient bg-gradient-to-br from-purple-900/50 via-pink-900/30 to-transparent p-3 shadow-2xl">
                     <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/20">
                       <img
-                        src={previewSkinData ? getSafeImageUrl(previewSkinData) : 'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=croc'}
+                        src={previewImage}
                         alt="Skin Preview"
                         className="w-full h-full object-cover scale-110"
-                        loading="lazy"
                         onError={(e) => {
-                          e.target.src = 'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=croc';
+                          e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${previewSkin || "croc"}`;
                         }}
                       />
                     </div>
@@ -917,7 +872,7 @@ export function ShopView({
                     </span>
                   </div>
                   <p className="text-xs text-green-300/70">
-                    Por cada skin que colecciones, obtienes un descuento adicional
+                    Por cada skin que colecciones, obtienes un descuento adicional en todas tus compras
                   </p>
                 </div>
                 
