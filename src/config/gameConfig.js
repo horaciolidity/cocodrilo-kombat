@@ -93,6 +93,17 @@ import {
   BookOpen,
   BarChartHorizontalBig,
   Lightbulb,
+  Zap,
+  ShoppingCart,
+  Coins as CoinsIcon,
+  Award,
+  Sparkles,
+  Clock,
+  Ticket,
+  Gift,
+  Heart,
+  ChevronRight,
+  TrendingDown as TrendingDownIcon,
 } from "lucide-react";
 
 export const INITIAL_GAME_STATE = {
@@ -293,8 +304,6 @@ export const INITIAL_MISSIONS_STATE = MISSIONS.reduce((acc, mission) => {
   return acc;
 }, {});
 
-
-// En gameConfig.js - Agregar eventos
 export const DAILY_EVENTS = [
   {
     id: "double_coins_hour",
@@ -303,6 +312,7 @@ export const DAILY_EVENTS = [
     multiplier: 2
   }
 ];
+
 /* =====================================================
  💬 RESTO DE CONFIG
 ===================================================== */
@@ -325,24 +335,28 @@ export const CARDS_DATA = [
   { id: "card_swamp_mastery", name: "Maestría del Pantano", description: "Aumenta monedas por segundo un 10%.", effect: { type: "cps_boost_percent", value: 10 }, rarity: "Legendaria", icon: Crown, color: "text-orange-400" },
 ];
 
-// En config/gameConfig.js, actualiza SHOP_ITEMS:
+/* =====================================================
+ 🛍️ SHOP ITEMS CORREGIDOS
+===================================================== */
+
 export const SHOP_ITEMS = [
-  // Skins con precios en monedas y CROC
+  // Skins
   {
     id: 'skin_golden_croc',
     name: 'Cocodrilo Dorado',
     type: 'skin',
-    price: 10000, // Precio en monedas
-    priceCroc: 500, // Precio en CROC (opcional)
-    currency: 'both', // 'coins', 'croc', o 'both'
-    image: '/skins/golden_croc.png',
+    price: 10000,
+    priceCroc: 500,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/adventurer/svg?seed=golden_croc&backgroundColor=ffd700,ffed4e,fbbf24&scale=90',
     description: 'Un cocodrilo cubierto de oro puro. Brilla en la oscuridad.',
     rarity: 'legendary',
     requiredLevel: 10,
     effect: { 
       prestige: 50,
-      clickMultiplier: 1.1 // +10% en clicks
-    }
+      clickMultiplier: 1.1
+    },
+    icon: Crown
   },
   {
     id: 'skin_camo_croc',
@@ -351,16 +365,69 @@ export const SHOP_ITEMS = [
     price: 5000,
     priceCroc: 250,
     currency: 'both',
-    image: '/skins/camo_croc.png',
+    image: 'https://api.dicebear.com/7.x/adventurer/svg?seed=camo_croc&backgroundColor=22c55e,16a34a,15803d&scale=90',
     description: 'Perfecto para acechar en el pantano sin ser detectado.',
     rarity: 'rare',
     requiredLevel: 5,
     effect: {
       stealth: 30,
-      energyRegen: 1.05 // +5% regeneración de energía
-    }
+      energyRegen: 1.05
+    },
+    icon: Shield
   },
-  // Items con efectos
+  {
+    id: 'skin_cyborg_croc',
+    name: 'Cocodrilo Ciborg',
+    type: 'skin',
+    price: 15000,
+    priceCroc: 750,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/adventurer/svg?seed=cyborg_croc&backgroundColor=3b82f6,1d4ed8,1e40af&scale=90',
+    description: 'Mitad máquina, mitad depredador. El futuro del pantano.',
+    rarity: 'epic',
+    requiredLevel: 15,
+    effect: {
+      cpsBoost: 2.0,
+      clickPower: 20
+    },
+    icon: Cpu
+  },
+  {
+    id: 'skin_fire_croc',
+    name: 'Cocodrilo Ígneo',
+    type: 'skin',
+    price: 20000,
+    priceCroc: 1000,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/adventurer/svg?seed=fire_croc&backgroundColor=dc2626,b91c1c,991b1b&scale=90',
+    description: 'Arde con el fuego del dragón antiguo.',
+    rarity: 'legendary',
+    requiredLevel: 20,
+    effect: {
+      clickMultiplier: 1.3,
+      energy: 50
+    },
+    icon: Flame
+  },
+  {
+    id: 'skin_ice_croc',
+    name: 'Cocodrilo Glacial',
+    type: 'skin',
+    price: 8000,
+    priceCroc: 400,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/adventurer/svg?seed=ice_croc&backgroundColor=0ea5e9,0284c7,0369a1&scale=90',
+    description: 'Congela a tus enemigos con un solo vistazo.',
+    rarity: 'rare',
+    requiredLevel: 8,
+    effect: {
+      energyRegen: 1.15,
+      cpsBoost: 1.5
+    },
+    icon: Snowflake
+  },
+  
+  // Items
   {
     id: 'auto_clicker',
     name: 'Auto-Clicker 3000',
@@ -368,13 +435,14 @@ export const SHOP_ITEMS = [
     price: 25000,
     priceCroc: 1000,
     currency: 'both',
+    image: 'https://api.dicebear.com/7.x/shapes/svg?seed=auto_clicker&backgroundColor=8b5cf6,7c3aed,6d28d9',
     description: 'Hace clics automáticamente por ti.',
     effect: {
-      autoClicks: 5, // 5 clics por segundo
+      autoClicks: 5,
       duration: 'permanent'
-    }
+    },
+    icon: Zap
   },
-  // Consumibles
   {
     id: 'energy_potion',
     name: 'Poción de Energía XL',
@@ -382,12 +450,13 @@ export const SHOP_ITEMS = [
     price: 1000,
     priceCroc: 50,
     currency: 'both',
+    image: 'https://api.dicebear.com/7.x/shapes/svg?seed=energy_potion&backgroundColor=10b981,059669,047857',
     description: 'Restaura 100 puntos de energía inmediatamente.',
     effect: {
       energy: 100
-    }
+    },
+    icon: Zap
   },
-  // Boosts
   {
     id: 'double_coins_boost',
     name: 'Boost x2 Monedas',
@@ -395,11 +464,43 @@ export const SHOP_ITEMS = [
     price: 2000,
     priceCroc: 100,
     currency: 'both',
+    image: 'https://api.dicebear.com/7.x/shapes/svg?seed=coin_boost&backgroundColor=fbbf24,f59e0b,d97706',
     description: 'Duplica todas las monedas obtenidas por 1 hora.',
     effect: {
       coinMultiplier: 2,
-      duration: 3600 // segundos
-    }
+      duration: 3600
+    },
+    icon: TrendingUp
+  },
+  {
+    id: 'lucky_charm',
+    name: 'Amuleto de la Suerte',
+    type: 'item',
+    price: 15000,
+    priceCroc: 600,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/shapes/svg?seed=lucky_charm&backgroundColor=a855f7,9333ea,7e22ce',
+    description: 'Aumenta la probabilidad de obtener CROC en misiones.',
+    effect: {
+      luck: 15,
+      duration: 'permanent'
+    },
+    icon: Sparkles
+  },
+  {
+    id: 'xp_booster',
+    name: 'Booster de Experiencia',
+    type: 'boost',
+    price: 3000,
+    priceCroc: 150,
+    currency: 'both',
+    image: 'https://api.dicebear.com/7.x/shapes/svg?seed=xp_booster&backgroundColor=ec4899,db2777,be185d',
+    description: 'Aumenta la experiencia ganada en un 50% por 30 minutos.',
+    effect: {
+      xpMultiplier: 1.5,
+      duration: 1800
+    },
+    icon: TrendingUp
   }
 ];
 

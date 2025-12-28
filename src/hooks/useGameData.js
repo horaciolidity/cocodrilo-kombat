@@ -673,7 +673,7 @@ const getOrCreatePlayerStats = async (playerId) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', gameData.player.id);
-        
+
     return { success: true }; // Retornar resultado
     } catch (error) {
       console.error('❌ Error en sync:', error);
@@ -1233,16 +1233,40 @@ const refreshShopData = useCallback(async () => {
     console.error('❌ Error refrescando datos de tienda:', error);
   }
 }, [gameData.player?.id]);
-  // 📥 CARGA INICIAL
-  useEffect(() => {
-    isMounted.current = true;
-    loadGameData();
+ // REEMPLAZAR todo el useEffect de carga inicial con esta versión optimizada:
+useEffect(() => {
+  isMounted.current = true;
+  let isInitialLoad = true;
+  const lastLoadTimeRef = useRef(0);
 
-    return () => {
-      isMounted.current = false;
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    };
-  }, [loadGameData]);
+  const loadDataWithDebounce = async () => {
+    const now = Date.now();
+    // Debounce: esperar al menos 1 segundo entre cargas
+    if (now - lastLoadTimeRef.current < 1000 && !isInitialLoad) {
+      console.log('⏳ Debounce: Esperando para cargar datos...');
+      return;
+    }
+    
+    lastLoadTimeRef.current = now;
+    await loadGameData();
+    isInitialLoad = false;
+  };
+
+  loadDataWithDebounce();
+
+  // Sincronizar solo cada 30 segundos, no constantemente
+  const syncInterval = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      syncGameData();
+    }
+  }, 30000);
+
+  return () => {
+    isMounted.current = false;
+    clearInterval(syncInterval);
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+  };
+}, [loadGameData]);
 
   // 🔄 ACTUALIZAR REFERIDOS CADA 30 SEGUNDOS
   useEffect(() => {

@@ -46,21 +46,22 @@ import {
   TUTORIAL_STEPS_CONTENT,
 } from "@/config/gameConfig";
 
-// 🎯 Componente ShopView memoizado para evitar parpadeos
+// En App.jsx, reemplaza la parte del ShopViewMemo con esto:
+
 const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
   console.log('🛍️ ShopView renderizado (memoizado)');
   return <ShopView {...props} />;
 }, (prevProps, nextProps) => {
-  // Comparación personalizada para evitar re-renders innecesarios
-  const ownedItemsEqual = JSON.stringify(prevProps.ownedItems) === JSON.stringify(nextProps.ownedItems);
-  return (
-    prevProps.coins === nextProps.coins &&
-    prevProps.nativeTokenBalance === nextProps.nativeTokenBalance &&
-    prevProps.activeSkin === nextProps.activeSkin &&
-    prevProps.tokenPrice === nextProps.tokenPrice &&
-    ownedItemsEqual &&
-    prevProps.user?.id === nextProps.user?.id
-  );
+  // Comparación más simple pero efectiva
+  const shouldUpdate = 
+    prevProps.coins !== nextProps.coins ||
+    prevProps.nativeTokenBalance !== nextProps.nativeTokenBalance ||
+    prevProps.activeSkin !== nextProps.activeSkin ||
+    prevProps.tokenPrice !== nextProps.tokenPrice ||
+    prevProps.user?.id !== nextProps.user?.id ||
+    JSON.stringify(prevProps.ownedItems) !== JSON.stringify(nextProps.ownedItems);
+  
+  return !shouldUpdate;
 });
 
 function App() {
