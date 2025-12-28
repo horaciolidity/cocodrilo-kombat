@@ -222,21 +222,7 @@ function App() {
     playSound('uiClick');
   }, [toast, playSound]);
 
-  const memoizedHandleEquipSkin = useCallback((skinId) => {
-    if (!user || !gameData) return;
-    
-    console.log('🎨 Equipando skin:', skinId);
-    
-    gameData.updateActiveSkin(skinId);
-    playSound("equip");
-    
-    toast({
-      title: "🎨 Skin Equipada",
-      description: "¡Skin cambiada exitosamente!",
-      duration: 3000
-    });
-  }, [user, gameData, playSound, toast]);
-
+ 
   // 🎯 EFECTO DE NOTIFICACIONES
   useEffect(() => {
     let notificationInterval;

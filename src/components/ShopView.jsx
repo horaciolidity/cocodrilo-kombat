@@ -67,41 +67,48 @@ const ItemCard = memo(function ItemCardComponent({
     }
   }, []);
 
-  // ✅ Obtener estado del item
-  const getItemStatus = useCallback((item) => {
-    const isOwned = ownedItems.some(owned => {
-      if (typeof owned === 'string') return owned === item.id;
-      if (typeof owned === 'object') return owned.id === item.id;
-      return false;
-    });
+  // En ItemCard.jsx, mejorar la función getItemStatus:
+const getItemStatus = useCallback((item) => {
+  const isOwned = ownedItems.some(owned => {
+    if (typeof owned === 'string') return owned === item.id;
+    if (typeof owned === 'object') return owned.id === item.id;
+    return false;
+  });
 
-    if (item.type === "skin") {
-      if (activeSkin === item.id) return { 
-        text: "Equipada", 
-        disabled: true,
-        isEquipped: true 
-      };
-      if (isOwned) return { 
-        text: "Equipar", 
-        disabled: false,
-        isOwned: true 
-      };
-    } else if (item.type === "item" || item.type === "boost") {
-      if (isOwned) return { 
-        text: "Comprado", 
-        disabled: true,
-        isOwned: true 
-      };
-    }
-    
+  if (item.type === "skin") {
+    if (activeSkin === item.id) return { 
+      text: "Equipada", 
+      disabled: true,
+      isEquipped: true 
+    };
+    if (isOwned) return { 
+      text: "Equipar", 
+      disabled: false,
+      isOwned: true 
+    };
+  } else if (item.type === "item" || item.type === "boost") {
+    if (isOwned) return { 
+      text: "Comprado", 
+      disabled: true,
+      isOwned: true 
+    };
+  } else if (item.type === "consumable") {
+    // Consumibles siempre se pueden comprar
     return {
       text: `Comprar`,
       disabled: false,
-      isOwned: false,
-      price: item.price || 0,
-      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
+      isOwned: false
     };
-  }, [ownedItems, activeSkin]);
+  }
+  
+  return {
+    text: `Comprar`,
+    disabled: false,
+    isOwned: false,
+    price: item.price || 0,
+    priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
+  };
+}, [ownedItems, activeSkin]);
 
   const status = getItemStatus(item);
   const discount = isDailyOffer ? (item.discount || 0) : collectionDiscount;
@@ -509,13 +516,20 @@ export function ShopView({
     return Math.min(25, baseDiscount);
   }, [stats.ownedSkins, stats.totalSkins]);
 
-  const filteredItems = useMemo(() => {
-    if (selectedTab === "all") return safeItems;
-    if (selectedTab === "items") {
-      return safeItems.filter(item => item.type === 'item' || item.type === 'boost');
-    }
-    return safeItems.filter((item) => item.type === selectedTab);
-  }, [selectedTab, safeItems]);
+ // En ShopView.jsx, cambiar el filtrado de items:
+const filteredItems = useMemo(() => {
+  if (selectedTab === "all") return safeItems;
+  if (selectedTab === "items") {
+    // CORREGIR: Usar 'item' (singular) en lugar de 'items'
+    return safeItems.filter(item => item.type === 'item');
+  }
+  if (selectedTab === "boosts") {
+    return safeItems.filter(item => item.type === 'boost');
+  }
+  // Para 'skins' y 'consumables', filtrar por tipo
+  return safeItems.filter((item) => item.type === selectedTab);
+}, [selectedTab, safeItems]);
+
 
   // 🎭 Obtener datos de la skin en preview
   const previewSkinData = useMemo(() => 

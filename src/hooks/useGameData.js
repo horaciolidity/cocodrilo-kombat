@@ -1206,7 +1206,9 @@ const updateActiveSkin = useCallback((newActiveSkin) => {
   }, [gameData.player]);
 
 
-  // 🛍️ REFRESCAR DATOS DE LA TIENDA
+// En useGameData.js, mejorar las funciones de actualización:
+
+// 🛍️ REFRESCAR DATOS DE LA TIENDA (función nueva)
 const refreshShopData = useCallback(async () => {
   if (!gameData.player?.id) return;
   
@@ -1233,6 +1235,10 @@ const refreshShopData = useCallback(async () => {
     console.error('❌ Error refrescando datos de tienda:', error);
   }
 }, [gameData.player?.id]);
+
+// Agregar esta función al return del hook
+
+
   // 📥 CARGA INICIAL
   useEffect(() => {
     isMounted.current = true;
