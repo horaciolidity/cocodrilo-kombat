@@ -599,20 +599,7 @@ const filteredItems = useMemo(() => {
     buyShopItem(item.id, useCroc, discount);
   }, [buyShopItem, coins, nativeTokenBalance, playSound, toast]);
 
-  const memoizedHandleEquipSkin = useCallback((skinId) => {
-    if (equipSkin) {
-      equipSkin(skinId);
-      if (playSound) playSound("equip");
-      if (toast) {
-        toast({
-          title: "🎨 Skin Equipada",
-          description: "¡Skin cambiada exitosamente!",
-          duration: 3000
-        });
-      }
-    }
-  }, [equipSkin, playSound, toast]);
-
+ 
   const confirmPurchase = useCallback(() => {
     if (!showConfirm || !buyShopItem) return;
     
@@ -677,7 +664,7 @@ const filteredItems = useMemo(() => {
             isDailyOffer={stats.dailyOffers.some(offer => offer.id === item.id)}
             onPreview={memoizedHandlePreview}
             onBuyItem={memoizedHandleBuyItem}
-            onEquipSkin={memoizedHandleEquipSkin}
+            onEquipSkin={equipSkin}
             ownedItems={ownedItems}
             activeSkin={activeSkin}
             coins={coins}
@@ -691,7 +678,7 @@ const filteredItems = useMemo(() => {
       </div>
     );
   }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview, 
-      memoizedHandleBuyItem, memoizedHandleEquipSkin, ownedItems, activeSkin, 
+      memoizedHandleBuyItem, equipSkin, ownedItems, activeSkin, 
       coins, nativeTokenBalance, collectionDiscount, tokenPrice, playSound, toast]);
 
   return (
@@ -856,7 +843,7 @@ const filteredItems = useMemo(() => {
                   isDailyOffer={true}
                   onPreview={memoizedHandlePreview}
                   onBuyItem={memoizedHandleBuyItem}
-                  onEquipSkin={memoizedHandleEquipSkin}
+                  onEquipSkin={equipSkin}
                   ownedItems={ownedItems}
                   activeSkin={activeSkin}
                   coins={coins}
@@ -930,7 +917,7 @@ const filteredItems = useMemo(() => {
                       {/* Botón de equipar si ya está comprada */}
                       {ownedItems.includes(previewSkin) && activeSkin !== previewSkin && (
                         <Button
-                          onClick={() => memoizedHandleEquipSkin(previewSkin)}
+                          onClick={() => equipSkin(previewSkin)}
                           className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                           <Palette className="w-4 h-4 mr-2" />

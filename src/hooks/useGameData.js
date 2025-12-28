@@ -57,8 +57,7 @@ const loadGameData = useCallback(async () => {
     }));
     return;
   }
-
-  // Evitar llamadas duplicadas mientras ya se está cargando
+// ✅ AGREGAR: Evitar llamadas mientras ya está cargando
   if (gameData.loading) {
     console.log('⏳ Ya se están cargando datos...');
     return;

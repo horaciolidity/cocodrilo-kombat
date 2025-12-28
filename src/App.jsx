@@ -570,7 +570,7 @@ function App() {
                 ownedItems={ownedItems}
                 activeSkin={activeSkin}
                 buyShopItem={buyShopItem}
-                equipSkin={memoizedHandleEquipSkin}
+                equipSkin={equipSkin} // ← Esto debe venir de gameLogic
                 tokenPrice={tokenPrice}
                 user={user}
                 toast={toast}
