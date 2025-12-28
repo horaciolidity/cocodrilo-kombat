@@ -325,80 +325,229 @@ export const CARDS_DATA = [
   { id: "card_swamp_mastery", name: "Maestría del Pantano", description: "Aumenta monedas por segundo un 10%.", effect: { type: "cps_boost_percent", value: 10 }, rarity: "Legendaria", icon: Crown, color: "text-orange-400" },
 ];
 
-// En config/gameConfig.js, actualiza SHOP_ITEMS:
+// En gameConfig.js - dentro de SHOP_ITEMS, reemplazar con esto:
 export const SHOP_ITEMS = [
-  // Skins con precios en monedas y CROC
+  // 🎨 SKINS (10 skins con imágenes reales)
   {
     id: 'skin_golden_croc',
     name: 'Cocodrilo Dorado',
     type: 'skin',
-    price: 10000, // Precio en monedas
-    priceCroc: 500, // Precio en CROC (opcional)
-    currency: 'both', // 'coins', 'croc', o 'both'
-    image: '/skins/golden_croc.png',
-    description: 'Un cocodrilo cubierto de oro puro. Brilla en la oscuridad.',
+    price: 100000, // 100K monedas
+    priceCroc: 1000, // 1000 CROC
+    currency: 'both',
+    image: '/images/skins/golden_croc.jpg',
+    description: 'Pura elegancia dorada. +15% poder de click',
     rarity: 'legendary',
     requiredLevel: 10,
     effect: { 
-      prestige: 50,
-      clickMultiplier: 1.1 // +10% en clicks
+      clickMultiplier: 1.15,
+      cpsBoost: 10
     }
   },
   {
     id: 'skin_camo_croc',
     name: 'Cocodrilo Camuflaje',
     type: 'skin',
-    price: 5000,
-    priceCroc: 250,
+    price: 50000,
+    priceCroc: 500,
     currency: 'both',
-    image: '/skins/camo_croc.png',
-    description: 'Perfecto para acechar en el pantano sin ser detectado.',
+    image: '/images/skins/camo_croc.jpg',
+    description: 'Acecha en el pantano. +10% regeneración energía',
     rarity: 'rare',
     requiredLevel: 5,
     effect: {
-      stealth: 30,
-      energyRegen: 1.05 // +5% regeneración de energía
+      energyRegen: 1.1,
+      stealth: 25
     }
   },
-  // Items con efectos
   {
-    id: 'auto_clicker',
-    name: 'Auto-Clicker 3000',
-    type: 'item',
-    price: 25000,
-    priceCroc: 1000,
+    id: 'skin_fire_croc',
+    name: 'Cocodrilo Ígneo',
+    type: 'skin',
+    price: 150000,
+    priceCroc: 1500,
     currency: 'both',
-    description: 'Hace clics automáticamente por ti.',
+    image: '/images/skins/fire_croc.jpg',
+    description: 'Lava pura. +25% poder de click',
+    rarity: 'legendary',
+    requiredLevel: 20,
     effect: {
-      autoClicks: 5, // 5 clics por segundo
+      clickMultiplier: 1.25,
+      burnEffect: true
+    }
+  },
+  {
+    id: 'skin_ice_croc',
+    name: 'Cocodrilo Glaciar',
+    type: 'skin',
+    price: 80000,
+    priceCroc: 800,
+    currency: 'both',
+    image: '/images/skins/ice_croc.jpg',
+    description: 'Gélido y letal. Congela el CPS enemigo',
+    rarity: 'epic',
+    requiredLevel: 15,
+    effect: {
+      slowEnemyCPS: 0.5,
+      clickPower: 15
+    }
+  },
+  {
+    id: 'skin_cyborg_croc',
+    name: 'Cyborg 9000',
+    type: 'skin',
+    price: 200000,
+    priceCroc: 2000,
+    currency: 'both',
+    image: '/images/skins/cyborg_croc.jpg',
+    description: 'Tecnología de punta. +50 CPS automático',
+    rarity: 'legendary',
+    requiredLevel: 25,
+    effect: {
+      autoClicks: 50,
+      clickMultiplier: 1.2
+    }
+  },
+
+  // ⚡ ITEMS DE POTENCIA (5 items)
+  {
+    id: 'auto_clicker_pro',
+    name: 'Auto-Clicker Pro',
+    type: 'item',
+    price: 50000,
+    priceCroc: 500,
+    currency: 'both',
+    image: '/images/items/auto_clicker.jpg',
+    description: '20 clics automáticos por segundo',
+    effect: {
+      autoClicks: 20,
       duration: 'permanent'
     }
   },
-  // Consumibles
   {
-    id: 'energy_potion',
-    name: 'Poción de Energía XL',
-    type: 'consumable',
-    price: 1000,
-    priceCroc: 50,
+    id: 'energy_core',
+    name: 'Núcleo de Energía',
+    type: 'item',
+    price: 30000,
+    priceCroc: 300,
     currency: 'both',
-    description: 'Restaura 100 puntos de energía inmediatamente.',
+    image: '/images/items/energy_core.jpg',
+    description: '+100 energía máxima permanente',
     effect: {
-      energy: 100
+      maxEnergy: 100,
+      energyRegen: 1.2
     }
   },
-  // Boosts
+  {
+    id: 'cps_amplifier',
+    name: 'Amplificador CPS',
+    type: 'item',
+    price: 75000,
+    priceCroc: 750,
+    currency: 'both',
+    image: '/images/items/cps_amplifier.jpg',
+    description: 'Doble CPS por 24 horas',
+    effect: {
+      cpsMultiplier: 2,
+      duration: 86400
+    }
+  },
+
+  // 🚀 BOOSTS TEMPORALES (5 boosts)
   {
     id: 'double_coins_boost',
     name: 'Boost x2 Monedas',
     type: 'boost',
-    price: 2000,
-    priceCroc: 100,
+    price: 15000,
+    priceCroc: 150,
     currency: 'both',
-    description: 'Duplica todas las monedas obtenidas por 1 hora.',
+    image: '/images/boosts/double_coins.jpg',
+    description: 'Duplica monedas por 1 hora',
     effect: {
       coinMultiplier: 2,
-      duration: 3600 // segundos
+      duration: 3600
+    }
+  },
+  {
+    id: 'triple_click_boost',
+    name: 'Furia de Clics x3',
+    type: 'boost',
+    price: 25000,
+    priceCroc: 250,
+    currency: 'both',
+    image: '/images/boosts/triple_click.jpg',
+    description: 'Triple poder de click por 30 min',
+    effect: {
+      clickMultiplier: 3,
+      duration: 1800
+    }
+  },
+  {
+    id: 'energy_refill_boost',
+    name: 'Recarga Instantánea',
+    type: 'boost',
+    price: 10000,
+    priceCroc: 100,
+    currency: 'both',
+    image: '/images/boosts/energy_refill.jpg',
+    description: 'Energía al 100% inmediatamente',
+    effect: {
+      energyRefill: 'full',
+      instant: true
+    }
+  },
+
+  // 🧪 CONSUMIBLES (5 consumibles)
+  {
+    id: 'energy_potion_xl',
+    name: 'Poción Energía XL',
+    type: 'consumable',
+    price: 5000,
+    priceCroc: 50,
+    currency: 'both',
+    image: '/images/consumables/energy_potion.jpg',
+    description: 'Restaura 100 energía',
+    effect: {
+      energy: 100
+    }
+  },
+  {
+    id: 'coin_crate',
+    name: 'Cofre de Monedas',
+    type: 'consumable',
+    price: 10000,
+    priceCroc: 100,
+    currency: 'both',
+    image: '/images/consumables/coin_crate.jpg',
+    description: 'Contiene 10,000 monedas',
+    effect: {
+      coins: 10000
+    }
+  },
+  {
+    id: 'croc_token_bag',
+    name: 'Bolsa CROC',
+    type: 'consumable',
+    price: 50000,
+    priceCroc: 0, // Solo monedas
+    currency: 'coins',
+    image: '/images/consumables/croc_bag.jpg',
+    description: 'Contiene 100 tokens CROC',
+    effect: {
+      crocTokens: 100
+    }
+  },
+  {
+    id: 'xp_elixir',
+    name: 'Elixir de Experiencia',
+    type: 'consumable',
+    price: 20000,
+    priceCroc: 200,
+    currency: 'both',
+    image: '/images/consumables/xp_elixir.jpg',
+    description: '+500 XP inmediato',
+    effect: {
+      experience: 500
     }
   }
 ];

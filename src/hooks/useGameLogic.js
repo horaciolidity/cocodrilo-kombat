@@ -56,6 +56,7 @@ export function useGameLogic({
   const gameStateRef = useRef(gameState);
   const upgradesRef = useRef(upgrades);
   const syncTimeoutRef = useRef(null);
+  const lastEnergySyncRef = useRef(0);
 
   // 🔄 ACTUALIZAR REFS CUANDO CAMBIAN LOS DATOS
   useEffect(() => {
@@ -66,90 +67,58 @@ export function useGameLogic({
     upgradesRef.current = upgrades;
   }, [upgrades]);
 
-
-
-
-
-
-
-  
-// ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN CORREGIDA Y ESTABLE
-useEffect(() => {
-  if (!gameState || !updateGameState) return;
-  
-  console.log("⚡ Iniciando sistema de regeneración de energía (estable)...");
-  
-  let isMounted = true;
-  let energyInterval = null;
-  
-  const startEnergySystem = () => {
-    if (!isMounted) return;
+  // ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN OPTIMIZADA
+  useEffect(() => {
+    if (!gameState || !updateGameState) return;
     
-    // Limpiar intervalo existente
-    if (energyInterval) {
-      clearInterval(energyInterval);
-      energyInterval = null;
-    }
+    let isMounted = true;
+    let energyInterval = null;
     
-    // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
-    energyInterval = setInterval(() => {
-      if (!isMounted || !gameStateRef.current) return;
+    const startEnergySystem = () => {
+      if (!isMounted) return;
       
-      const currentEnergy = gameStateRef.current.energy;
-      const currentMaxEnergy = gameStateRef.current.maxEnergy;
-      
-      if (currentEnergy < currentMaxEnergy) {
-        const newEnergy = currentEnergy + 1;
-        
-        console.log(`⚡ Regenerando: ${currentEnergy} -> ${newEnergy}`);
-        
-        updateGameState({
-          energy: newEnergy
-        });
-        
-        // Sincronizar con BD cada 10 regeneraciones
-        if (newEnergy % 10 === 0) {
-          syncGameData({
-            energy: newEnergy,
-            last_active: new Date().toISOString()
-          });
-        }
+      if (energyInterval) {
+        clearInterval(energyInterval);
       }
-    }, 3000);
-  };
-  
-  // Iniciar sistema
-  startEnergySystem();
-  
-  // 2. REGENERACIÓN POR VISIBILIDAD
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible' && isMounted) {
-      console.log("👀 Usuario activo - Verificando energía...");
       
-      // Solo sincronizar, no regenerar inmediatamente
-      syncGameData({
-        last_active: new Date().toISOString()
-      });
-    }
-  };
-  
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  
-  return () => {
-    console.log("🔄 Sistema de regeneración limpiado");
-    isMounted = false;
+      // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
+      energyInterval = setInterval(() => {
+        if (!isMounted || !gameStateRef.current) return;
+        
+        const currentEnergy = gameStateRef.current.energy;
+        const currentMaxEnergy = gameStateRef.current.maxEnergy;
+        
+        if (currentEnergy < currentMaxEnergy) {
+          const newEnergy = Math.min(currentEnergy + 1, currentMaxEnergy);
+          
+          updateGameState({
+            energy: newEnergy
+          });
+          
+          // Sincronizar con BD cada 10 regeneraciones
+          const now = Date.now();
+          if (now - lastEnergySyncRef.current > 30000) {
+            syncGameData({
+              energy: newEnergy,
+              last_active: new Date().toISOString()
+            });
+            lastEnergySyncRef.current = now;
+          }
+        }
+      }, 3000);
+    };
     
-    if (energyInterval) {
-      clearInterval(energyInterval);
-      energyInterval = null;
-    }
+    startEnergySystem();
     
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, [gameState.maxEnergy]); // Solo depende de maxEnergy, no de updateGameState o syncGameData
+    return () => {
+      isMounted = false;
+      if (energyInterval) {
+        clearInterval(energyInterval);
+      }
+    };
+  }, [gameState.maxEnergy, updateGameState, syncGameData]);
 
-
-  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS
+  // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - CORREGIDA
   useEffect(() => {
     console.log("💰 Iniciando generación de monedas...");
     
@@ -163,8 +132,14 @@ useEffect(() => {
       // Aplicar boosts de items
       ownedItems.forEach(itemId => {
         const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-        if (item && item.effect.type === 'cps_boost') {
-          effectiveCPS += item.effect.value;
+        if (item && item.effect?.cpsBoost) {
+          effectiveCPS += item.effect.cpsBoost;
+        }
+        if (item && item.effect?.autoClicks) {
+          effectiveCPS += item.effect.autoClicks;
+        }
+        if (item && item.effect?.coinMultiplier) {
+          effectiveCPS *= item.effect.coinMultiplier;
         }
       });
 
@@ -177,13 +152,13 @@ useEffect(() => {
       });
 
       if (effectiveCPS > 0) {
-        const increment = effectiveCPS;
+        const increment = effectiveCPS / 10; // Dividido por 10 porque se ejecuta 10 veces por segundo
         updateGameState({
           coins: gameState.coins + increment,
           totalCoins: gameState.totalCoins + increment
         });
       }
-    }, 1000);
+    }, 100); // Cada 100ms para mayor fluidez
 
     return () => {
       if (coinsIntervalRef.current) {
@@ -258,7 +233,7 @@ useEffect(() => {
     syncGameData
   ]);
 
-  // 🎯 FUNCIÓN PARA CALCULAR CLICK POWER REAL
+  // 🎯 FUNCIÓN PARA CALCULAR CLICK POWER REAL - MEJORADA
   const calculateRealClickPower = useCallback(() => {
     let clickPower = gameState.clickPower;
     
@@ -272,6 +247,10 @@ useEffect(() => {
         } else if (upgradeConfig.type === 'click') {
           const clickBonus = upgradeConfig.basePower * upgradeData.level;
           clickPower += clickBonus;
+        } else if (upgradeConfig.type === 'cps') {
+          // CPS upgrades no afectan click power directamente
+        } else if (upgradeConfig.type === 'energy') {
+          // Energy upgrades no afectan click power
         }
       }
     });
@@ -279,8 +258,11 @@ useEffect(() => {
     // ✅ APLICAR BONUS DE ITEMS
     ownedItems.forEach(itemId => {
       const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-      if (item && item.effect.type === 'click_boost') {
-        clickPower += item.effect.value;
+      if (item && item.effect?.clickMultiplier) {
+        clickPower *= item.effect.clickMultiplier;
+      }
+      if (item && item.effect?.clickPower) {
+        clickPower += item.effect.clickPower;
       }
     });
 
@@ -298,8 +280,16 @@ useEffect(() => {
       }
     });
 
-    return Math.max(1, clickPower);
-  }, [gameState.clickPower, upgrades, ownedItems, ownedCards]);
+    // ✅ APLICAR BONUS DE SKIN ACTIVA
+    if (activeSkin) {
+      const skin = SHOP_ITEMS.find(i => i.id === activeSkin);
+      if (skin && skin.effect?.clickMultiplier) {
+        clickPower *= skin.effect.clickMultiplier;
+      }
+    }
+
+    return Math.max(1, Math.floor(clickPower));
+  }, [gameState.clickPower, upgrades, ownedItems, ownedCards, activeSkin]);
 
   // 👆 FUNCIÓN DE CLIC - OPTIMIZADA
   const handleClick = useCallback((event) => {
@@ -344,18 +334,29 @@ useEffect(() => {
     }
 
     // Sistema de niveles
-    const newLevel = Math.floor((gameState.experience + 1) / 100) + 1;
+    const expForNextLevel = 100; // 100 XP por nivel
+    const currentExp = gameState.experience + 1;
+    const newLevel = Math.floor(currentExp / expForNextLevel) + 1;
+    
     if (newLevel > gameState.level) {
-      updateGameState({ level: newLevel });
+      const levelDiff = newLevel - gameState.level;
+      updateGameState({ 
+        level: newLevel,
+        maxEnergy: gameState.maxEnergy + (levelDiff * 10) // +10 energía por nivel
+      });
+      
       toast({ 
         title: "🎉 ¡Nivel Subido!", 
-        description: `¡Ahora eres nivel ${newLevel}!`, 
+        description: `¡Ahora eres nivel ${newLevel}! +${levelDiff * 10} energía máxima`, 
         duration: 3000 
       });
       playSound('levelUp');
       
       // Sincronizar nivel
-      syncGameData({ level: newLevel });
+      syncGameData({ 
+        level: newLevel,
+        max_energy: gameState.maxEnergy + (levelDiff * 10)
+      });
     }
   }, [gameState, calculateRealClickPower, updateGameState, toast, playSound, syncGameData]);
 
@@ -560,386 +561,409 @@ useEffect(() => {
     });
   }, [missions, ownedCards, gameState, updateGameState, updateOwnedCards, updateMissions, toast, playSound, syncGameData]);
 
-
-// 📅 RECOMPENSA DIARIA - VERSIÓN CORREGIDA
-const claimDailyReward = useCallback(() => {
-  console.log('🎁 Intentando reclamar recompensa diaria...');
-  
-  if (!dailyRewards.available) {
-    toast({ 
-      title: "⏳ Ya Reclamaste Hoy", 
-      description: "Vuelve mañana para tu próxima recompensa.", 
-      duration: 2000 
-    });
-    playSound('uiClick');
-    return;
-  }
-
-  const now = new Date();
-  const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-  
-  // Calcular nueva racha
-  let newStreak = 1;
-  
-  if (lastClaimDate) {
-    const diffTime = Math.abs(now - lastClaimDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // 📅 RECOMPENSA DIARIA - VERSIÓN SIMPLIFICADA
+  const claimDailyReward = useCallback(() => {
+    console.log('🎁 Intentando reclamar recompensa diaria...');
     
-    if (diffDays === 1) {
-      // Reclamación consecutiva
-      newStreak = dailyRewards.streak + 1;
-    } else if (diffDays > 1) {
-      // Se perdió la racha
-      newStreak = 1;
-      toast({
-        title: "🔄 Racha Reiniciada",
-        description: `Pasaron ${diffDays} días desde tu última reclamación.`,
-        duration: 3000,
+    if (!dailyRewards.available) {
+      toast({ 
+        title: "⏳ Ya Reclamaste Hoy", 
+        description: "Vuelve mañana para tu próxima recompensa.", 
+        duration: 2000 
       });
+      playSound('uiClick');
+      return;
     }
-  }
 
-  // Calcular recompensa (base 100 + bonus por racha)
-  const baseReward = 100;
-  const streakBonus = (newStreak - 1) * 50; // +50 monedas por cada día de racha
-  const totalReward = baseReward + streakBonus;
-
-  console.log(`🎁 Recompensa: ${totalReward} monedas (Racha: ${newStreak})`);
-
-  // Actualizar estado del juego
-  const newGameState = {
-    coins: gameState.coins + totalReward,
-    totalCoins: gameState.totalCoins + totalReward
-  };
-  
-  updateGameState(newGameState);
-
-  // Actualizar recompensa diaria
-  const newDailyRewards = { 
-    lastClaim: now.toISOString(), 
-    streak: newStreak, 
-    available: false 
-  };
-  
-  updateDailyRewards(newDailyRewards);
-
-  toast({ 
-    title: "🎁 ¡Recompensa Diaria Reclamada!", 
-    description: `+${totalReward} monedas (Racha: ${newStreak} días)`, 
-    duration: 4000 
-  });
-  
-  playSound('reward');
-
-  // Sincronizar con Supabase
-  syncGameData({
-    coins: newGameState.coins,
-    total_coins: newGameState.totalCoins,
-    daily_rewards: newDailyRewards
-  });
-
-}, [dailyRewards, gameState, updateGameState, updateDailyRewards, toast, playSound, syncGameData]);
-
-
-// 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA - VERSIÓN CORREGIDA
-useEffect(() => {
-  const checkDailyReward = () => {
-    if (!dailyRewards || !updateDailyRewards) return;
-    
     const now = new Date();
     const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
     
-    let shouldUpdate = false;
-    let newDailyRewards = { ...dailyRewards };
+    // Calcular nueva racha
+    let newStreak = 1;
     
-    // Si no hay última reclamación, está disponible
-    if (!lastClaimDate) {
-      if (!dailyRewards.available) {
-        newDailyRewards.available = true;
-        shouldUpdate = true;
-      }
-    } else {
-      // Calcular diferencia en días
+    if (lastClaimDate) {
       const diffTime = Math.abs(now - lastClaimDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
       
-      // Si ha pasado al menos un día y es un nuevo día
-      if (diffDays >= 1 && isNewDay) {
-        if (!dailyRewards.available) {
-          newDailyRewards.available = true;
-          shouldUpdate = true;
-        }
-      } else if (diffDays < 1 && dailyRewards.available) {
-        // Si no ha pasado un día pero dice que está disponible, corregir
-        newDailyRewards.available = false;
-        shouldUpdate = true;
-      }
-    }
-    
-    // Solo actualizar si hay cambios
-    if (shouldUpdate) {
-      console.log('🎁 Actualizando estado de recompensa diaria');
-      updateDailyRewards(newDailyRewards);
-    }
-  };
-  
-  // Ejecutar una vez al cargar
-  checkDailyReward();
-  
-  // Verificar cada 5 minutos (no cada render)
-  const interval = setInterval(checkDailyReward, 5 * 60 * 1000);
-  
-  return () => clearInterval(interval);
-}, [dailyRewards?.lastClaim]); // Solo dependemos de lastClaim
-
-
-
-// 🛍️ TIENDA - VERSIÓN CORREGIDA Y OPTIMIZADA
-const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
-  console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
-  
-  const item = SHOP_ITEMS.find(i => i.id === itemId);
-  if (!item) {
-    console.error('❌ Item no encontrado:', itemId);
-    toast({ 
-      title: "❌ Error", 
-      description: "El item no existe.", 
-      duration: 2000 
-    });
-    playSound('error');
-    return false;
-  }
-
-  // 🔍 Verificar si ya es dueño (para items no consumibles)
-  const isAlreadyOwnedNonConsumable = ownedItems.some(owned => {
-    if (typeof owned === 'string') return owned === itemId;
-    if (typeof owned === 'object') return owned.id === itemId;
-    return false;
-  });
-
-  if (isAlreadyOwnedNonConsumable && item.type !== 'consumable' && item.type !== 'boost') {
-    toast({ 
-      title: "🚫 Ya Posees Este Ítem", 
-      description: `Ya tienes "${item.name}".`, 
-      duration: 2000 
-    });
-    playSound('error');
-    return false;
-  }
-  
-  // 🎨 Verificar si la skin ya está activa
-  if (item.type === 'skin' && activeSkin === itemId) {
-    toast({ 
-      title: "🎨 Skin ya Activa", 
-      description: `La skin "${item.name}" ya está en uso.`, 
-      duration: 2000 
-    });
-    playSound('uiClick');
-    return false;
-  }
-
-  // 💰 Calcular precio
-  const basePrice = useCroc ? (item.priceCroc || Math.floor(item.price * 0.1)) : item.price;
-  const finalPrice = Math.floor(basePrice * (1 - discount / 100));
-  
-  // 📊 Verificar saldo suficiente
-  const balance = useCroc ? gameState.nativeTokenBalance : gameState.coins;
-  const currencyName = useCroc ? 'CROC' : 'monedas';
-  
-  if (balance < finalPrice) {
-    const needed = finalPrice - balance;
-    toast({ 
-      title: `💰 ${currencyName} Insuficientes`, 
-      description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`, 
-      duration: 3000 
-    });
-    playSound('error');
-    return false;
-  }
-
-  try {
-    console.log(`✅ Compra aprobada: ${item.name} por ${finalPrice} ${currencyName} (descuento: ${discount}%)`);
-
-    // 🎯 CALCULAR TODOS LOS CAMBIOS EN UN SOLO OBJETO
-    const updates = {
-      coins: useCroc ? gameState.coins : gameState.coins - finalPrice,
-      nativeTokenBalance: useCroc ? gameState.nativeTokenBalance - finalPrice : gameState.nativeTokenBalance,
-      totalCoins: gameState.totalCoins,
-      energy: gameState.energy,
-      coinsPerSecond: gameState.coinsPerSecond,
-      experience: gameState.experience
-    };
-
-    // 🎁 MANEJAR EFECTOS ESPECÍFICOS DEL ITEM
-    let newOwnedItems = [...ownedItems];
-    let newActiveSkin = activeSkin;
-    let effectApplied = false;
-
-    switch (item.type) {
-      case 'skin':
-        newActiveSkin = itemId;
-        if (!newOwnedItems.includes(itemId)) {
-          newOwnedItems.push(itemId);
-        }
-        
-        // Bonus por skin legendaria
-        if (item.rarity === 'legendary') {
-          const bonusCroc = Math.floor(finalPrice * 0.05);
-          updates.nativeTokenBalance += bonusCroc;
-        }
-        break;
-
-      case 'item':
-      case 'boost':
-        if (!newOwnedItems.includes(itemId)) {
-          newOwnedItems.push(itemId);
-        }
-        
-        if (item.effect?.autoClicks) {
-          updates.coinsPerSecond += item.effect.autoClicks;
-          effectApplied = true;
-        }
-        break;
-
-      case 'consumable':
-        const existingIndex = newOwnedItems.findIndex(i => 
-          typeof i === 'object' && i.id === itemId
-        );
-        
-        if (existingIndex > -1) {
-          newOwnedItems[existingIndex] = { 
-            ...newOwnedItems[existingIndex], 
-            quantity: (newOwnedItems[existingIndex].quantity || 0) + 1 
-          };
-        } else {
-          newOwnedItems.push({ id: itemId, quantity: 1 });
-        }
-        
-        if (item.effect?.energy) {
-          updates.energy = Math.min(gameState.maxEnergy, gameState.energy + item.effect.energy);
-          effectApplied = true;
-        }
-        
-        if (item.effect?.coins) {
-          updates.coins += item.effect.coins;
-          updates.totalCoins += item.effect.coins;
-          effectApplied = true;
-        }
-        break;
-
-      default:
-        console.warn('⚠️ Tipo de item desconocido:', item.type);
-        break;
-    }
-
-    // 📦 APLICAR TODAS LAS ACTUALIZACIONES DE UNA VEZ
-    updateGameState(updates);
-    
-    if (item.type === 'skin') {
-      updateActiveSkin(newActiveSkin);
-    }
-    
-    updateOwnedItems(newOwnedItems);
-
-    // 🏆 VERIFICAR LOGROS
-    if (item.type === 'skin') {
-      const ownedSkins = newOwnedItems.filter(id => {
-        const it = SHOP_ITEMS.find(s => s.id === id);
-        return it && it.type === 'skin';
-      }).length;
-      
-      if (ownedSkins >= 3 && !achievementsUnlocked.includes('skin_collector_1')) {
-        const newAchievements = [...achievementsUnlocked, 'skin_collector_1'];
-        updateAchievementsUnlocked(newAchievements);
-        
+      if (diffDays === 1) {
+        // Reclamación consecutiva
+        newStreak = dailyRewards.streak + 1;
+      } else if (diffDays > 1) {
+        // Se perdió la racha
+        newStreak = 1;
         toast({
-          title: "🏆 Logro Desbloqueado!",
-          description: "¡Coleccionista de Skins Nivel 1!",
-          duration: 5000,
+          title: "🔄 Racha Reiniciada",
+          description: `Pasaron ${diffDays} días desde tu última reclamación.`,
+          duration: 3000,
         });
       }
     }
 
-    // 💾 PREPARAR DATOS PARA SINCRONIZACIÓN
-    const syncData = {
-      coins: updates.coins,
-      native_token_balance: updates.nativeTokenBalance,
-      owned_items: newOwnedItems,
-      active_skin: item.type === 'skin' ? itemId : activeSkin,
-      energy: updates.energy,
-      coins_per_second: updates.coinsPerSecond,
-      total_coins: updates.totalCoins,
-      experience: updates.experience
+    // Calcular recompensa (base 100 + bonus por racha)
+    const baseReward = 100;
+    const streakBonus = (newStreak - 1) * 50; // +50 monedas por cada día de racha
+    const totalReward = baseReward + streakBonus;
+
+    console.log(`🎁 Recompensa: ${totalReward} monedas (Racha: ${newStreak})`);
+
+    // Actualizar estado del juego
+    const newGameState = {
+      coins: gameState.coins + totalReward,
+      totalCoins: gameState.totalCoins + totalReward
     };
+    
+    updateGameState(newGameState);
 
-    // 📤 SINCRONIZAR CON SUPABASE - VERSIÓN MEJORADA
-    const syncResult = await syncGameData(syncData);
+    // Actualizar recompensa diaria
+    const newDailyRewards = { 
+      lastClaim: now.toISOString(), 
+      streak: newStreak, 
+      available: false 
+    };
     
-    if (!syncResult) {
-      console.warn('⚠️ Sincronización falló, pero los cambios locales se mantienen');
-    }
+    updateDailyRewards(newDailyRewards);
 
-    // 🎉 NOTIFICACIONES
-    let title = "✅ Compra Exitosa!";
-    let description = `Has adquirido "${item.name}" por ${finalPrice} ${currencyName}`;
-    
-    if (item.type === 'skin') {
-      title = "🎨 ¡Skin Equipada!";
-      description = `¡Ahora usas "${item.name}"!`;
-    } else if (item.type === 'consumable') {
-      title = "⚡ Consumible Activado";
-    }
-    
-    if (discount > 0) {
-      description += ` (${discount}% descuento)`;
-    }
-    
     toast({ 
-      title, 
-      description, 
+      title: "🎁 ¡Recompensa Diaria Reclamada!", 
+      description: `+${totalReward} monedas (Racha: ${newStreak} días)`, 
       duration: 4000 
     });
     
-    // 🔊 SONIDO
-    if (item.type === 'skin') playSound('equip');
-    else if (item.type === 'consumable') playSound('powerUp');
-    else playSound('buy');
+    playSound('reward');
 
-    console.log('✅ Compra completada exitosamente:', {
-      item: item.name,
-      precio: finalPrice,
-      moneda: currencyName,
-      descuento: discount,
-      nuevoSaldo: useCroc ? updates.nativeTokenBalance : updates.coins,
-      syncResult
+    // Sincronizar con Supabase
+    syncGameData({
+      coins: newGameState.coins,
+      total_coins: newGameState.totalCoins,
+      daily_rewards: newDailyRewards
     });
 
-    return true;
+  }, [dailyRewards, gameState, updateGameState, updateDailyRewards, toast, playSound, syncGameData]);
 
-  } catch (error) {
-    console.error('❌ Error en la compra:', error);
+  // 🔄 VERIFICAR DISPONIBILIDAD DE RECOMPENSA DIARIA
+  useEffect(() => {
+    const checkDailyReward = () => {
+      if (!dailyRewards || !updateDailyRewards) return;
+      
+      const now = new Date();
+      const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
+      
+      let shouldUpdate = false;
+      let newDailyRewards = { ...dailyRewards };
+      
+      // Si no hay última reclamación, está disponible
+      if (!lastClaimDate) {
+        if (!dailyRewards.available) {
+          newDailyRewards.available = true;
+          shouldUpdate = true;
+        }
+      } else {
+        // Calcular diferencia en días
+        const diffTime = Math.abs(now - lastClaimDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
+        
+        // Si ha pasado al menos un día y es un nuevo día
+        if (diffDays >= 1 && isNewDay) {
+          if (!dailyRewards.available) {
+            newDailyRewards.available = true;
+            shouldUpdate = true;
+          }
+        } else if (diffDays < 1 && dailyRewards.available) {
+          // Si no ha pasado un día pero dice que está disponible, corregir
+          newDailyRewards.available = false;
+          shouldUpdate = true;
+        }
+      }
+      
+      // Solo actualizar si hay cambios
+      if (shouldUpdate) {
+        console.log('🎁 Actualizando estado de recompensa diaria');
+        updateDailyRewards(newDailyRewards);
+      }
+    };
+    
+    // Ejecutar una vez al cargar
+    checkDailyReward();
+    
+    // Verificar cada minuto
+    const interval = setInterval(checkDailyReward, 60000);
+    
+    return () => clearInterval(interval);
+  }, [dailyRewards, updateDailyRewards]);
+
+  // 🛍️ TIENDA - VERSIÓN SIMPLIFICADA Y FUNCIONAL
+  const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
+    console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
+    
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    if (!item) {
+      console.error('❌ Item no encontrado:', itemId);
+      toast({ 
+        title: "❌ Error", 
+        description: "El item no existe.", 
+        duration: 2000 
+      });
+      playSound('error');
+      return false;
+    }
+
+    // 🔍 Verificar si ya es dueño (para items no consumibles)
+    const isAlreadyOwned = ownedItems.some(owned => {
+      if (typeof owned === 'string') return owned === itemId;
+      if (typeof owned === 'object') return owned.id === itemId;
+      return false;
+    });
+
+    if (isAlreadyOwned && item.type !== 'consumable' && item.type !== 'boost') {
+      toast({ 
+        title: "🚫 Ya Posees Este Ítem", 
+        description: `Ya tienes "${item.name}".`, 
+        duration: 2000 
+      });
+      playSound('error');
+      return false;
+    }
+    
+    // 🎨 Verificar si la skin ya está activa
+    if (item.type === 'skin' && activeSkin === itemId) {
+      toast({ 
+        title: "🎨 Skin ya Activa", 
+        description: `La skin "${item.name}" ya está en uso.`, 
+        duration: 2000 
+      });
+      playSound('uiClick');
+      return false;
+    }
+
+    // 💰 Calcular precio
+    const basePrice = useCroc ? (item.priceCroc || Math.floor(item.price * 0.1)) : item.price;
+    const finalPrice = Math.floor(basePrice * (1 - discount / 100));
+    
+    // 📊 Verificar saldo suficiente
+    const balance = useCroc ? gameState.nativeTokenBalance : gameState.coins;
+    const currencyName = useCroc ? 'CROC' : 'monedas';
+    
+    if (balance < finalPrice) {
+      const needed = finalPrice - balance;
+      toast({ 
+        title: `💰 ${currencyName} Insuficientes`, 
+        description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`, 
+        duration: 3000 
+      });
+      playSound('error');
+      return false;
+    }
+
+    try {
+      console.log(`✅ Compra aprobada: ${item.name} por ${finalPrice} ${currencyName} (descuento: ${discount}%)`);
+
+      // 🎯 CALCULAR CAMBIOS BÁSICOS
+      const updates = {
+        coins: useCroc ? gameState.coins : gameState.coins - finalPrice,
+        nativeTokenBalance: useCroc ? gameState.nativeTokenBalance - finalPrice : gameState.nativeTokenBalance,
+        totalCoins: gameState.totalCoins,
+        energy: gameState.energy,
+        coinsPerSecond: gameState.coinsPerSecond,
+        experience: gameState.experience
+      };
+
+      // 🎁 MANEJAR EFECTOS ESPECÍFICOS DEL ITEM
+      let newOwnedItems = [...ownedItems];
+      let newActiveSkin = activeSkin;
+
+      switch (item.type) {
+        case 'skin':
+          newActiveSkin = itemId;
+          if (!newOwnedItems.includes(itemId)) {
+            newOwnedItems.push(itemId);
+          }
+          break;
+
+        case 'item':
+        case 'boost':
+          if (!newOwnedItems.includes(itemId)) {
+            newOwnedItems.push(itemId);
+          }
+          
+          // Aplicar efectos inmediatos
+          if (item.effect?.autoClicks) {
+            updates.coinsPerSecond = gameState.coinsPerSecond + item.effect.autoClicks;
+          }
+          if (item.effect?.cpsBoost) {
+            updates.coinsPerSecond = gameState.coinsPerSecond + item.effect.cpsBoost;
+          }
+          if (item.effect?.maxEnergy) {
+            updates.maxEnergy = gameState.maxEnergy + item.effect.maxEnergy;
+            updates.energy = updates.maxEnergy;
+          }
+          break;
+
+        case 'consumable':
+          // Para consumibles, no los agregamos a ownedItems permanentemente
+          // Solo aplicamos el efecto inmediato
+          if (item.effect?.energy) {
+            updates.energy = Math.min(gameState.maxEnergy, gameState.energy + item.effect.energy);
+          }
+          if (item.effect?.coins) {
+            updates.coins += item.effect.coins;
+            updates.totalCoins += item.effect.coins;
+          }
+          if (item.effect?.crocTokens) {
+            updates.nativeTokenBalance += item.effect.crocTokens;
+          }
+          if (item.effect?.experience) {
+            updates.experience += item.effect.experience;
+          }
+          break;
+
+        default:
+          console.warn('⚠️ Tipo de item desconocido:', item.type);
+          break;
+      }
+
+      // 📦 APLICAR ACTUALIZACIONES
+      updateGameState(updates);
+      
+      if (item.type === 'skin') {
+        updateActiveSkin(newActiveSkin);
+      }
+      
+      // Solo actualizar ownedItems para items no consumibles
+      if (item.type !== 'consumable') {
+        updateOwnedItems(newOwnedItems);
+      }
+
+      // 🏆 VERIFICAR LOGROS
+      if (item.type === 'skin') {
+        const ownedSkins = newOwnedItems.filter(id => {
+          const it = SHOP_ITEMS.find(s => s.id === id);
+          return it && it.type === 'skin';
+        }).length;
+        
+        if (ownedSkins >= 3 && !achievementsUnlocked.includes('skin_collector_1')) {
+          const newAchievements = [...achievementsUnlocked, 'skin_collector_1'];
+          updateAchievementsUnlocked(newAchievements);
+          
+          toast({
+            title: "🏆 Logro Desbloqueado!",
+            description: "¡Coleccionista de Skins Nivel 1!",
+            duration: 5000,
+          });
+        }
+      }
+
+      // 💾 PREPARAR DATOS PARA SINCRONIZACIÓN
+      const syncData = {
+        coins: updates.coins,
+        native_token_balance: updates.nativeTokenBalance,
+        owned_items: item.type !== 'consumable' ? newOwnedItems : ownedItems,
+        active_skin: item.type === 'skin' ? itemId : activeSkin,
+        energy: updates.energy,
+        coins_per_second: updates.coinsPerSecond,
+        total_coins: updates.totalCoins,
+        experience: updates.experience,
+        max_energy: updates.maxEnergy || gameState.maxEnergy
+      };
+
+      // 📤 SINCRONIZAR CON SUPABASE
+      await syncGameData(syncData);
+
+      // 🎉 NOTIFICACIONES
+      let title = "✅ Compra Exitosa!";
+      let description = `Has adquirido "${item.name}" por ${finalPrice} ${currencyName}`;
+      
+      if (item.type === 'skin') {
+        title = "🎨 ¡Skin Equipada!";
+        description = `¡Ahora usas "${item.name}"!`;
+      } else if (item.type === 'consumable') {
+        title = "⚡ Consumible Activado";
+      }
+      
+      if (discount > 0) {
+        description += ` (${discount}% descuento)`;
+      }
+      
+      toast({ 
+        title, 
+        description, 
+        duration: 4000 
+      });
+      
+      // 🔊 SONIDO
+      if (item.type === 'skin') playSound('equip');
+      else if (item.type === 'consumable') playSound('powerUp');
+      else playSound('buy');
+
+      console.log('✅ Compra completada exitosamente');
+
+      return true;
+
+    } catch (error) {
+      console.error('❌ Error en la compra:', error);
+      toast({
+        title: "❌ Error en la compra",
+        description: "No se pudo completar la transacción. Intenta nuevamente.",
+        duration: 3000,
+      });
+      playSound('error');
+      return false;
+    }
+  }, [
+    gameState, 
+    ownedItems, 
+    activeSkin, 
+    achievementsUnlocked,
+    updateGameState, 
+    updateActiveSkin, 
+    updateOwnedItems,
+    updateAchievementsUnlocked,
+    toast, 
+    playSound, 
+    syncGameData
+  ]);
+
+  // 🎨 FUNCIÓN PARA EQUIPAR SKIN (separada de buyShopItem)
+  const equipSkin = useCallback((skinId) => {
+    const skin = SHOP_ITEMS.find(i => i.id === skinId);
+    if (!skin) {
+      toast({
+        title: "❌ Skin no encontrada",
+        description: "Esta skin no existe.",
+        duration: 2000,
+      });
+      playSound('error');
+      return;
+    }
+
+    // Verificar si el usuario posee la skin
+    const ownsSkin = ownedItems.includes(skinId);
+    if (!ownsSkin) {
+      toast({
+        title: "❌ No posees esta skin",
+        description: "Debes comprar la skin antes de equiparla.",
+        duration: 3000,
+      });
+      playSound('error');
+      return;
+    }
+
+    // Equipar la skin
+    updateActiveSkin(skinId);
+    
     toast({
-      title: "❌ Error en la compra",
-      description: "No se pudo completar la transacción. Intenta nuevamente.",
+      title: "🎨 Skin Equipada",
+      description: `¡Ahora usas "${skin.name}"!`,
       duration: 3000,
     });
-    playSound('error');
-    return false;
-  }
-}, [
-  gameState, 
-  ownedItems, 
-  activeSkin, 
-  achievementsUnlocked,
-  updateGameState, 
-  updateActiveSkin, 
-  updateOwnedItems,
-  updateAchievementsUnlocked,
-  toast, 
-  playSound, 
-  syncGameData
-]);
+    
+    playSound('equip');
+    
+    // Sincronizar con BD
+    syncGameData({
+      active_skin: skinId
+    });
+  }, [ownedItems, updateActiveSkin, toast, playSound, syncGameData]);
 
   // 🏆 HITOS DE FARMEO
   const claimFarmingMilestone = useCallback((milestoneId) => {
@@ -1024,18 +1048,6 @@ const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) =>
 
   // 🔄 REINICIAR PROGRESO
   const resetProgress = useCallback(() => {
-    const resetData = {
-      gameState: DEFAULT_INITIAL_GAME_STATE,
-      upgrades: DEFAULT_INITIAL_UPGRADES_STATE,
-      missions: DEFAULT_INITIAL_MISSIONS_STATE,
-      ownedCards: [],
-      ownedItems: [],
-      activeSkin: null,
-      achievementsUnlocked: [],
-      dailyRewards: { lastClaim: null, streak: 0, available: true },
-      farmingMilestones: INITIAL_FARMING_MILESTONES_STATE,
-    };
-    
     // Actualizar todos los estados
     updateGameState(DEFAULT_INITIAL_GAME_STATE);
     updateUpgrades(DEFAULT_INITIAL_UPGRADES_STATE);
@@ -1056,7 +1068,6 @@ const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) =>
     // Sincronizar reinicio completo
     syncGameData({
       coins: 0,
-      croc_tokens: 0,
       native_token_balance: 0,
       level: 1,
       clicks: 0,
@@ -1092,10 +1103,6 @@ const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) =>
     syncGameData
   ]);
 
-
-
-
-  
   // 📤 DEVOLVER DATOS Y FUNCIONES
   return {
     // 🎯 DATOS DEL JUEGO
@@ -1128,6 +1135,7 @@ const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) =>
     claimMissionReward,
     claimDailyReward,
     buyShopItem,
+    equipSkin, // 🔥 NUEVA FUNCIÓN PARA EQUIPAR SKINS
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,

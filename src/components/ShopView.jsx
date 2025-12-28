@@ -1,13 +1,17 @@
-// src/components/ShopView.jsx - VERSIÓN OPTIMIZADA
+// src/components/ShopView.jsx - VERSIÓN CORREGIDA Y COMPLETA
 import React, { useState, useMemo, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
   ShoppingCart, Palette, Gem, Zap, Check, Eye,
   Coins, Sparkles, Crown, Shield, Award, ShoppingBag,
-  Package, AlertCircle, TrendingUp, RefreshCw, Info,
+  Package, TrendingUp, RefreshCw, Info,
   Star, DollarSign, Users, Ticket, Percent, Clock,
-  Gift, Heart, Target, ChevronRight
+  Gift, Heart, Target, ChevronRight, Flame,
+  Battery, Rocket, Shield as ShieldIcon, Swords,
+  Trophy, Zap as ZapIcon, Droplets, Sparkles as SparklesIcon,
+  Clock as ClockIcon, Target as TargetIcon, Users as UsersIcon,
+  Wallet, Layers, Brain, Cpu, Gem as GemIcon
 } from "lucide-react";
 import { SHOP_ITEMS } from "@/config/gameConfig";
 import { useSound } from "@/hooks/useSound";
@@ -20,6 +24,7 @@ const ItemCard = memo(function ItemCardComponent({
   isDailyOffer = false,
   onPreview,
   onBuyItem,
+  onEquipSkin,
   ownedItems,
   activeSkin,
   coins,
@@ -31,6 +36,26 @@ const ItemCard = memo(function ItemCardComponent({
 }) {
   if (!item) return null;
   
+  // ✅ Obtener imagen con fallback
+  const getItemImage = (item) => {
+    if (item.image) return item.image;
+    
+    // Fallback por tipo
+    const seed = item.id;
+    switch(item.type) {
+      case 'skin':
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=65c9ff,b6e3f4,c0aede,d1d4f9,ffd5dc`;
+      case 'item':
+        return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}`;
+      case 'boost':
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=ffd166,ef476f,06d6a0,118ab2`;
+      case 'consumable':
+        return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=ffd166,ef476f`;
+      default:
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+    }
+  };
+
   // ✅ Determinar rareza
   const getRarityColor = useCallback((rarity) => {
     switch(rarity) {
@@ -51,26 +76,53 @@ const ItemCard = memo(function ItemCardComponent({
     });
 
     if (item.type === "skin") {
-      if (activeSkin === item.id) return { text: "Equipada", disabled: true };
-      if (isOwned) return { text: "Equipar", disabled: false };
+      if (activeSkin === item.id) return { 
+        text: "Equipada", 
+        disabled: true,
+        isEquipped: true 
+      };
+      if (isOwned) return { 
+        text: "Equipar", 
+        disabled: false,
+        isOwned: true 
+      };
     } else if (item.type === "item" || item.type === "boost") {
-      if (isOwned) return { text: "Comprado", disabled: true };
+      if (isOwned) return { 
+        text: "Comprado", 
+        disabled: true,
+        isOwned: true 
+      };
     }
     
     return {
       text: `Comprar`,
       disabled: false,
+      isOwned: false,
       price: item.price || 0,
       priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
     };
   }, [ownedItems, activeSkin]);
 
   const status = getItemStatus(item);
-  const Icon = item.icon || ShoppingCart;
   const discount = isDailyOffer ? (item.discount || 0) : collectionDiscount;
   const finalPrice = Math.floor((item.price || 0) * (1 - discount/100));
   const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount/100)));
   const isSkin = item.type === "skin";
+  const canAffordCoins = coins >= finalPrice;
+  const canAffordCroc = nativeTokenBalance >= finalPriceCroc;
+
+  // ✅ Obtener icono por tipo
+  const getTypeIcon = (type) => {
+    switch(type) {
+      case 'skin': return Palette;
+      case 'item': return Gem;
+      case 'boost': return Zap;
+      case 'consumable': return Gift;
+      default: return ShoppingCart;
+    }
+  };
+
+  const TypeIcon = getTypeIcon(item.type);
 
   return (
     <motion.div
@@ -105,13 +157,13 @@ const ItemCard = memo(function ItemCardComponent({
         </div>
       )}
 
-      {/* 🖼️ Imagen de portada para skins - BORDE OVALADO */}
-      {isSkin && item.image && (
+      {/* 🖼️ Imagen de portada para skins */}
+      {isSkin && (
         <div className="relative pt-8 pb-4 flex items-center justify-center">
           <div className="relative w-48 h-48 rounded-full border-4 border-gradient bg-gradient-to-br from-purple-900/30 via-pink-900/20 to-transparent p-2 shadow-2xl">
             <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/10">
               <img
-                src={item.image}
+                src={getItemImage(item)}
                 alt={item.name}
                 className="w-full h-full object-cover scale-110 hover:scale-125 transition-transform duration-500"
                 onError={(e) => {
@@ -136,23 +188,19 @@ const ItemCard = memo(function ItemCardComponent({
       {/* Para items no skins */}
       {!isSkin && (
         <div className="relative h-40 overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
-          {item.image ? (
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Icon className="w-16 h-16 text-gray-500" />
-            </div>
-          )}
+          <img
+            src={getItemImage(item)}
+            alt={item.name}
+            className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-300"
+            onError={(e) => {
+              e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}`;
+            }}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
           
           {/* Badge de tipo */}
           <div className="absolute top-3 right-3 bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-            {item.type === 'item' && <Gem className="w-3 h-3" />}
-            {item.type === 'boost' && <Zap className="w-3 h-3" />}
+            <TypeIcon className="w-3 h-3" />
             <span className="capitalize">{item.type || 'item'}</span>
           </div>
         </div>
@@ -181,11 +229,39 @@ const ItemCard = memo(function ItemCardComponent({
           {/* 📊 Efectos */}
           {item.effect && (
             <div className="flex flex-wrap gap-2 mb-4">
-              {Object.entries(item.effect).map(([key, value]) => (
-                <span key={key} className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded">
-                  +{value} {key}
-                </span>
-              ))}
+              {Object.entries(item.effect).map(([key, value]) => {
+                let displayText = `+${value}`;
+                let displayKey = key;
+                
+                // Formatear textos de efecto
+                switch(key) {
+                  case 'clickMultiplier':
+                    displayKey = 'Click Power';
+                    displayText = `x${value}`;
+                    break;
+                  case 'cpsBoost':
+                    displayKey = 'CPS';
+                    displayText = `+${value}`;
+                    break;
+                  case 'energyRegen':
+                    displayKey = 'Energy Regen';
+                    displayText = `+${(value-1)*100}%`;
+                    break;
+                  case 'maxEnergy':
+                    displayKey = 'Max Energy';
+                    break;
+                  case 'coinMultiplier':
+                    displayKey = 'Coin Multiplier';
+                    displayText = `x${value}`;
+                    break;
+                }
+                
+                return (
+                  <span key={key} className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded">
+                    {displayText} {displayKey}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
@@ -194,39 +270,39 @@ const ItemCard = memo(function ItemCardComponent({
         <div className="mb-4">
           <div className="grid grid-cols-2 gap-2">
             {/* Precio en monedas */}
-            <div className={`text-center p-2 rounded-lg ${discount > 0 ? 'bg-yellow-500/10' : 'bg-gray-800/50'}`}>
+            <div className={`text-center p-2 rounded-lg ${discount > 0 ? 'bg-yellow-500/10' : 'bg-gray-800/50'} ${!canAffordCoins ? 'opacity-70' : ''}`}>
               <div className="text-xs text-gray-400 mb-1">Monedas</div>
               {discount > 0 ? (
                 <>
                   <div className="text-sm line-through text-gray-500">
                     {(item.price || 0).toLocaleString()} 💰
                   </div>
-                  <div className="text-lg font-bold text-yellow-400">
+                  <div className={`text-lg font-bold ${canAffordCoins ? 'text-yellow-400' : 'text-red-400'}`}>
                     {finalPrice.toLocaleString()} 💰
                   </div>
                 </>
               ) : (
-                <div className="text-lg font-bold text-yellow-400">
+                <div className={`text-lg font-bold ${canAffordCoins ? 'text-yellow-400' : 'text-red-400'}`}>
                   {(item.price || 0).toLocaleString()} 💰
                 </div>
               )}
             </div>
             
             {/* Precio en CROC */}
-            <div className="text-center p-2 rounded-lg bg-emerald-500/10">
+            <div className={`text-center p-2 rounded-lg bg-emerald-500/10 ${!canAffordCroc ? 'opacity-70' : ''}`}>
               <div className="text-xs text-gray-400 mb-1">CROC Tokens</div>
               {discount > 0 ? (
                 <>
                   <div className="text-sm line-through text-gray-500">
-                    {(status.priceCroc || 0).toLocaleString()} 🪙
+                    {(item.priceCroc || Math.floor((item.price || 0) * 0.1)).toLocaleString()} 🪙
                   </div>
-                  <div className="text-lg font-bold text-emerald-400">
+                  <div className={`text-lg font-bold ${canAffordCroc ? 'text-emerald-400' : 'text-red-400'}`}>
                     {finalPriceCroc.toLocaleString()} 🪙
                   </div>
                 </>
               ) : (
-                <div className="text-lg font-bold text-emerald-400">
-                  {(status.priceCroc || 0).toLocaleString()} 🪙
+                <div className={`text-lg font-bold ${canAffordCroc ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {(item.priceCroc || Math.floor((item.price || 0) * 0.1)).toLocaleString()} 🪙
                 </div>
               )}
             </div>
@@ -256,34 +332,55 @@ const ItemCard = memo(function ItemCardComponent({
             </Button>
           )}
 
-          {/* Botones de compra */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Botones de acción principal */}
+          {status.text === "Equipar" ? (
+            // Botón para equipar skin ya comprada
             <Button
-              onClick={() => onBuyItem(item, false, discount)}
-              disabled={status.disabled && item.type !== "consumable"}
-              className={`w-full font-semibold ${
-                status.disabled && item.type !== "consumable" 
-                  ? "bg-gray-700 cursor-not-allowed" 
-                  : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
-              }`}
+              onClick={() => onEquipSkin(item.id)}
+              className="w-full font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              <Coins className="w-4 h-4 mr-2" />
-              {status.text === "Equipar" ? "Equipar" : "Comprar"}
+              <Palette className="w-4 h-4 mr-2" />
+              Equipar Skin
             </Button>
-            
+          ) : status.text === "Comprado" ? (
+            // Botón para item ya comprado
             <Button
-              onClick={() => onBuyItem(item, true, discount)}
-              disabled={status.disabled && item.type !== "consumable"}
-              className={`w-full font-semibold ${
-                status.disabled && item.type !== "consumable" 
-                  ? "bg-gray-700 cursor-not-allowed" 
-                  : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-              }`}
+              disabled
+              className="w-full font-semibold bg-gray-700 cursor-not-allowed"
             >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Con CROC
+              <Check className="w-4 h-4 mr-2" />
+              Ya Comprado
             </Button>
-          </div>
+          ) : (
+            // Botones de compra
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => onBuyItem(item, false, discount)}
+                disabled={!canAffordCoins || (status.disabled && item.type !== "consumable")}
+                className={`w-full font-semibold ${
+                  !canAffordCoins || (status.disabled && item.type !== "consumable")
+                    ? "bg-gray-700 cursor-not-allowed" 
+                    : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
+                }`}
+              >
+                <Coins className="w-4 h-4 mr-2" />
+                {item.currency === 'croc' ? 'N/A' : 'Monedas'}
+              </Button>
+              
+              <Button
+                onClick={() => onBuyItem(item, true, discount)}
+                disabled={!canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'}
+                className={`w-full font-semibold ${
+                  !canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'
+                    ? "bg-gray-700 cursor-not-allowed" 
+                    : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+                }`}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                CROC
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -398,13 +495,13 @@ export function ShopView({
       dailyOffers,
       completionRate: totalSkins > 0 ? (ownedSkins / totalSkins) * 100 : 0
     };
-  }, [ownedItems]); // ✅ Solo depende de ownedItems
+  }, [ownedItems]);
 
   const safeItems = useMemo(() => 
     Array.isArray(SHOP_ITEMS) 
       ? SHOP_ITEMS.filter(item => item && item.id)
       : []
-  , []); // ✅ Array estático, no cambia
+  , []);
 
   const collectionDiscount = useMemo(() => {
     if (stats.totalSkins === 0) return 0;
@@ -414,6 +511,9 @@ export function ShopView({
 
   const filteredItems = useMemo(() => {
     if (selectedTab === "all") return safeItems;
+    if (selectedTab === "items") {
+      return safeItems.filter(item => item.type === 'item' || item.type === 'boost');
+    }
     return safeItems.filter((item) => item.type === selectedTab);
   }, [selectedTab, safeItems]);
 
@@ -424,10 +524,14 @@ export function ShopView({
     safeItems.find((i) => i.type === "skin")
   , [previewSkin, activeSkin, safeItems]);
   
+  const getItemImage = (item) => {
+    if (item?.image) return item.image;
+    return `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item?.id || "croc"}`;
+  };
+
   const previewImage = useMemo(() => 
-    previewSkinData?.image || 
-    `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${previewSkin || activeSkin || "default"}`
-  , [previewSkinData, previewSkin, activeSkin]);
+    getItemImage(previewSkinData)
+  , [previewSkinData]);
 
   // ✅ FUNCIONES MEMOIZADAS
   const memoizedHandlePreview = useCallback((skinId) => {
@@ -447,40 +551,16 @@ export function ShopView({
   const memoizedHandleBuyItem = useCallback((item, useCroc = false, discount = 0) => {
     if (!buyShopItem) return;
     
-    const getItemStatus = (item) => {
-      const isOwned = ownedItems.some(owned => {
-        if (typeof owned === 'string') return owned === item.id;
-        if (typeof owned === 'object') return owned.id === item.id;
-        return false;
-      });
-
-      if (item.type === "skin") {
-        if (activeSkin === item.id) return { text: "Equipada", disabled: true };
-        if (isOwned) return { text: "Equipar", disabled: false };
-      } else if (item.type === "item" || item.type === "boost") {
-        if (isOwned) return { text: "Comprado", disabled: true };
-      }
-      
-      return {
-        text: `Comprar`,
-        disabled: false,
-        price: item.price || 0,
-        priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
-      };
-    };
-    
-    const status = getItemStatus(item);
-    
-    if (status.disabled && item.type !== "consumable") {
-      return;
-    }
-
     // Verificar saldo rápidamente
-    const basePrice = useCroc ? (status.priceCroc || 0) : (status.price || 0);
+    const basePrice = useCroc 
+      ? (item.priceCroc || Math.floor((item.price || 0) * 0.1))
+      : (item.price || 0);
+    
+    const finalPrice = Math.floor(basePrice * (1 - discount / 100));
     const balance = useCroc ? nativeTokenBalance : coins;
     
-    if (balance < basePrice) {
-      const needed = basePrice - balance;
+    if (balance < finalPrice) {
+      const needed = finalPrice - balance;
       const currencyName = useCroc ? 'CROC' : 'monedas';
       
       if (toast) {
@@ -495,8 +575,7 @@ export function ShopView({
     }
 
     // Mostrar confirmación para items costosos
-    if (basePrice > 5000 || (useCroc && basePrice > 100)) {
-      const finalPrice = Math.floor(basePrice * (1 - discount / 100));
+    if (finalPrice > 10000 || (useCroc && finalPrice > 500)) {
       setShowConfirm({ item, useCroc, price: finalPrice, discount });
       if (playSound) playSound("uiClick");
       return;
@@ -504,7 +583,7 @@ export function ShopView({
 
     // Comprar directamente
     buyShopItem(item.id, useCroc, discount);
-  }, [buyShopItem, ownedItems, activeSkin, coins, nativeTokenBalance, playSound, toast]);
+  }, [buyShopItem, coins, nativeTokenBalance, playSound, toast]);
 
   const memoizedHandleEquipSkin = useCallback((skinId) => {
     if (equipSkin) {
@@ -584,6 +663,7 @@ export function ShopView({
             isDailyOffer={stats.dailyOffers.some(offer => offer.id === item.id)}
             onPreview={memoizedHandlePreview}
             onBuyItem={memoizedHandleBuyItem}
+            onEquipSkin={memoizedHandleEquipSkin}
             ownedItems={ownedItems}
             activeSkin={activeSkin}
             coins={coins}
@@ -597,8 +677,8 @@ export function ShopView({
       </div>
     );
   }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview, 
-      memoizedHandleBuyItem, ownedItems, activeSkin, coins, nativeTokenBalance, 
-      collectionDiscount, tokenPrice, playSound, toast]);
+      memoizedHandleBuyItem, memoizedHandleEquipSkin, ownedItems, activeSkin, 
+      coins, nativeTokenBalance, collectionDiscount, tokenPrice, playSound, toast]);
 
   return (
     <div className="min-h-screen game-bg p-4 md:p-6">
@@ -762,6 +842,7 @@ export function ShopView({
                   isDailyOffer={true}
                   onPreview={memoizedHandlePreview}
                   onBuyItem={memoizedHandleBuyItem}
+                  onEquipSkin={memoizedHandleEquipSkin}
                   ownedItems={ownedItems}
                   activeSkin={activeSkin}
                   coins={coins}
@@ -918,31 +999,35 @@ export function ShopView({
                   { id: "items", label: "💎 Ítems", icon: Gem, color: "yellow" },
                   { id: "boosts", label: "⚡ Boosts", icon: Zap, color: "blue" },
                   { id: "consumables", label: "🧪 Consumibles", icon: Gift, color: "green" },
-                ].map(tab => (
-                  <Button
-                    key={tab.id}
-                    onClick={() => {
-                      setSelectedTab(tab.id);
-                      if (playSound) playSound("uiClick");
-                    }}
-                    variant={selectedTab === tab.id ? "default" : "outline"}
-                    className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${
-                      selectedTab === tab.id 
-                        ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600` 
-                        : `border-gray-700 hover:border-${tab.color}-500 hover:bg-${tab.color}-900/20`
-                    }`}
-                  >
-                    <tab.icon className="w-5 h-5" />
-                    {tab.label}
-                    {tab.count > 0 && (
-                      <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
-                        selectedTab === tab.id ? 'bg-white/30' : 'bg-gray-800'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </Button>
-                ))}
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = selectedTab === tab.id;
+                  return (
+                    <Button
+                      key={tab.id}
+                      onClick={() => {
+                        setSelectedTab(tab.id);
+                        if (playSound) playSound("uiClick");
+                      }}
+                      variant={isActive ? "default" : "outline"}
+                      className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${
+                        isActive 
+                          ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600` 
+                          : `border-gray-700 hover:border-${tab.color}-500 hover:bg-${tab.color}-900/20`
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      {tab.label}
+                      {tab.count > 0 && (
+                        <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
+                          isActive ? 'bg-white/30' : 'bg-gray-800'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </Button>
+                  );
+                })}
               </div>
 
               {/* 📊 Información de la categoría */}
