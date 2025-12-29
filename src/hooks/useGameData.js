@@ -57,7 +57,8 @@ const loadGameData = useCallback(async () => {
     }));
     return;
   }
-// ✅ AGREGAR: Evitar llamadas mientras ya está cargando
+
+  // Evitar llamadas duplicadas mientras ya se está cargando
   if (gameData.loading) {
     console.log('⏳ Ya se están cargando datos...');
     return;
@@ -1205,9 +1206,7 @@ const updateActiveSkin = useCallback((newActiveSkin) => {
   }, [gameData.player]);
 
 
-// En useGameData.js, mejorar las funciones de actualización:
-
-// 🛍️ REFRESCAR DATOS DE LA TIENDA (función nueva)
+  // 🛍️ REFRESCAR DATOS DE LA TIENDA
 const refreshShopData = useCallback(async () => {
   if (!gameData.player?.id) return;
   
@@ -1234,26 +1233,16 @@ const refreshShopData = useCallback(async () => {
     console.error('❌ Error refrescando datos de tienda:', error);
   }
 }, [gameData.player?.id]);
+  // 📥 CARGA INICIAL
+  useEffect(() => {
+    isMounted.current = true;
+    loadGameData();
 
-// Agregar esta función al return del hook
-
-
- // En useGameData.js, reemplaza el useEffect inicial:
-useEffect(() => {
-  let isMounted = true;
-  
-  const loadData = async () => {
-    if (isMounted) {
-      await loadGameData();
-    }
-  };
-  
-  loadData();
-  
-  return () => {
-    isMounted = false;
-  };
-}, []); // Solo se ejecuta una vez al montar
+    return () => {
+      isMounted.current = false;
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [loadGameData]);
 
   // 🔄 ACTUALIZAR REFERIDOS CADA 30 SEGUNDOS
   useEffect(() => {

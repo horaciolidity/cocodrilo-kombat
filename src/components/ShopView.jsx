@@ -67,48 +67,41 @@ const ItemCard = memo(function ItemCardComponent({
     }
   }, []);
 
-  // En ItemCard.jsx, mejorar la función getItemStatus:
-const getItemStatus = useCallback((item) => {
-  const isOwned = ownedItems.some(owned => {
-    if (typeof owned === 'string') return owned === item.id;
-    if (typeof owned === 'object') return owned.id === item.id;
-    return false;
-  });
+  // ✅ Obtener estado del item
+  const getItemStatus = useCallback((item) => {
+    const isOwned = ownedItems.some(owned => {
+      if (typeof owned === 'string') return owned === item.id;
+      if (typeof owned === 'object') return owned.id === item.id;
+      return false;
+    });
 
-  if (item.type === "skin") {
-    if (activeSkin === item.id) return { 
-      text: "Equipada", 
-      disabled: true,
-      isEquipped: true 
-    };
-    if (isOwned) return { 
-      text: "Equipar", 
-      disabled: false,
-      isOwned: true 
-    };
-  } else if (item.type === "item" || item.type === "boost") {
-    if (isOwned) return { 
-      text: "Comprado", 
-      disabled: true,
-      isOwned: true 
-    };
-  } else if (item.type === "consumable") {
-    // Consumibles siempre se pueden comprar
+    if (item.type === "skin") {
+      if (activeSkin === item.id) return { 
+        text: "Equipada", 
+        disabled: true,
+        isEquipped: true 
+      };
+      if (isOwned) return { 
+        text: "Equipar", 
+        disabled: false,
+        isOwned: true 
+      };
+    } else if (item.type === "item" || item.type === "boost") {
+      if (isOwned) return { 
+        text: "Comprado", 
+        disabled: true,
+        isOwned: true 
+      };
+    }
+    
     return {
       text: `Comprar`,
       disabled: false,
-      isOwned: false
+      isOwned: false,
+      price: item.price || 0,
+      priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
     };
-  }
-  
-  return {
-    text: `Comprar`,
-    disabled: false,
-    isOwned: false,
-    price: item.price || 0,
-    priceCroc: item.priceCroc || Math.floor((item.price || 0) * 0.1)
-  };
-}, [ownedItems, activeSkin]);
+  }, [ownedItems, activeSkin]);
 
   const status = getItemStatus(item);
   const discount = isDailyOffer ? (item.discount || 0) : collectionDiscount;
@@ -516,20 +509,13 @@ export function ShopView({
     return Math.min(25, baseDiscount);
   }, [stats.ownedSkins, stats.totalSkins]);
 
- // En ShopView.jsx, cambiar el filtrado de items:
-const filteredItems = useMemo(() => {
-  if (selectedTab === "all") return safeItems;
-  if (selectedTab === "items") {
-    // CORREGIR: Usar 'item' (singular) en lugar de 'items'
-    return safeItems.filter(item => item.type === 'item');
-  }
-  if (selectedTab === "boosts") {
-    return safeItems.filter(item => item.type === 'boost');
-  }
-  // Para 'skins' y 'consumables', filtrar por tipo
-  return safeItems.filter((item) => item.type === selectedTab);
-}, [selectedTab, safeItems]);
-
+  const filteredItems = useMemo(() => {
+    if (selectedTab === "all") return safeItems;
+    if (selectedTab === "items") {
+      return safeItems.filter(item => item.type === 'item' || item.type === 'boost');
+    }
+    return safeItems.filter((item) => item.type === selectedTab);
+  }, [selectedTab, safeItems]);
 
   // 🎭 Obtener datos de la skin en preview
   const previewSkinData = useMemo(() => 
@@ -599,7 +585,20 @@ const filteredItems = useMemo(() => {
     buyShopItem(item.id, useCroc, discount);
   }, [buyShopItem, coins, nativeTokenBalance, playSound, toast]);
 
- 
+  const memoizedHandleEquipSkin = useCallback((skinId) => {
+    if (equipSkin) {
+      equipSkin(skinId);
+      if (playSound) playSound("equip");
+      if (toast) {
+        toast({
+          title: "🎨 Skin Equipada",
+          description: "¡Skin cambiada exitosamente!",
+          duration: 3000
+        });
+      }
+    }
+  }, [equipSkin, playSound, toast]);
+
   const confirmPurchase = useCallback(() => {
     if (!showConfirm || !buyShopItem) return;
     
@@ -664,7 +663,7 @@ const filteredItems = useMemo(() => {
             isDailyOffer={stats.dailyOffers.some(offer => offer.id === item.id)}
             onPreview={memoizedHandlePreview}
             onBuyItem={memoizedHandleBuyItem}
-            onEquipSkin={equipSkin}
+            onEquipSkin={memoizedHandleEquipSkin}
             ownedItems={ownedItems}
             activeSkin={activeSkin}
             coins={coins}
@@ -678,7 +677,7 @@ const filteredItems = useMemo(() => {
       </div>
     );
   }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview, 
-      memoizedHandleBuyItem, equipSkin, ownedItems, activeSkin, 
+      memoizedHandleBuyItem, memoizedHandleEquipSkin, ownedItems, activeSkin, 
       coins, nativeTokenBalance, collectionDiscount, tokenPrice, playSound, toast]);
 
   return (
@@ -843,7 +842,7 @@ const filteredItems = useMemo(() => {
                   isDailyOffer={true}
                   onPreview={memoizedHandlePreview}
                   onBuyItem={memoizedHandleBuyItem}
-                  onEquipSkin={equipSkin}
+                  onEquipSkin={memoizedHandleEquipSkin}
                   ownedItems={ownedItems}
                   activeSkin={activeSkin}
                   coins={coins}
@@ -917,7 +916,7 @@ const filteredItems = useMemo(() => {
                       {/* Botón de equipar si ya está comprada */}
                       {ownedItems.includes(previewSkin) && activeSkin !== previewSkin && (
                         <Button
-                          onClick={() => equipSkin(previewSkin)}
+                          onClick={() => memoizedHandleEquipSkin(previewSkin)}
                           className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                           <Palette className="w-4 h-4 mr-2" />

@@ -325,15 +325,15 @@ export const CARDS_DATA = [
   { id: "card_swamp_mastery", name: "Maestría del Pantano", description: "Aumenta monedas por segundo un 10%.", effect: { type: "cps_boost_percent", value: 10 }, rarity: "Legendaria", icon: Crown, color: "text-orange-400" },
 ];
 
-// En gameConfig.js - dentro de SHOP_ITEMS, ASEGURATE que todos tengan type CORRECTO:
+// En gameConfig.js - dentro de SHOP_ITEMS, reemplazar con esto:
 export const SHOP_ITEMS = [
-  // 🎨 SKINS (tipo: 'skin')
+  // 🎨 SKINS (10 skins con imágenes reales)
   {
     id: 'skin_golden_croc',
     name: 'Cocodrilo Dorado',
-    type: 'skin', // ✅ AQUÍ debe decir 'skin'
-    price: 100000,
-    priceCroc: 1000,
+    type: 'skin',
+    price: 100000, // 100K monedas
+    priceCroc: 1000, // 1000 CROC
     currency: 'both',
     image: '/images/skins/golden_croc.jpg',
     description: 'Pura elegancia dorada. +15% poder de click',
@@ -347,7 +347,7 @@ export const SHOP_ITEMS = [
   {
     id: 'skin_camo_croc',
     name: 'Cocodrilo Camuflaje',
-    type: 'skin', // ✅
+    type: 'skin',
     price: 50000,
     priceCroc: 500,
     currency: 'both',
@@ -363,7 +363,7 @@ export const SHOP_ITEMS = [
   {
     id: 'skin_fire_croc',
     name: 'Cocodrilo Ígneo',
-    type: 'skin', // ✅
+    type: 'skin',
     price: 150000,
     priceCroc: 1500,
     currency: 'both',
@@ -379,7 +379,7 @@ export const SHOP_ITEMS = [
   {
     id: 'skin_ice_croc',
     name: 'Cocodrilo Glaciar',
-    type: 'skin', // ✅
+    type: 'skin',
     price: 80000,
     priceCroc: 800,
     currency: 'both',
@@ -395,7 +395,7 @@ export const SHOP_ITEMS = [
   {
     id: 'skin_cyborg_croc',
     name: 'Cyborg 9000',
-    type: 'skin', // ✅
+    type: 'skin',
     price: 200000,
     priceCroc: 2000,
     currency: 'both',
@@ -409,11 +409,11 @@ export const SHOP_ITEMS = [
     }
   },
 
-  // ⚡ ITEMS DE POTENCIA (tipo: 'item')
+  // ⚡ ITEMS DE POTENCIA (5 items)
   {
     id: 'auto_clicker_pro',
     name: 'Auto-Clicker Pro',
-    type: 'item', // ✅
+    type: 'item',
     price: 50000,
     priceCroc: 500,
     currency: 'both',
@@ -427,7 +427,7 @@ export const SHOP_ITEMS = [
   {
     id: 'energy_core',
     name: 'Núcleo de Energía',
-    type: 'item', // ✅
+    type: 'item',
     price: 30000,
     priceCroc: 300,
     currency: 'both',
@@ -441,7 +441,7 @@ export const SHOP_ITEMS = [
   {
     id: 'cps_amplifier',
     name: 'Amplificador CPS',
-    type: 'item', // ✅
+    type: 'item',
     price: 75000,
     priceCroc: 750,
     currency: 'both',
@@ -453,11 +453,11 @@ export const SHOP_ITEMS = [
     }
   },
 
-  // 🚀 BOOSTS TEMPORALES (tipo: 'boost')
+  // 🚀 BOOSTS TEMPORALES (5 boosts)
   {
     id: 'double_coins_boost',
     name: 'Boost x2 Monedas',
-    type: 'boost', // ✅
+    type: 'boost',
     price: 15000,
     priceCroc: 150,
     currency: 'both',
@@ -471,7 +471,7 @@ export const SHOP_ITEMS = [
   {
     id: 'triple_click_boost',
     name: 'Furia de Clics x3',
-    type: 'boost', // ✅
+    type: 'boost',
     price: 25000,
     priceCroc: 250,
     currency: 'both',
@@ -485,7 +485,7 @@ export const SHOP_ITEMS = [
   {
     id: 'energy_refill_boost',
     name: 'Recarga Instantánea',
-    type: 'boost', // ✅
+    type: 'boost',
     price: 10000,
     priceCroc: 100,
     currency: 'both',
@@ -497,11 +497,11 @@ export const SHOP_ITEMS = [
     }
   },
 
-  // 🧪 CONSUMIBLES (tipo: 'consumable')
+  // 🧪 CONSUMIBLES (5 consumibles)
   {
     id: 'energy_potion_xl',
     name: 'Poción Energía XL',
-    type: 'consumable', // ✅
+    type: 'consumable',
     price: 5000,
     priceCroc: 50,
     currency: 'both',
@@ -514,7 +514,7 @@ export const SHOP_ITEMS = [
   {
     id: 'coin_crate',
     name: 'Cofre de Monedas',
-    type: 'consumable', // ✅
+    type: 'consumable',
     price: 10000,
     priceCroc: 100,
     currency: 'both',
@@ -527,9 +527,9 @@ export const SHOP_ITEMS = [
   {
     id: 'croc_token_bag',
     name: 'Bolsa CROC',
-    type: 'consumable', // ✅
+    type: 'consumable',
     price: 50000,
-    priceCroc: 0,
+    priceCroc: 0, // Solo monedas
     currency: 'coins',
     image: '/images/consumables/croc_bag.jpg',
     description: 'Contiene 100 tokens CROC',
@@ -540,7 +540,7 @@ export const SHOP_ITEMS = [
   {
     id: 'xp_elixir',
     name: 'Elixir de Experiencia',
-    type: 'consumable', // ✅
+    type: 'consumable',
     price: 20000,
     priceCroc: 200,
     currency: 'both',

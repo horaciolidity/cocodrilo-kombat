@@ -204,7 +204,6 @@ function App() {
     claimMissionReward,
     claimDailyReward,
     buyShopItem,
-    equipSkin,
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
@@ -223,7 +222,21 @@ function App() {
     playSound('uiClick');
   }, [toast, playSound]);
 
- 
+  const memoizedHandleEquipSkin = useCallback((skinId) => {
+    if (!user || !gameData) return;
+    
+    console.log('🎨 Equipando skin:', skinId);
+    
+    gameData.updateActiveSkin(skinId);
+    playSound("equip");
+    
+    toast({
+      title: "🎨 Skin Equipada",
+      description: "¡Skin cambiada exitosamente!",
+      duration: 3000
+    });
+  }, [user, gameData, playSound, toast]);
+
   // 🎯 EFECTO DE NOTIFICACIONES
   useEffect(() => {
     let notificationInterval;
@@ -571,7 +584,7 @@ function App() {
                 ownedItems={ownedItems}
                 activeSkin={activeSkin}
                 buyShopItem={buyShopItem}
-                equipSkin={equipSkin} // ← Esto debe venir de gameLogic
+                equipSkin={memoizedHandleEquipSkin}
                 tokenPrice={tokenPrice}
                 user={user}
                 toast={toast}

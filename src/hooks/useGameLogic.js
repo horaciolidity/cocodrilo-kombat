@@ -692,52 +692,50 @@ export function useGameLogic({
     return () => clearInterval(interval);
   }, [dailyRewards, updateDailyRewards]);
 
-const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
-  console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
-  
-  const item = SHOP_ITEMS.find(i => i.id === itemId);
-  if (!item) {
-    console.error('❌ Item no encontrado:', itemId);
-    toast({ 
-      title: "❌ Error", 
-      description: "El item no existe.", 
-      duration: 2000 
-    });
-    playSound('error');
-    return false;
-  }
-
-  // 🔍 VERIFICACIÓN MEJORADA DE PROPIEDAD
-  const isAlreadyOwned = ownedItems.some(ownedItem => {
-    if (typeof ownedItem === 'string') {
-      return ownedItem === itemId;
-    } else if (typeof ownedItem === 'object') {
-      return ownedItem.id === itemId;
+  // 🛍️ TIENDA - VERSIÓN SIMPLIFICADA Y FUNCIONAL
+  const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
+    console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
+    
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    if (!item) {
+      console.error('❌ Item no encontrado:', itemId);
+      toast({ 
+        title: "❌ Error", 
+        description: "El item no existe.", 
+        duration: 2000 
+      });
+      playSound('error');
+      return false;
     }
-    return false;
-  });
 
-  // NO PERMITIR COMPRAR MÁS DE UNA VEZ (excepto consumibles)
-  if (isAlreadyOwned && item.type !== 'consumable') {
-    toast({ 
-      title: "🚫 Ya Posees Este Ítem", 
-      description: `Ya tienes "${item.name}". Solo los consumibles se pueden comprar múltiples veces.`, 
-      duration: 2000 
+    // 🔍 Verificar si ya es dueño (para items no consumibles)
+    const isAlreadyOwned = ownedItems.some(owned => {
+      if (typeof owned === 'string') return owned === itemId;
+      if (typeof owned === 'object') return owned.id === itemId;
+      return false;
     });
-    playSound('error');
-    return false;
-  }
-  
-  // 🎨 Verificar si la skin ya está activa
-  if (item.type === 'skin' && activeSkin === itemId) {
-    toast({ 
-      title: "🎨 Skin ya Activa", 
-      description: `La skin "${item.name}" ya está en uso.`, 
-      duration: 2000 
-    });
-    playSound('uiClick');
-    return false;
-  }
+
+    if (isAlreadyOwned && item.type !== 'consumable' && item.type !== 'boost') {
+      toast({ 
+        title: "🚫 Ya Posees Este Ítem", 
+        description: `Ya tienes "${item.name}".`, 
+        duration: 2000 
+      });
+      playSound('error');
+      return false;
+    }
+    
+    // 🎨 Verificar si la skin ya está activa
+    if (item.type === 'skin' && activeSkin === itemId) {
+      toast({ 
+        title: "🎨 Skin ya Activa", 
+        description: `La skin "${item.name}" ya está en uso.`, 
+        duration: 2000 
+      });
+      playSound('uiClick');
+      return false;
+    }
+
     // 💰 Calcular precio
     const basePrice = useCroc ? (item.priceCroc || Math.floor(item.price * 0.1)) : item.price;
     const finalPrice = Math.floor(basePrice * (1 - discount / 100));
