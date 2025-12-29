@@ -1238,16 +1238,22 @@ const refreshShopData = useCallback(async () => {
 // Agregar esta función al return del hook
 
 
-  // 📥 CARGA INICIAL
-  useEffect(() => {
-    isMounted.current = true;
-    loadGameData();
-
-    return () => {
-      isMounted.current = false;
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    };
-  }, [loadGameData]);
+ // En useGameData.js, reemplaza el useEffect inicial:
+useEffect(() => {
+  let isMounted = true;
+  
+  const loadData = async () => {
+    if (isMounted) {
+      await loadGameData();
+    }
+  };
+  
+  loadData();
+  
+  return () => {
+    isMounted = false;
+  };
+}, []); // Solo se ejecuta una vez al montar
 
   // 🔄 ACTUALIZAR REFERIDOS CADA 30 SEGUNDOS
   useEffect(() => {

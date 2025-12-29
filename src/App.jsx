@@ -204,6 +204,7 @@ function App() {
     claimMissionReward,
     claimDailyReward,
     buyShopItem,
+    equipSkin,
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
