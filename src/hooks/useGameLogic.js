@@ -119,54 +119,65 @@ export function useGameLogic({
   }, [gameState.maxEnergy, updateGameState, syncGameData]);
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - CORREGIDA
-  useEffect(() => {
-    console.log("💰 Iniciando generación de monedas...");
+useEffect(() => {
+  console.log("💰 Iniciando generación de monedas...");
+  
+  if (coinsIntervalRef.current) {
+    clearInterval(coinsIntervalRef.current);
+  }
+
+  coinsIntervalRef.current = setInterval(() => {
+    let effectiveCPS = 0;
     
+    // ✅ 1. CPS BASE del estado
+    effectiveCPS += gameState.coinsPerSecond;
+    
+    // ✅ 2. CPS de UPGRADES
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeConfig.type === 'cps' && upgradeData?.level > 0) {
+        effectiveCPS += upgradeConfig.basePower * upgradeData.level;
+      }
+    });
+    
+    // ✅ 3. Aplicar boosts de items
+    ownedItems.forEach(itemId => {
+      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+      if (item && item.effect?.cpsBoost) {
+        effectiveCPS += item.effect.cpsBoost;
+      }
+      if (item && item.effect?.autoClicks) {
+        effectiveCPS += item.effect.autoClicks;
+      }
+      if (item && item.effect?.coinMultiplier) {
+        effectiveCPS *= item.effect.coinMultiplier;
+      }
+    });
+
+    // ✅ 4. Aplicar boosts de cartas (porcentaje)
+    ownedCards.forEach(cardId => {
+      const card = CARDS_DATA.find(c => c.id === cardId);
+      if (card && card.effect.type === 'cps_boost_percent') {
+        effectiveCPS *= (1 + card.effect.value / 100);
+      }
+    });
+
+    if (effectiveCPS > 0) {
+      const increment = effectiveCPS / 10; // Dividido por 10 porque se ejecuta 10 veces por segundo
+      updateGameState({
+        coins: gameState.coins + increment,
+        totalCoins: gameState.totalCoins + increment
+      });
+    }
+  }, 100);
+
+  return () => {
     if (coinsIntervalRef.current) {
       clearInterval(coinsIntervalRef.current);
+      coinsIntervalRef.current = null;
     }
-
-    coinsIntervalRef.current = setInterval(() => {
-      let effectiveCPS = gameState.coinsPerSecond;
-      
-      // Aplicar boosts de items
-      ownedItems.forEach(itemId => {
-        const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-        if (item && item.effect?.cpsBoost) {
-          effectiveCPS += item.effect.cpsBoost;
-        }
-        if (item && item.effect?.autoClicks) {
-          effectiveCPS += item.effect.autoClicks;
-        }
-        if (item && item.effect?.coinMultiplier) {
-          effectiveCPS *= item.effect.coinMultiplier;
-        }
-      });
-
-      // Aplicar boosts de cartas (porcentaje)
-      ownedCards.forEach(cardId => {
-        const card = CARDS_DATA.find(c => c.id === cardId);
-        if (card && card.effect.type === 'cps_boost_percent') {
-          effectiveCPS *= (1 + card.effect.value / 100);
-        }
-      });
-
-      if (effectiveCPS > 0) {
-        const increment = effectiveCPS / 10; // Dividido por 10 porque se ejecuta 10 veces por segundo
-        updateGameState({
-          coins: gameState.coins + increment,
-          totalCoins: gameState.totalCoins + increment
-        });
-      }
-    }, 100); // Cada 100ms para mayor fluidez
-
-    return () => {
-      if (coinsIntervalRef.current) {
-        clearInterval(coinsIntervalRef.current);
-        coinsIntervalRef.current = null;
-      }
-    };
-  }, [gameState, ownedItems, ownedCards, updateGameState]);
+  };
+}, [gameState, upgrades, ownedItems, ownedCards, updateGameState]);
 
   // 🏆 SISTEMA DE LOGROS
   useEffect(() => {
@@ -234,62 +245,60 @@ export function useGameLogic({
   ]);
 
   // 🎯 FUNCIÓN PARA CALCULAR CLICK POWER REAL - MEJORADA
-  const calculateRealClickPower = useCallback(() => {
-    let clickPower = gameState.clickPower;
-    
-    // ✅ APLICAR BONUS DE UPGRADES
-    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
-      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-      if (upgradeConfig && upgradeData?.level > 0) {
-        if (upgradeConfig.type === 'multiplier') {
-          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-          clickPower = clickPower * (1 + multiplierBonus);
-        } else if (upgradeConfig.type === 'click') {
-          const clickBonus = upgradeConfig.basePower * upgradeData.level;
-          clickPower += clickBonus;
-        } else if (upgradeConfig.type === 'cps') {
-          // CPS upgrades no afectan click power directamente
-        } else if (upgradeConfig.type === 'energy') {
-          // Energy upgrades no afectan click power
-        }
+const calculateRealClickPower = useCallback(() => {
+  let clickPower = 1; // ❌ NO usar gameState.clickPower
+  
+  // ✅ APLICAR BONUS DE UPGRADES
+  Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+    if (upgradeConfig && upgradeData?.level > 0) {
+      if (upgradeConfig.type === 'click') {
+        const clickBonus = upgradeConfig.basePower * upgradeData.level;
+        clickPower += clickBonus;
+      } else if (upgradeConfig.type === 'multiplier') {
+        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+        clickPower *= (1 + multiplierBonus);
       }
-    });
+      // 'cps' y 'energy' no afectan click power
+    }
+  });
 
-    // ✅ APLICAR BONUS DE ITEMS
-    ownedItems.forEach(itemId => {
-      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-      if (item && item.effect?.clickMultiplier) {
-        clickPower *= item.effect.clickMultiplier;
-      }
-      if (item && item.effect?.clickPower) {
-        clickPower += item.effect.clickPower;
-      }
-    });
+  // ✅ APLICAR BONUS DE ITEMS
+  ownedItems.forEach(itemId => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+    if (item && item.effect?.clickMultiplier) {
+      clickPower *= item.effect.clickMultiplier;
+    }
+    if (item && item.effect?.clickPower) {
+      clickPower += item.effect.clickPower;
+    }
+  });
 
-    // ✅ APLICAR BONUS DE CARTAS
-    ownedCards.forEach(cardId => {
-      const card = CARDS_DATA.find(c => c.id === cardId);
-      if (card) {
-        if (card.effect.type === 'click_power_flat') {
-          clickPower += card.effect.value;
-        }
-        if (card.effect.type === 'click_power_percent') {
-          const percentBonus = clickPower * (card.effect.value / 100);
-          clickPower += percentBonus;
-        }
+  // ✅ APLICAR BONUS DE CARTAS
+  ownedCards.forEach(cardId => {
+    const card = CARDS_DATA.find(c => c.id === cardId);
+    if (card) {
+      if (card.effect.type === 'click_power_flat') {
+        clickPower += card.effect.value;
       }
-    });
-
-    // ✅ APLICAR BONUS DE SKIN ACTIVA
-    if (activeSkin) {
-      const skin = SHOP_ITEMS.find(i => i.id === activeSkin);
-      if (skin && skin.effect?.clickMultiplier) {
-        clickPower *= skin.effect.clickMultiplier;
+      if (card.effect.type === 'click_power_percent') {
+        const percentBonus = clickPower * (card.effect.value / 100);
+        clickPower += percentBonus;
       }
     }
+  });
 
-    return Math.max(1, Math.floor(clickPower));
-  }, [gameState.clickPower, upgrades, ownedItems, ownedCards, activeSkin]);
+  // ✅ APLICAR BONUS DE SKIN ACTIVA
+  if (activeSkin) {
+    const skin = SHOP_ITEMS.find(i => i.id === activeSkin);
+    if (skin && skin.effect?.clickMultiplier) {
+      clickPower *= skin.effect.clickMultiplier;
+    }
+  }
+
+  return Math.max(1, Math.floor(clickPower));
+}, [upgrades, ownedItems, ownedCards, activeSkin]);
+
 
   // 👆 FUNCIÓN DE CLIC - OPTIMIZADA
   const handleClick = useCallback((event) => {
@@ -360,78 +369,57 @@ export function useGameLogic({
     }
   }, [gameState, calculateRealClickPower, updateGameState, toast, playSound, syncGameData]);
 
-  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES
-  const buyUpgrade = useCallback((upgradeId) => {
-    const upgrade = UPGRADES.find(u => u.id === upgradeId);
-    if (!upgrade) {
-      console.error('Upgrade not found:', upgradeId);
-      return;
-    }
+  // 🛒 FUNCIÓN DE COMPRA DE UPGRADES - VERSIÓN CORREGIDA
+const buyUpgrade = useCallback((upgradeId) => {
+  const upgrade = UPGRADES.find(u => u.id === upgradeId);
+  if (!upgrade) {
+    console.error('Upgrade not found:', upgradeId);
+    return;
+  }
 
-    const currentLevel = upgrades[upgradeId]?.level || 0;
-    const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
+  const currentLevel = upgrades[upgradeId]?.level || 0;
+  const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
 
-    if (gameState.coins >= price) {
-      // Crear nueva versión del estado del juego
-      const newGameState = { coins: gameState.coins - price };
-      
-      switch (upgrade.type) {
-        case 'click':
-          newGameState.clickPower = gameState.clickPower + upgrade.basePower;
-          break;
-        case 'cps':
-          newGameState.coinsPerSecond = gameState.coinsPerSecond + upgrade.basePower;
-          break;
-        case 'multiplier':
-          newGameState.clickPower = Math.floor(gameState.clickPower * upgrade.basePower);
-          break;
-        case 'energy':
-          newGameState.maxEnergy = gameState.maxEnergy + upgrade.basePower;
-          newGameState.energy = newGameState.maxEnergy;
-          break;
-        default:
-          console.warn('Unknown upgrade type:', upgrade.type);
+  if (gameState.coins >= price) {
+    // SOLO descontar monedas, NO modificar otros estados
+    const newGameState = { 
+      coins: gameState.coins - price,
+      totalCoins: gameState.totalCoins // Mantener igual
+    };
+    
+    // ✅ ACTUALIZAR UPGRADES (solo el nivel)
+    const newUpgrades = {
+      ...upgrades,
+      [upgradeId]: { 
+        level: (upgrades[upgradeId]?.level || 0) + 1,
+        owned: (upgrades[upgradeId]?.owned || 0) + 1 
       }
-      
-      // Actualizar gameState
-      updateGameState(newGameState);
+    };
+    
+    updateGameState(newGameState);
+    updateUpgrades(newUpgrades);
 
-      // ✅ ACTUALIZAR UPGRADES
-      const newUpgrades = {
-        ...upgrades,
-        [upgradeId]: { 
-          level: (upgrades[upgradeId]?.level || 0) + 1, 
-          owned: (upgrades[upgradeId]?.owned || 0) + 1 
-        }
-      };
-      
-      updateUpgrades(newUpgrades);
+    // 🔥 SINCRONIZAR SOLO LO NECESARIO
+    syncGameData({
+      coins: newGameState.coins,
+      upgrades: newUpgrades
+    });
 
-      // 🔥 SINCRONIZAR INMEDIATAMENTE
-      syncGameData({
-        coins: newGameState.coins,
-        click_power: newGameState.clickPower || gameState.clickPower,
-        coins_per_second: newGameState.coinsPerSecond || gameState.coinsPerSecond,
-        max_energy: newGameState.maxEnergy || gameState.maxEnergy,
-        energy: newGameState.energy || gameState.energy,
-        upgrades: newUpgrades
-      });
-
-      toast({ 
-        title: "✅ Mejora Comprada", 
-        description: `${upgrade.name} nivel ${currentLevel + 1}`, 
-        duration: 2000 
-      });
-      playSound('upgrade');
-    } else {
-      toast({ 
-        title: "💰 Monedas Insuficientes", 
-        description: `Necesitas ${price - gameState.coins} monedas más`, 
-        duration: 2000 
-      });
-      playSound('error');
-    }
-  }, [gameState, upgrades, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
+    toast({ 
+      title: "✅ Mejora Comprada", 
+      description: `${upgrade.name} nivel ${currentLevel + 1}`, 
+      duration: 2000 
+    });
+    playSound('upgrade');
+  } else {
+    toast({ 
+      title: "💰 Monedas Insuficientes", 
+      description: `Necesitas ${price - gameState.coins} monedas más`, 
+      duration: 2000 
+    });
+    playSound('error');
+  }
+}, [gameState, upgrades, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
 
   // 🎯 MISIONES
   const completeMission = useCallback((missionId, isSocial = false) => {

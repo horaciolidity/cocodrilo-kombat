@@ -144,28 +144,28 @@ export function GameView({
     initializeVideos();
   }, []);
 
-  const getCurrentClickPower = () => {
-    if (calculateRealClickPower) {
-      return calculateRealClickPower();
-    }
-    
-    let clickPower = gameState.clickPower || 1;
-    
-    Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
-      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-      if (upgradeConfig && upgradeData?.level > 0) {
-        if (upgradeConfig.type === 'multiplier') {
-          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-          clickPower = clickPower * (1 + multiplierBonus);
-        } else if (upgradeConfig.type === 'click') {
-          const clickBonus = upgradeConfig.basePower * upgradeData.level;
-          clickPower += clickBonus;
-        }
+ const getCurrentClickPower = () => {
+  if (calculateRealClickPower) {
+    return calculateRealClickPower();
+  }
+  
+  // Fallback cálculo simple
+  let clickPower = 1;
+  
+  Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
+    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+    if (upgradeConfig && upgradeData?.level > 0) {
+      if (upgradeConfig.type === 'click') {
+        clickPower += upgradeConfig.basePower * upgradeData.level;
+      } else if (upgradeConfig.type === 'multiplier') {
+        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+        clickPower *= (1 + multiplierBonus);
       }
-    });
-
-    return clickPower;
-  };
+    }
+  });
+  
+  return Math.floor(clickPower);
+};
 
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
