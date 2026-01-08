@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  UPGRADES, 
-  ACHIEVEMENTS, 
-  MISSIONS, 
-  CARDS_DATA, 
-  SHOP_ITEMS, 
-  FARMING_MILESTONES, 
-  INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE, 
-  INITIAL_UPGRADES_STATE as DEFAULT_INITIAL_UPGRADES_STATE, 
-  INITIAL_MISSIONS_STATE as DEFAULT_INITIAL_MISSIONS_STATE, 
-  INITIAL_FARMING_MILESTONES_STATE 
+import {
+  ACHIEVEMENTS,
+  INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE
 } from '@/config/gameConfig';
 
 export function useGameLogic({
@@ -28,8 +20,25 @@ export function useGameLogic({
   toast,
   playSound,
   setShowMilestoneModal,
-  setLastReachedMilestone
+  setLastReachedMilestone,
+  gameConfig
 }) {
+  const {
+    upgrades: UPGRADES = [],
+    missions: MISSIONS = [],
+    shopItems: SHOP_ITEMS = [],
+    cards: CARDS_DATA = [],
+    // achievements: ACHIEVEMENTS // If achievements are dynamic too
+  } = gameConfig || {};
+
+  // Static Achievements fallback or import if not dynamic yet
+  // Assuming ACHIEVEMENTS are still static for now as I didn't migrate them
+  // But wait, useGameLogic imports ACHIEVEMENTS. I should probably keep imported ACHIEVEMENTS if not in config.
+  // Let's import ACHIEVEMENTS again if not in config.
+
+  // Re-importing static ACHIEVEMENTS for now since it wasn't in migration plan
+  // But wait, I removed the import block.
+  // I need to keep ACHIEVEMENTS import.
   // 🎯 DATOS DEL JUEGO DESDE EL HOOK CENTRAL
   const {
     gameState,
@@ -70,31 +79,31 @@ export function useGameLogic({
   // ⚡ REGENERACIÓN DE ENERGÍA - VERSIÓN OPTIMIZADA
   useEffect(() => {
     if (!gameState || !updateGameState) return;
-    
+
     let isMounted = true;
     let energyInterval = null;
-    
+
     const startEnergySystem = () => {
       if (!isMounted) return;
-      
+
       if (energyInterval) {
         clearInterval(energyInterval);
       }
-      
+
       // 1. REGENERACIÓN EN TIEMPO REAL (cada 3 segundos)
       energyInterval = setInterval(() => {
         if (!isMounted || !gameStateRef.current) return;
-        
+
         const currentEnergy = gameStateRef.current.energy;
         const currentMaxEnergy = gameStateRef.current.maxEnergy;
-        
+
         if (currentEnergy < currentMaxEnergy) {
           const newEnergy = Math.min(currentEnergy + 1, currentMaxEnergy);
-          
+
           updateGameState({
             energy: newEnergy
           });
-          
+
           // Sincronizar con BD cada 10 regeneraciones
           const now = Date.now();
           if (now - lastEnergySyncRef.current > 30000) {
@@ -107,9 +116,9 @@ export function useGameLogic({
         }
       }, 3000);
     };
-    
+
     startEnergySystem();
-    
+
     return () => {
       isMounted = false;
       if (energyInterval) {
@@ -119,110 +128,110 @@ export function useGameLogic({
   }, [gameState.maxEnergy, updateGameState, syncGameData]);
 
   // 💰 GENERACIÓN AUTOMÁTICA DE MONEDAS - CORREGIDA
-useEffect(() => {
-  console.log("💰 Iniciando generación de monedas...");
-  
-  if (coinsIntervalRef.current) {
-    clearInterval(coinsIntervalRef.current);
-  }
+  useEffect(() => {
+    console.log("💰 Iniciando generación de monedas...");
 
-  coinsIntervalRef.current = setInterval(() => {
-    let effectiveCPS = 0;
-    
-    // ✅ 1. CPS BASE del estado
-    effectiveCPS += gameState.coinsPerSecond;
-    
-    // ✅ 2. CPS de UPGRADES
-    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
-      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-      if (upgradeConfig && upgradeConfig.type === 'cps' && upgradeData?.level > 0) {
-        effectiveCPS += upgradeConfig.basePower * upgradeData.level;
-      }
-    });
-    
-    // ✅ 3. Aplicar boosts de items
-    ownedItems.forEach(itemId => {
-      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-      if (item && item.effect?.cpsBoost) {
-        effectiveCPS += item.effect.cpsBoost;
-      }
-      if (item && item.effect?.autoClicks) {
-        effectiveCPS += item.effect.autoClicks;
-      }
-      if (item && item.effect?.coinMultiplier) {
-        effectiveCPS *= item.effect.coinMultiplier;
-      }
-    });
-
-    // ✅ 4. Aplicar boosts de cartas (porcentaje)
-    ownedCards.forEach(cardId => {
-      const card = CARDS_DATA.find(c => c.id === cardId);
-      if (card && card.effect.type === 'cps_boost_percent') {
-        effectiveCPS *= (1 + card.effect.value / 100);
-      }
-    });
-
-    if (effectiveCPS > 0) {
-      const increment = effectiveCPS / 10; // Dividido por 10 porque se ejecuta 10 veces por segundo
-      updateGameState({
-        coins: gameState.coins + increment,
-        totalCoins: gameState.totalCoins + increment
-      });
-    }
-  }, 100);
-
-  return () => {
     if (coinsIntervalRef.current) {
       clearInterval(coinsIntervalRef.current);
-      coinsIntervalRef.current = null;
     }
-  };
-}, [gameState, upgrades, ownedItems, ownedCards, updateGameState]);
+
+    coinsIntervalRef.current = setInterval(() => {
+      let effectiveCPS = 0;
+
+      // ✅ 1. CPS BASE del estado
+      effectiveCPS += gameState.coinsPerSecond;
+
+      // ✅ 2. CPS de UPGRADES
+      Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+        const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+        if (upgradeConfig && upgradeConfig.type === 'cps' && upgradeData?.level > 0) {
+          effectiveCPS += upgradeConfig.basePower * upgradeData.level;
+        }
+      });
+
+      // ✅ 3. Aplicar boosts de items
+      ownedItems.forEach(itemId => {
+        const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+        if (item && item.effect?.cpsBoost) {
+          effectiveCPS += item.effect.cpsBoost;
+        }
+        if (item && item.effect?.autoClicks) {
+          effectiveCPS += item.effect.autoClicks;
+        }
+        if (item && item.effect?.coinMultiplier) {
+          effectiveCPS *= item.effect.coinMultiplier;
+        }
+      });
+
+      // ✅ 4. Aplicar boosts de cartas (porcentaje)
+      ownedCards.forEach(cardId => {
+        const card = CARDS_DATA.find(c => c.id === cardId);
+        if (card && card.effect.type === 'cps_boost_percent') {
+          effectiveCPS *= (1 + card.effect.value / 100);
+        }
+      });
+
+      if (effectiveCPS > 0) {
+        const increment = effectiveCPS / 10; // Dividido por 10 porque se ejecuta 10 veces por segundo
+        updateGameState({
+          coins: gameState.coins + increment,
+          totalCoins: gameState.totalCoins + increment
+        });
+      }
+    }, 100);
+
+    return () => {
+      if (coinsIntervalRef.current) {
+        clearInterval(coinsIntervalRef.current);
+        coinsIntervalRef.current = null;
+      }
+    };
+  }, [gameState, upgrades, ownedItems, ownedCards, updateGameState]);
 
   // 🏆 SISTEMA DE LOGROS
   useEffect(() => {
     ACHIEVEMENTS.forEach(achievement => {
       if (!achievementsUnlocked.includes(achievement.id)) {
         let currentValue = 0;
-        
+
         switch (achievement.type) {
-          case 'clicks': 
-            currentValue = gameState.totalClicks; 
+          case 'clicks':
+            currentValue = gameState.totalClicks;
             break;
-          case 'totalCoins': 
-            currentValue = gameState.totalCoins; 
+          case 'totalCoins':
+            currentValue = gameState.totalCoins;
             break;
-          case 'upgrades': 
-            currentValue = Object.values(upgrades).reduce((sum, upg) => sum + (upg?.level || 0), 0); 
+          case 'upgrades':
+            currentValue = Object.values(upgrades).reduce((sum, upg) => sum + (upg?.level || 0), 0);
             break;
-          case 'missions': 
-            currentValue = Object.values(missions).filter(m => m.completed).length; 
+          case 'missions':
+            currentValue = Object.values(missions).filter(m => m.completed).length;
             break;
-          case 'cards': 
-            currentValue = ownedCards.length; 
+          case 'cards':
+            currentValue = ownedCards.length;
             break;
-          case 'items': 
-            currentValue = ownedItems.filter(item => 
+          case 'items':
+            currentValue = ownedItems.filter(item =>
               typeof item === 'string' || (typeof item === 'object' && item.type !== 'consumable')
-            ).length; 
+            ).length;
             break;
-          case 'farming_milestones': 
-            currentValue = Object.values(farmingMilestones).filter(m => m.claimed).length; 
+          case 'farming_milestones':
+            currentValue = Object.values(farmingMilestones).filter(m => m.claimed).length;
             break;
         }
-        
+
         if (currentValue >= achievement.requirement) {
           const newAchievements = [...achievementsUnlocked, achievement.id];
           updateAchievementsUnlocked(newAchievements);
-          
+
           toast({
             title: "🏆 ¡Logro Desbloqueado!",
             description: `${achievement.name}: ${achievement.description}`,
             duration: 4000,
           });
-          
+
           playSound('achievement');
-          
+
           // Sincronizar con BD
           syncGameData({
             achievements_unlocked: newAchievements
@@ -231,87 +240,87 @@ useEffect(() => {
       }
     });
   }, [
-    gameState, 
-    upgrades, 
-    missions, 
-    achievementsUnlocked, 
-    ownedCards, 
-    ownedItems, 
-    farmingMilestones, 
-    toast, 
-    playSound, 
+    gameState,
+    upgrades,
+    missions,
+    achievementsUnlocked,
+    ownedCards,
+    ownedItems,
+    farmingMilestones,
+    toast,
+    playSound,
     updateAchievementsUnlocked,
     syncGameData
   ]);
 
   // 🎯 FUNCIÓN PARA CALCULAR CLICK POWER REAL - MEJORADA
-const calculateRealClickPower = useCallback(() => {
-  let clickPower = 1; // ❌ NO usar gameState.clickPower
-  
-  // ✅ APLICAR BONUS DE UPGRADES
-  Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
-    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-    if (upgradeConfig && upgradeData?.level > 0) {
-      if (upgradeConfig.type === 'click') {
-        const clickBonus = upgradeConfig.basePower * upgradeData.level;
-        clickPower += clickBonus;
-      } else if (upgradeConfig.type === 'multiplier') {
-        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-        clickPower *= (1 + multiplierBonus);
+  const calculateRealClickPower = useCallback(() => {
+    let clickPower = 1; // ❌ NO usar gameState.clickPower
+
+    // ✅ APLICAR BONUS DE UPGRADES
+    Object.entries(upgrades).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeData?.level > 0) {
+        if (upgradeConfig.type === 'click') {
+          const clickBonus = upgradeConfig.basePower * upgradeData.level;
+          clickPower += clickBonus;
+        } else if (upgradeConfig.type === 'multiplier') {
+          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+          clickPower *= (1 + multiplierBonus);
+        }
+        // 'cps' y 'energy' no afectan click power
       }
-      // 'cps' y 'energy' no afectan click power
-    }
-  });
+    });
 
-  // ✅ APLICAR BONUS DE ITEMS
-  ownedItems.forEach(itemId => {
-    const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
-    if (item && item.effect?.clickMultiplier) {
-      clickPower *= item.effect.clickMultiplier;
-    }
-    if (item && item.effect?.clickPower) {
-      clickPower += item.effect.clickPower;
-    }
-  });
-
-  // ✅ APLICAR BONUS DE CARTAS
-  ownedCards.forEach(cardId => {
-    const card = CARDS_DATA.find(c => c.id === cardId);
-    if (card) {
-      if (card.effect.type === 'click_power_flat') {
-        clickPower += card.effect.value;
+    // ✅ APLICAR BONUS DE ITEMS
+    ownedItems.forEach(itemId => {
+      const item = SHOP_ITEMS.find(i => i.id === itemId || (typeof i === 'object' && i.id === itemId));
+      if (item && item.effect?.clickMultiplier) {
+        clickPower *= item.effect.clickMultiplier;
       }
-      if (card.effect.type === 'click_power_percent') {
-        const percentBonus = clickPower * (card.effect.value / 100);
-        clickPower += percentBonus;
+      if (item && item.effect?.clickPower) {
+        clickPower += item.effect.clickPower;
+      }
+    });
+
+    // ✅ APLICAR BONUS DE CARTAS
+    ownedCards.forEach(cardId => {
+      const card = CARDS_DATA.find(c => c.id === cardId);
+      if (card) {
+        if (card.effect.type === 'click_power_flat') {
+          clickPower += card.effect.value;
+        }
+        if (card.effect.type === 'click_power_percent') {
+          const percentBonus = clickPower * (card.effect.value / 100);
+          clickPower += percentBonus;
+        }
+      }
+    });
+
+    // ✅ APLICAR BONUS DE SKIN ACTIVA
+    if (activeSkin) {
+      const skin = SHOP_ITEMS.find(i => i.id === activeSkin);
+      if (skin && skin.effect?.clickMultiplier) {
+        clickPower *= skin.effect.clickMultiplier;
       }
     }
-  });
 
-  // ✅ APLICAR BONUS DE SKIN ACTIVA
-  if (activeSkin) {
-    const skin = SHOP_ITEMS.find(i => i.id === activeSkin);
-    if (skin && skin.effect?.clickMultiplier) {
-      clickPower *= skin.effect.clickMultiplier;
-    }
-  }
-
-  return Math.max(1, Math.floor(clickPower));
-}, [upgrades, ownedItems, ownedCards, activeSkin]);
+    return Math.max(1, Math.floor(clickPower));
+  }, [upgrades, ownedItems, ownedCards, activeSkin]);
 
 
   // 👆 FUNCIÓN DE CLIC - OPTIMIZADA
   const handleClick = useCallback((event) => {
     if (gameState.energy <= 0) {
-      toast({ 
-        title: "⚡ Sin Energía", 
-        description: `Espera a que se recargue tu energía (${gameState.energy}/${gameState.maxEnergy})`, 
-        duration: 2000 
+      toast({
+        title: "⚡ Sin Energía",
+        description: `Espera a que se recargue tu energía (${gameState.energy}/${gameState.maxEnergy})`,
+        duration: 2000
       });
       playSound('error');
       return;
     }
-    
+
     playSound('click');
 
     const currentClickPower = calculateRealClickPower();
@@ -325,7 +334,7 @@ const calculateRealClickPower = useCallback(() => {
       energy: Math.max(0, gameState.energy - 1),
       experience: gameState.experience + 1
     };
-    
+
     updateGameState(newState);
 
     // Efectos visuales
@@ -346,23 +355,23 @@ const calculateRealClickPower = useCallback(() => {
     const expForNextLevel = 100; // 100 XP por nivel
     const currentExp = gameState.experience + 1;
     const newLevel = Math.floor(currentExp / expForNextLevel) + 1;
-    
+
     if (newLevel > gameState.level) {
       const levelDiff = newLevel - gameState.level;
-      updateGameState({ 
+      updateGameState({
         level: newLevel,
         maxEnergy: gameState.maxEnergy + (levelDiff * 10) // +10 energía por nivel
       });
-      
-      toast({ 
-        title: "🎉 ¡Nivel Subido!", 
-        description: `¡Ahora eres nivel ${newLevel}! +${levelDiff * 10} energía máxima`, 
-        duration: 3000 
+
+      toast({
+        title: "🎉 ¡Nivel Subido!",
+        description: `¡Ahora eres nivel ${newLevel}! +${levelDiff * 10} energía máxima`,
+        duration: 3000
       });
       playSound('levelUp');
-      
+
       // Sincronizar nivel
-      syncGameData({ 
+      syncGameData({
         level: newLevel,
         max_energy: gameState.maxEnergy + (levelDiff * 10)
       });
@@ -370,56 +379,56 @@ const calculateRealClickPower = useCallback(() => {
   }, [gameState, calculateRealClickPower, updateGameState, toast, playSound, syncGameData]);
 
   // 🛒 FUNCIÓN DE COMPRA DE UPGRADES - VERSIÓN CORREGIDA
-const buyUpgrade = useCallback((upgradeId) => {
-  const upgrade = UPGRADES.find(u => u.id === upgradeId);
-  if (!upgrade) {
-    console.error('Upgrade not found:', upgradeId);
-    return;
-  }
+  const buyUpgrade = useCallback((upgradeId) => {
+    const upgrade = UPGRADES.find(u => u.id === upgradeId);
+    if (!upgrade) {
+      console.error('Upgrade not found:', upgradeId);
+      return;
+    }
 
-  const currentLevel = upgrades[upgradeId]?.level || 0;
-  const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
+    const currentLevel = upgrades[upgradeId]?.level || 0;
+    const price = Math.floor(upgrade.basePrice * Math.pow(1.5, currentLevel));
 
-  if (gameState.coins >= price) {
-    // SOLO descontar monedas, NO modificar otros estados
-    const newGameState = { 
-      coins: gameState.coins - price,
-      totalCoins: gameState.totalCoins // Mantener igual
-    };
-    
-    // ✅ ACTUALIZAR UPGRADES (solo el nivel)
-    const newUpgrades = {
-      ...upgrades,
-      [upgradeId]: { 
-        level: (upgrades[upgradeId]?.level || 0) + 1,
-        owned: (upgrades[upgradeId]?.owned || 0) + 1 
-      }
-    };
-    
-    updateGameState(newGameState);
-    updateUpgrades(newUpgrades);
+    if (gameState.coins >= price) {
+      // SOLO descontar monedas, NO modificar otros estados
+      const newGameState = {
+        coins: gameState.coins - price,
+        totalCoins: gameState.totalCoins // Mantener igual
+      };
 
-    // 🔥 SINCRONIZAR SOLO LO NECESARIO
-    syncGameData({
-      coins: newGameState.coins,
-      upgrades: newUpgrades
-    });
+      // ✅ ACTUALIZAR UPGRADES (solo el nivel)
+      const newUpgrades = {
+        ...upgrades,
+        [upgradeId]: {
+          level: (upgrades[upgradeId]?.level || 0) + 1,
+          owned: (upgrades[upgradeId]?.owned || 0) + 1
+        }
+      };
 
-    toast({ 
-      title: "✅ Mejora Comprada", 
-      description: `${upgrade.name} nivel ${currentLevel + 1}`, 
-      duration: 2000 
-    });
-    playSound('upgrade');
-  } else {
-    toast({ 
-      title: "💰 Monedas Insuficientes", 
-      description: `Necesitas ${price - gameState.coins} monedas más`, 
-      duration: 2000 
-    });
-    playSound('error');
-  }
-}, [gameState, upgrades, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
+      updateGameState(newGameState);
+      updateUpgrades(newUpgrades);
+
+      // 🔥 SINCRONIZAR SOLO LO NECESARIO
+      syncGameData({
+        coins: newGameState.coins,
+        upgrades: newUpgrades
+      });
+
+      toast({
+        title: "✅ Mejora Comprada",
+        description: `${upgrade.name} nivel ${currentLevel + 1}`,
+        duration: 2000
+      });
+      playSound('upgrade');
+    } else {
+      toast({
+        title: "💰 Monedas Insuficientes",
+        description: `Necesitas ${price - gameState.coins} monedas más`,
+        duration: 2000
+      });
+      playSound('error');
+    }
+  }, [gameState, upgrades, updateGameState, updateUpgrades, toast, playSound, syncGameData]);
 
   // 🎯 MISIONES
   const completeMission = useCallback((missionId, isSocial = false) => {
@@ -427,34 +436,34 @@ const buyUpgrade = useCallback((upgradeId) => {
     if (!mission || missions[missionId]?.completed) return;
 
     let canComplete = false;
-    
+
     if (isSocial) {
       const newMissions = {
         ...missions,
-        [missionId]: { 
-          ...missions[missionId], 
-          progress: (missions[missionId]?.progress || 0) + 1 
+        [missionId]: {
+          ...missions[missionId],
+          progress: (missions[missionId]?.progress || 0) + 1
         }
       };
-      
+
       updateMissions(newMissions);
       canComplete = (newMissions[missionId].progress || 0) >= mission.requirement.value;
     } else {
-      switch(mission.requirement.type) {
-        case 'clicks': 
-          canComplete = gameState.totalClicks >= mission.requirement.value; 
+      switch (mission.requirement.type) {
+        case 'clicks':
+          canComplete = gameState.totalClicks >= mission.requirement.value;
           break;
-        case 'coins': 
-          canComplete = gameState.totalCoins >= mission.requirement.value; 
+        case 'coins':
+          canComplete = gameState.totalCoins >= mission.requirement.value;
           break;
-        case 'level': 
-          canComplete = gameState.level >= mission.requirement.value; 
+        case 'level':
+          canComplete = gameState.level >= mission.requirement.value;
           break;
-        case 'upgradeLevel': 
+        case 'upgradeLevel':
           const targetUpgrade = upgrades[mission.requirement.upgradeId];
           canComplete = targetUpgrade && targetUpgrade.level >= mission.requirement.value;
           break;
-        default: 
+        default:
           break;
       }
     }
@@ -462,30 +471,30 @@ const buyUpgrade = useCallback((upgradeId) => {
     if (canComplete) {
       const newMissions = {
         ...missions,
-        [missionId]: { 
-          ...missions[missionId], 
-          completed: true, 
-          claimed: false 
+        [missionId]: {
+          ...missions[missionId],
+          completed: true,
+          claimed: false
         }
       };
-      
+
       updateMissions(newMissions);
-      
-      toast({ 
-        title: "🎯 Misión Cumplida", 
-        description: `¡Has completado "${mission.name}"! Reclama tu recompensa.`, 
-        duration: 3000 
+
+      toast({
+        title: "🎯 Misión Cumplida",
+        description: `¡Has completado "${mission.name}"! Reclama tu recompensa.`,
+        duration: 3000
       });
-      
+
       playSound('missionComplete');
-      
+
       // Sincronizar misiones
       syncGameData({ missions: newMissions });
     } else if (!isSocial) {
-      toast({ 
-        title: "⏳ Misión Incompleta", 
-        description: `Aún no cumples los requisitos para "${mission.name}".`, 
-        duration: 2000 
+      toast({
+        title: "⏳ Misión Incompleta",
+        description: `Aún no cumples los requisitos para "${mission.name}".`,
+        duration: 2000
       });
       playSound('uiClick');
     }
@@ -502,20 +511,20 @@ const buyUpgrade = useCallback((upgradeId) => {
       totalCoins: gameState.totalCoins + mission.reward.coins,
       experience: gameState.experience + (mission.reward.xp || 0)
     };
-    
+
     updateGameState(newGameState);
-    
+
     // Añadir carta si hay recompensa
     if (mission.reward.cardId) {
       const card = CARDS_DATA.find(c => c.id === mission.reward.cardId);
       if (card && !ownedCards.includes(card.id)) {
         const newOwnedCards = [...ownedCards, card.id];
         updateOwnedCards(newOwnedCards);
-        
-        toast({ 
-          title: "🃏 Carta Obtenida!", 
-          description: `¡Recibiste la carta "${card.name}"!`, 
-          duration: 3000 
+
+        toast({
+          title: "🃏 Carta Obtenida!",
+          description: `¡Recibiste la carta "${card.name}"!`,
+          duration: 3000
         });
         playSound('cardGet');
       }
@@ -524,22 +533,22 @@ const buyUpgrade = useCallback((upgradeId) => {
     // Marcar misión como reclamada
     const newMissions = {
       ...missions,
-      [missionId]: { 
-        ...missions[missionId], 
-        claimed: true 
+      [missionId]: {
+        ...missions[missionId],
+        claimed: true
       }
     };
-    
+
     updateMissions(newMissions);
-    
-    toast({ 
-      title: "🎁 Recompensa Reclamada", 
-      description: `+${mission.reward.coins} monedas por "${mission.name}"`, 
-      duration: 3000 
+
+    toast({
+      title: "🎁 Recompensa Reclamada",
+      description: `+${mission.reward.coins} monedas por "${mission.name}"`,
+      duration: 3000
     });
-    
+
     playSound('reward');
-    
+
     // Sincronizar todo
     syncGameData({
       coins: newGameState.coins,
@@ -552,12 +561,12 @@ const buyUpgrade = useCallback((upgradeId) => {
   // 📅 RECOMPENSA DIARIA - VERSIÓN SIMPLIFICADA
   const claimDailyReward = useCallback(() => {
     console.log('🎁 Intentando reclamar recompensa diaria...');
-    
+
     if (!dailyRewards.available) {
-      toast({ 
-        title: "⏳ Ya Reclamaste Hoy", 
-        description: "Vuelve mañana para tu próxima recompensa.", 
-        duration: 2000 
+      toast({
+        title: "⏳ Ya Reclamaste Hoy",
+        description: "Vuelve mañana para tu próxima recompensa.",
+        duration: 2000
       });
       playSound('uiClick');
       return;
@@ -565,14 +574,14 @@ const buyUpgrade = useCallback((upgradeId) => {
 
     const now = new Date();
     const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-    
+
     // Calcular nueva racha
     let newStreak = 1;
-    
+
     if (lastClaimDate) {
       const diffTime = Math.abs(now - lastClaimDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 1) {
         // Reclamación consecutiva
         newStreak = dailyRewards.streak + 1;
@@ -599,24 +608,24 @@ const buyUpgrade = useCallback((upgradeId) => {
       coins: gameState.coins + totalReward,
       totalCoins: gameState.totalCoins + totalReward
     };
-    
+
     updateGameState(newGameState);
 
     // Actualizar recompensa diaria
-    const newDailyRewards = { 
-      lastClaim: now.toISOString(), 
-      streak: newStreak, 
-      available: false 
+    const newDailyRewards = {
+      lastClaim: now.toISOString(),
+      streak: newStreak,
+      available: false
     };
-    
+
     updateDailyRewards(newDailyRewards);
 
-    toast({ 
-      title: "🎁 ¡Recompensa Diaria Reclamada!", 
-      description: `+${totalReward} monedas (Racha: ${newStreak} días)`, 
-      duration: 4000 
+    toast({
+      title: "🎁 ¡Recompensa Diaria Reclamada!",
+      description: `+${totalReward} monedas (Racha: ${newStreak} días)`,
+      duration: 4000
     });
-    
+
     playSound('reward');
 
     // Sincronizar con Supabase
@@ -632,13 +641,13 @@ const buyUpgrade = useCallback((upgradeId) => {
   useEffect(() => {
     const checkDailyReward = () => {
       if (!dailyRewards || !updateDailyRewards) return;
-      
+
       const now = new Date();
       const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-      
+
       let shouldUpdate = false;
       let newDailyRewards = { ...dailyRewards };
-      
+
       // Si no hay última reclamación, está disponible
       if (!lastClaimDate) {
         if (!dailyRewards.available) {
@@ -650,7 +659,7 @@ const buyUpgrade = useCallback((upgradeId) => {
         const diffTime = Math.abs(now - lastClaimDate);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         const isNewDay = now.toDateString() !== lastClaimDate.toDateString();
-        
+
         // Si ha pasado al menos un día y es un nuevo día
         if (diffDays >= 1 && isNewDay) {
           if (!dailyRewards.available) {
@@ -663,34 +672,34 @@ const buyUpgrade = useCallback((upgradeId) => {
           shouldUpdate = true;
         }
       }
-      
+
       // Solo actualizar si hay cambios
       if (shouldUpdate) {
         console.log('🎁 Actualizando estado de recompensa diaria');
         updateDailyRewards(newDailyRewards);
       }
     };
-    
+
     // Ejecutar una vez al cargar
     checkDailyReward();
-    
+
     // Verificar cada minuto
     const interval = setInterval(checkDailyReward, 60000);
-    
+
     return () => clearInterval(interval);
   }, [dailyRewards, updateDailyRewards]);
 
   // 🛍️ TIENDA - VERSIÓN SIMPLIFICADA Y FUNCIONAL
   const buyShopItem = useCallback(async (itemId, useCroc = false, discount = 0) => {
     console.log('🛍️ Iniciando compra de item:', { itemId, useCroc, discount });
-    
+
     const item = SHOP_ITEMS.find(i => i.id === itemId);
     if (!item) {
       console.error('❌ Item no encontrado:', itemId);
-      toast({ 
-        title: "❌ Error", 
-        description: "El item no existe.", 
-        duration: 2000 
+      toast({
+        title: "❌ Error",
+        description: "El item no existe.",
+        duration: 2000
       });
       playSound('error');
       return false;
@@ -704,21 +713,21 @@ const buyUpgrade = useCallback((upgradeId) => {
     });
 
     if (isAlreadyOwned && item.type !== 'consumable' && item.type !== 'boost') {
-      toast({ 
-        title: "🚫 Ya Posees Este Ítem", 
-        description: `Ya tienes "${item.name}".`, 
-        duration: 2000 
+      toast({
+        title: "🚫 Ya Posees Este Ítem",
+        description: `Ya tienes "${item.name}".`,
+        duration: 2000
       });
       playSound('error');
       return false;
     }
-    
+
     // 🎨 Verificar si la skin ya está activa
     if (item.type === 'skin' && activeSkin === itemId) {
-      toast({ 
-        title: "🎨 Skin ya Activa", 
-        description: `La skin "${item.name}" ya está en uso.`, 
-        duration: 2000 
+      toast({
+        title: "🎨 Skin ya Activa",
+        description: `La skin "${item.name}" ya está en uso.`,
+        duration: 2000
       });
       playSound('uiClick');
       return false;
@@ -727,17 +736,17 @@ const buyUpgrade = useCallback((upgradeId) => {
     // 💰 Calcular precio
     const basePrice = useCroc ? (item.priceCroc || Math.floor(item.price * 0.1)) : item.price;
     const finalPrice = Math.floor(basePrice * (1 - discount / 100));
-    
+
     // 📊 Verificar saldo suficiente
     const balance = useCroc ? gameState.nativeTokenBalance : gameState.coins;
     const currencyName = useCroc ? 'CROC' : 'monedas';
-    
+
     if (balance < finalPrice) {
       const needed = finalPrice - balance;
-      toast({ 
-        title: `💰 ${currencyName} Insuficientes`, 
-        description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`, 
-        duration: 3000 
+      toast({
+        title: `💰 ${currencyName} Insuficientes`,
+        description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`,
+        duration: 3000
       });
       playSound('error');
       return false;
@@ -773,7 +782,7 @@ const buyUpgrade = useCallback((upgradeId) => {
           if (!newOwnedItems.includes(itemId)) {
             newOwnedItems.push(itemId);
           }
-          
+
           // Aplicar efectos inmediatos
           if (item.effect?.autoClicks) {
             updates.coinsPerSecond = gameState.coinsPerSecond + item.effect.autoClicks;
@@ -812,11 +821,11 @@ const buyUpgrade = useCallback((upgradeId) => {
 
       // 📦 APLICAR ACTUALIZACIONES
       updateGameState(updates);
-      
+
       if (item.type === 'skin') {
         updateActiveSkin(newActiveSkin);
       }
-      
+
       // Solo actualizar ownedItems para items no consumibles
       if (item.type !== 'consumable') {
         updateOwnedItems(newOwnedItems);
@@ -828,11 +837,11 @@ const buyUpgrade = useCallback((upgradeId) => {
           const it = SHOP_ITEMS.find(s => s.id === id);
           return it && it.type === 'skin';
         }).length;
-        
+
         if (ownedSkins >= 3 && !achievementsUnlocked.includes('skin_collector_1')) {
           const newAchievements = [...achievementsUnlocked, 'skin_collector_1'];
           updateAchievementsUnlocked(newAchievements);
-          
+
           toast({
             title: "🏆 Logro Desbloqueado!",
             description: "¡Coleccionista de Skins Nivel 1!",
@@ -860,24 +869,24 @@ const buyUpgrade = useCallback((upgradeId) => {
       // 🎉 NOTIFICACIONES
       let title = "✅ Compra Exitosa!";
       let description = `Has adquirido "${item.name}" por ${finalPrice} ${currencyName}`;
-      
+
       if (item.type === 'skin') {
         title = "🎨 ¡Skin Equipada!";
         description = `¡Ahora usas "${item.name}"!`;
       } else if (item.type === 'consumable') {
         title = "⚡ Consumible Activado";
       }
-      
+
       if (discount > 0) {
         description += ` (${discount}% descuento)`;
       }
-      
-      toast({ 
-        title, 
-        description, 
-        duration: 4000 
+
+      toast({
+        title,
+        description,
+        duration: 4000
       });
-      
+
       // 🔊 SONIDO
       if (item.type === 'skin') playSound('equip');
       else if (item.type === 'consumable') playSound('powerUp');
@@ -898,16 +907,16 @@ const buyUpgrade = useCallback((upgradeId) => {
       return false;
     }
   }, [
-    gameState, 
-    ownedItems, 
-    activeSkin, 
+    gameState,
+    ownedItems,
+    activeSkin,
     achievementsUnlocked,
-    updateGameState, 
-    updateActiveSkin, 
+    updateGameState,
+    updateActiveSkin,
     updateOwnedItems,
     updateAchievementsUnlocked,
-    toast, 
-    playSound, 
+    toast,
+    playSound,
     syncGameData
   ]);
 
@@ -938,15 +947,15 @@ const buyUpgrade = useCallback((upgradeId) => {
 
     // Equipar la skin
     updateActiveSkin(skinId);
-    
+
     toast({
       title: "🎨 Skin Equipada",
       description: `¡Ahora usas "${skin.name}"!`,
       duration: 3000,
     });
-    
+
     playSound('equip');
-    
+
     // Sincronizar con BD
     syncGameData({
       active_skin: skinId
@@ -963,48 +972,48 @@ const buyUpgrade = useCallback((upgradeId) => {
       const newGameState = {
         nativeTokenBalance: gameState.nativeTokenBalance + milestone.tokenReward
       };
-      
+
       updateGameState(newGameState);
-      
+
       // Marcar hito como reclamado
       const newFarmingMilestones = {
         ...farmingMilestones,
         [milestoneId]: { claimed: true }
       };
-      
+
       updateFarmingMilestones(newFarmingMilestones);
-      
-      toast({ 
-        title: "🏆 Hito de Farmeo Reclamado!", 
-        description: `¡Has ganado ${milestone.tokenReward} CROC por "${milestone.name}"!`, 
-        duration: 4000 
+
+      toast({
+        title: "🏆 Hito de Farmeo Reclamado!",
+        description: `¡Has ganado ${milestone.tokenReward} CROC por "${milestone.name}"!`,
+        duration: 4000
       });
-      
+
       playSound('milestone');
       setLastReachedMilestone(milestone);
       setShowMilestoneModal(true);
-      
+
       // Sincronizar hito
       syncGameData({
         native_token_balance: newGameState.nativeTokenBalance,
         farming_milestones: newFarmingMilestones
       });
     } else {
-      toast({ 
-        title: "⏳ Requisito No Cumplido", 
-        description: `Necesitas ${milestone.coinsRequired.toLocaleString()} monedas totales para reclamar este hito.`, 
-        duration: 3000 
+      toast({
+        title: "⏳ Requisito No Cumplido",
+        description: `Necesitas ${milestone.coinsRequired.toLocaleString()} monedas totales para reclamar este hito.`,
+        duration: 3000
       });
       playSound('uiClick');
     }
   }, [
-    gameState, 
-    farmingMilestones, 
-    updateGameState, 
-    updateFarmingMilestones, 
-    toast, 
-    playSound, 
-    setShowMilestoneModal, 
+    gameState,
+    farmingMilestones,
+    updateGameState,
+    updateFarmingMilestones,
+    toast,
+    playSound,
+    setShowMilestoneModal,
     setLastReachedMilestone,
     syncGameData
   ]);
@@ -1012,23 +1021,23 @@ const buyUpgrade = useCallback((upgradeId) => {
   // 🔔 NOTIFICACIONES DE HITOS DISPONIBLES
   useEffect(() => {
     FARMING_MILESTONES.forEach(milestone => {
-      if (gameState.totalCoins >= milestone.coinsRequired && 
-          !farmingMilestones[milestone.id]?.claimed && 
-          !farmingMilestones[milestone.id]?.notified) {
-        
+      if (gameState.totalCoins >= milestone.coinsRequired &&
+        !farmingMilestones[milestone.id]?.claimed &&
+        !farmingMilestones[milestone.id]?.notified) {
+
         toast({
           title: `🎉 ¡Hito de Farmeo Disponible!`,
           description: `Puedes reclamar ${milestone.tokenReward} CROC por "${milestone.name}". Ve a la sección de Hitos.`,
           duration: 5000,
         });
-        
+
         playSound('notification');
-        
+
         const newFarmingMilestones = {
           ...farmingMilestones,
           [milestone.id]: { ...farmingMilestones[milestone.id], notified: true }
         };
-        
+
         updateFarmingMilestones(newFarmingMilestones);
       }
     });
@@ -1046,13 +1055,13 @@ const buyUpgrade = useCallback((upgradeId) => {
     updateAchievementsUnlocked([]);
     updateDailyRewards({ lastClaim: null, streak: 0, available: true });
     updateFarmingMilestones(INITIAL_FARMING_MILESTONES_STATE);
-    
-    toast({ 
-      title: "🔄 Progreso Reiniciado", 
-      description: "¡Comienza una nueva aventura!", 
-      duration: 3000 
+
+    toast({
+      title: "🔄 Progreso Reiniciado",
+      description: "¡Comienza una nueva aventura!",
+      duration: 3000
     });
-    
+
     // Sincronizar reinicio completo
     syncGameData({
       coins: 0,
@@ -1105,17 +1114,17 @@ const buyUpgrade = useCallback((upgradeId) => {
     farmingMilestonesState: farmingMilestones,
     referralStats,
     player,
-    
+
     // 🎯 ESTADOS DE UI
     floatingNumbers,
     clickEffect,
     soundEnabled,
-    
+
     // 🎯 FUNCIONES DE ACTUALIZACIÓN DE UI
     setFloatingNumbers,
     setClickEffect,
     setSoundEnabled,
-    
+
     // 🎯 FUNCIONES DEL JUEGO
     handleClick,
     buyUpgrade,
@@ -1127,7 +1136,7 @@ const buyUpgrade = useCallback((upgradeId) => {
     resetProgress,
     claimFarmingMilestone,
     calculateRealClickPower,
-    
+
     // 🎯 FUNCIONES DE SINCRONIZACIÓN
     syncAllData: syncGameData,
   };

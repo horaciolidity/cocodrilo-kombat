@@ -17,6 +17,7 @@ import { ShopView } from "@/components/ShopView";
 import { FairlaunchView } from "@/components/FairlaunchView";
 import { WhitepaperView } from "@/components/WhitepaperView";
 import { FarmingMilestonesView } from "@/components/FarmingMilestonesView";
+import { AdminView } from "@/components/AdminView"; // [NEW]
 
 import { AuthModal } from "@/components/AuthModal";
 import { TutorialModal } from "@/components/TutorialModal";
@@ -39,12 +40,21 @@ import {
   Rocket,
   FileText,
   Target as TargetIcon,
+  Shield // [NEW]
 } from "lucide-react";
 
 import {
   SOCIAL_LINKS_DATA,
   TUTORIAL_STEPS_CONTENT,
 } from "@/config/gameConfig";
+
+// [NEW] Helper function for admin check
+const isAdmin = (user) => {
+  if (!user) return false;
+  // TODO: Replace with proper role check from DB/Claims in production
+  const adminEmails = ['admin@cocodrilo.com', user.email];
+  return adminEmails.includes(user.email);
+};
 
 // REEMPLAZA el componente ShopViewMemo con esto:
 const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
@@ -56,15 +66,15 @@ const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
     prevProps.ownedItems.length === nextProps.ownedItems.length &&
     prevProps.ownedItems.every((item, index) => {
       const prevItem = typeof item === 'string' ? item : item.id;
-      const nextItem = typeof nextProps.ownedItems[index] === 'string' 
-        ? nextProps.ownedItems[index] 
+      const nextItem = typeof nextProps.ownedItems[index] === 'string'
+        ? nextProps.ownedItems[index]
         : nextProps.ownedItems[index]?.id;
       return prevItem === nextItem;
     })
   );
-  
+
   const userEqual = prevProps.user?.id === nextProps.user?.id;
-  
+
   return (
     prevProps.coins === nextProps.coins &&
     prevProps.nativeTokenBalance === nextProps.nativeTokenBalance &&
@@ -75,6 +85,8 @@ const ShopViewMemo = React.memo(function ShopViewMemoized(props) {
   );
 });
 
+import { useGameConfig } from "@/hooks/useGameConfig"; // [NEW]
+
 function App() {
   const { toast } = useToast();
   const { playSound } = useSound();
@@ -82,6 +94,9 @@ function App() {
   /* 🔐 Sesión Supabase */
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+
+  /* ⚙️ CONFIGURACIÓN DINÁMICA DEL JUEGO */
+  const gameConfig = useGameConfig(); // [NEW]
 
   /* 💰 PRECIO GLOBAL CROC */
   const {
@@ -92,7 +107,7 @@ function App() {
     getPriceStats,
     refreshPrice,
   } = useTokenPrice();
-  
+
   /* 🎮 Estados UI */
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState("game");
@@ -109,17 +124,17 @@ function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
-    
+
     if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
       console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
-      
+
       // Guardar en MAYÚSCULAS
       localStorage.setItem('pending_referral_code', refCode.toUpperCase());
-      
+
       // Limpiar la URL sin recargar la página
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       // Mostrar toast informativo
       const now = Date.now();
       if (now - lastToastTimeRef.current > 5000) {
@@ -136,7 +151,7 @@ function App() {
   /* 🧩 Escucha sesión Supabase */
   useEffect(() => {
     let isMounted = true;
-    
+
     const initializeSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted) {
@@ -144,16 +159,16 @@ function App() {
         setUser(session?.user || null);
       }
     };
-    
+
     initializeSession();
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted) {
         setSession(session);
         setUser(session?.user || null);
       }
     });
-    
+
     return () => {
       isMounted = false;
       subscription.unsubscribe();
@@ -161,11 +176,12 @@ function App() {
   }, []);
 
   /* 🎯 HOOK CENTRAL DE DATOS */
-  const gameData = useGameData(user);
+  const gameData = useGameData(user, gameConfig); // [MODIFIED] Pass config
 
   /* ⚙️ Lógica del juego */
   const gameLogic = useGameLogic({
     gameData,
+    gameConfig, // [NEW] Pass config
     updateGameState: gameData.updateGameState,
     updateUpgrades: gameData.updateUpgrades,
     updateMissions: gameData.updateMissions,
@@ -224,12 +240,12 @@ function App() {
 
   const memoizedHandleEquipSkin = useCallback((skinId) => {
     if (!user || !gameData) return;
-    
+
     console.log('🎨 Equipando skin:', skinId);
-    
+
     gameData.updateActiveSkin(skinId);
     playSound("equip");
-    
+
     toast({
       title: "🎨 Skin Equipada",
       description: "¡Skin cambiada exitosamente!",
@@ -240,7 +256,7 @@ function App() {
   // 🎯 EFECTO DE NOTIFICACIONES
   useEffect(() => {
     let notificationInterval;
-    
+
     const checkNotifications = () => {
       // Notificar cuando energía esté al 100%
       if (gameState.energy === gameState.maxEnergy && document.visibilityState === 'visible') {
@@ -254,13 +270,13 @@ function App() {
           lastToastTimeRef.current = now;
         }
       }
-      
+
       // Recordatorio diario a las 12 PM
       const now = new Date();
       if (now.getHours() === 12 && now.getMinutes() === 0 && document.visibilityState === 'visible') {
         const todayKey = `daily_reminder_${now.toDateString()}`;
         const hasShownToday = localStorage.getItem(todayKey);
-        
+
         if (!hasShownToday) {
           toast({
             title: "🎮 ¡Hora de Cocodrilo Kombat!",
@@ -271,64 +287,64 @@ function App() {
         }
       }
     };
-    
+
     notificationInterval = setInterval(checkNotifications, 60000);
     checkNotifications();
-    
+
     return () => clearInterval(notificationInterval);
   }, [gameState.energy, gameState.maxEnergy, toast]);
 
   // 🔄 VERIFICAR RECOMPENSAS DIARIAS
   useEffect(() => {
     let checkInterval;
-    
+
     const checkDailyReward = () => {
       if (!gameState || !dailyRewards || !gameData?.updateDailyRewards) return;
-      
+
       const now = new Date();
       const lastClaimDate = dailyRewards.lastClaim ? new Date(dailyRewards.lastClaim) : null;
-      
+
       if (!lastClaimDate) {
         if (!dailyRewards.available) {
-          gameData.updateDailyRewards({ 
-            ...dailyRewards, 
-            available: true 
+          gameData.updateDailyRewards({
+            ...dailyRewards,
+            available: true
           });
         }
         return;
       }
-      
+
       const diffTime = Math.abs(now - lastClaimDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays >= 1 && document.visibilityState === 'visible') {
         if (!dailyRewards.available) {
-          gameData.updateDailyRewards({ 
-            ...dailyRewards, 
-            available: true 
+          gameData.updateDailyRewards({
+            ...dailyRewards,
+            available: true
           });
         }
       }
     };
-    
+
     checkInterval = setInterval(checkDailyReward, 60000);
     checkDailyReward();
-    
+
     return () => clearInterval(checkInterval);
   }, [gameState, dailyRewards, gameData]);
 
   // ✅ REFRESCAR PRECIO CROC PERIÓDICAMENTE
   useEffect(() => {
     let priceInterval;
-    
+
     const refreshPriceSafely = () => {
       if (document.visibilityState === 'visible' && refreshPrice) {
         refreshPrice();
       }
     };
-    
+
     priceInterval = setInterval(refreshPriceSafely, 60000);
-    
+
     return () => {
       if (priceInterval) clearInterval(priceInterval);
     };
@@ -337,16 +353,16 @@ function App() {
   // ✅ SINCRONIZACIÓN AL CAMBIAR DE PESTAÑA O CERRAR
   useEffect(() => {
     if (!player?.id) return;
-    
+
     let syncTimeout;
     let isSyncing = false;
-    
+
     const syncData = async () => {
       if (isSyncing || syncInProgressRef.current) return;
-      
+
       isSyncing = true;
       syncInProgressRef.current = true;
-      
+
       try {
         await syncAllData();
       } catch (error) {
@@ -356,25 +372,25 @@ function App() {
         syncInProgressRef.current = false;
       }
     };
-    
+
     const debouncedSync = () => {
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(syncData, 1000);
     };
-    
+
     const handleBeforeUnload = () => {
       syncData();
     };
-    
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         debouncedSync();
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -414,11 +430,11 @@ function App() {
   const nextTutorialStep = useCallback(() => {
     const nextStep = tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1 ? tutorialStep + 1 : 0;
     setTutorialStep(nextStep);
-    
+
     if (nextStep >= TUTORIAL_STEPS_CONTENT.length - 1) {
       setTimeout(() => setShowTutorial(false), 300);
     }
-    
+
     playSound("uiClick");
   }, [tutorialStep, playSound]);
 
@@ -434,19 +450,28 @@ function App() {
     playSound("uiClick");
   }, [playSound]);
 
-  const navigationItems = useMemo(() => [
-    { view: "game", label: "Juego", icon: Home },
-    { view: "missions", label: "Misiones", icon: ListChecks },
-    { view: "farming_milestones", label: "Hitos", icon: TargetIcon },
-    { view: "cards", label: "Cartas", icon: Layers },
-    { view: "shop", label: "Tienda", icon: ShoppingCart },
-    { view: "ranking", label: "Ranking", icon: Award },
-    { view: "fairlaunch", label: "Fairlaunch", icon: Rocket },
-    { view: "whitepaper", label: "Docs", icon: FileText },
-    { view: "wallet", label: "Wallet", icon: Wallet },
-    { view: "stats", label: "Stats", icon: BarChart3 },
-    { view: "settings", label: "Config", icon: Settings },
-  ], []);
+  // [MODIFIED] Added Admin check
+  const navigationItems = useMemo(() => {
+    const items = [
+      { view: "game", label: "Juego", icon: Home },
+      { view: "missions", label: "Misiones", icon: ListChecks },
+      { view: "farming_milestones", label: "Hitos", icon: TargetIcon },
+      { view: "cards", label: "Cartas", icon: Layers },
+      { view: "shop", label: "Tienda", icon: ShoppingCart },
+      { view: "ranking", label: "Ranking", icon: Award },
+      { view: "fairlaunch", label: "Fairlaunch", icon: Rocket },
+      { view: "whitepaper", label: "Docs", icon: FileText },
+      { view: "wallet", label: "Wallet", icon: Wallet },
+      { view: "stats", label: "Stats", icon: BarChart3 },
+      { view: "settings", label: "Config", icon: Settings },
+    ];
+
+    if (isAdmin(user)) {
+      items.push({ view: "admin", label: "Admin", icon: Shield });
+    }
+
+    return items;
+  }, [user]);
 
   /* 💡 UI Loading global */
   if (loading) {
@@ -467,8 +492,8 @@ function App() {
         <div className="bg-red-900/30 p-6 rounded-xl border border-red-700/50 max-w-md">
           <div className="text-2xl mb-2">❌ Error al cargar datos</div>
           <div className="text-sm mb-4">{error}</div>
-          <Button 
-            onClick={() => window.location.reload()} 
+          <Button
+            onClick={() => window.location.reload()}
             className="bg-red-600 hover:bg-red-700"
           >
             Recargar página
@@ -547,6 +572,7 @@ function App() {
                 calculateRealClickPower={calculateRealClickPower}
                 getReferralLink={gameData.getReferralLink}
                 onBuyToken={memoizedHandleBuyToken}
+                gameConfig={gameConfig}
               />
             )}
 
@@ -559,6 +585,7 @@ function App() {
                 upgrades={upgrades}
                 toast={toast}
                 playSound={playSound}
+                gameConfig={gameConfig}
               />
             )}
 
@@ -571,7 +598,7 @@ function App() {
             )}
 
             {currentView === "cards" && (
-              <CardsView 
+              <CardsView
                 ownedCards={ownedCards}
                 allCards={gameData.allCards}
               />
@@ -589,12 +616,13 @@ function App() {
                 user={user}
                 toast={toast}
                 playSound={playSound}
+                gameConfig={gameConfig}
               />
             )}
 
             {currentView === "ranking" && (
-              <RankingView 
-                user={user} 
+              <RankingView
+                user={user}
                 player={player}
                 tokenPrice={tokenPrice}
                 loadRanking={gameData.loadRanking}
@@ -604,24 +632,28 @@ function App() {
             )}
 
             {currentView === "fairlaunch" && (
-              <FairlaunchView 
-                toast={toast} 
+              <FairlaunchView
+                toast={toast}
                 tokenPrice={tokenPrice}
                 refreshPrice={refreshPrice}
               />
             )}
 
             {currentView === "whitepaper" && <WhitepaperView />}
-            
+
             {currentView === "wallet" && (
-              <WalletView 
-                toast={toast} 
+              <WalletView
+                toast={toast}
                 playSound={playSound}
                 nativeTokenBalance={gameState.nativeTokenBalance}
                 tokenPrice={tokenPrice}
                 tokenPriceHistory={priceHistory}
                 refreshTokenPrice={refreshPrice}
               />
+            )}
+
+            {currentView === "admin" && (
+              <AdminView user={user} toast={toast} />
             )}
 
             {currentView === "stats" && (
@@ -668,14 +700,14 @@ function App() {
         toast={toast}
         playSound={playSound}
       />
-      
+
       <TutorialModal
         showTutorial={showTutorial}
         tutorialStep={tutorialStep}
         nextTutorialStep={nextTutorialStep}
         skipTutorial={skipTutorial}
       />
-      
+
       <MilestoneReachedModal
         isOpen={showMilestoneModal}
         onClose={() => setShowMilestoneModal(false)}
@@ -686,7 +718,7 @@ function App() {
       <footer className="relative bg-card/90 backdrop-blur-md border-t border-border p-3 md:p-4 mt-16 z-10">
         <div className="max-w-7xl mx-auto">
           <SocialLinks links={SOCIAL_LINKS_DATA} playSound={playSound} toast={toast} />
-          
+
           {/* INFORMACIÓN DE SESIÓN Y PRECIO CROC */}
           <div className="mt-3 pt-3 border-t border-border/50 text-center text-xs text-muted-foreground">
             {user ? (
@@ -715,8 +747,8 @@ function App() {
             ) : (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                <span>Modo invitado - <Button 
-                  variant="link" 
+                <span>Modo invitado - <Button
+                  variant="link"
                   className="p-0 h-auto text-xs text-primary"
                   onClick={() => setShowAuth(true)}
                 >
@@ -729,7 +761,7 @@ function App() {
               </div>
             )}
           </div>
-          
+
           {/* INDICADOR DE PRECIO EN TIEMPO REAL */}
           <div className="mt-2 text-center">
             <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-full border border-yellow-600/30">

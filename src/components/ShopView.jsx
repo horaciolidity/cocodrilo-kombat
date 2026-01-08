@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   ShoppingCart, Palette, Gem, Zap, Check, Eye,
   Coins, Sparkles, Crown, Shield, Award, ShoppingBag,
   Package, TrendingUp, RefreshCw, Info,
@@ -13,14 +13,15 @@ import {
   Clock as ClockIcon, Target as TargetIcon, Users as UsersIcon,
   Wallet, Layers, Brain, Cpu, Gem as GemIcon
 } from "lucide-react";
-import { SHOP_ITEMS } from "@/config/gameConfig";
+// import { SHOP_ITEMS } from "@/config/gameConfig"; // Removed
+// Shop items are now passed via gameConfig
 import { useSound } from "@/hooks/useSound";
 import { useToast } from "@/hooks/use-toast";
 
 // 🎯 COMPONENTE ItemCard MEMOIZADO
-const ItemCard = memo(function ItemCardComponent({ 
-  item, 
-  index, 
+const ItemCard = memo(function ItemCardComponent({
+  item,
+  index,
   isDailyOffer = false,
   onPreview,
   onBuyItem,
@@ -35,14 +36,14 @@ const ItemCard = memo(function ItemCardComponent({
   toast
 }) {
   if (!item) return null;
-  
+
   // ✅ Obtener imagen con fallback
   const getItemImage = (item) => {
     if (item.image) return item.image;
-    
+
     // Fallback por tipo
     const seed = item.id;
-    switch(item.type) {
+    switch (item.type) {
       case 'skin':
         return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=65c9ff,b6e3f4,c0aede,d1d4f9,ffd5dc`;
       case 'item':
@@ -58,7 +59,7 @@ const ItemCard = memo(function ItemCardComponent({
 
   // ✅ Determinar rareza
   const getRarityColor = useCallback((rarity) => {
-    switch(rarity) {
+    switch (rarity) {
       case 'legendary': return 'from-yellow-600 to-amber-600';
       case 'epic': return 'from-purple-600 to-pink-600';
       case 'rare': return 'from-blue-600 to-cyan-600';
@@ -76,24 +77,24 @@ const ItemCard = memo(function ItemCardComponent({
     });
 
     if (item.type === "skin") {
-      if (activeSkin === item.id) return { 
-        text: "Equipada", 
+      if (activeSkin === item.id) return {
+        text: "Equipada",
         disabled: true,
-        isEquipped: true 
+        isEquipped: true
       };
-      if (isOwned) return { 
-        text: "Equipar", 
+      if (isOwned) return {
+        text: "Equipar",
         disabled: false,
-        isOwned: true 
+        isOwned: true
       };
     } else if (item.type === "item" || item.type === "boost") {
-      if (isOwned) return { 
-        text: "Comprado", 
+      if (isOwned) return {
+        text: "Comprado",
         disabled: true,
-        isOwned: true 
+        isOwned: true
       };
     }
-    
+
     return {
       text: `Comprar`,
       disabled: false,
@@ -105,15 +106,15 @@ const ItemCard = memo(function ItemCardComponent({
 
   const status = getItemStatus(item);
   const discount = isDailyOffer ? (item.discount || 0) : collectionDiscount;
-  const finalPrice = Math.floor((item.price || 0) * (1 - discount/100));
-  const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount/100)));
+  const finalPrice = Math.floor((item.price || 0) * (1 - discount / 100));
+  const finalPriceCroc = Math.floor(((item.priceCroc || Math.floor((item.price || 0) * 0.1)) * (1 - discount / 100)));
   const isSkin = item.type === "skin";
   const canAffordCoins = coins >= finalPrice;
   const canAffordCroc = nativeTokenBalance >= finalPriceCroc;
 
   // ✅ Obtener icono por tipo
   const getTypeIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'skin': return Palette;
       case 'item': return Gem;
       case 'boost': return Zap;
@@ -126,9 +127,8 @@ const ItemCard = memo(function ItemCardComponent({
 
   return (
     <motion.div
-      className={`relative rounded-2xl overflow-hidden flex flex-col hover-lift transition-all duration-300 ${
-        isSkin ? "bg-gradient-to-br from-gray-900/50 to-gray-800/50" : "bg-gradient-to-br from-gray-800/50 to-gray-900/50"
-      } ${isDailyOffer ? 'border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' : 'border border-gray-700/30'}`}
+      className={`relative rounded-2xl overflow-hidden flex flex-col hover-lift transition-all duration-300 ${isSkin ? "bg-gradient-to-br from-gray-900/50 to-gray-800/50" : "bg-gradient-to-br from-gray-800/50 to-gray-900/50"
+        } ${isDailyOffer ? 'border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' : 'border border-gray-700/30'}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
@@ -171,11 +171,11 @@ const ItemCard = memo(function ItemCardComponent({
                 }}
               />
             </div>
-            
+
             {/* Efecto de brillo */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent pointer-events-none" />
           </div>
-          
+
           {/* Rareza */}
           {item.rarity && (
             <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r ${getRarityColor(item.rarity)} text-white text-xs px-4 py-1 rounded-full shadow-lg`}>
@@ -197,7 +197,7 @@ const ItemCard = memo(function ItemCardComponent({
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-          
+
           {/* Badge de tipo */}
           <div className="absolute top-3 right-3 bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
             <TypeIcon className="w-3 h-3" />
@@ -213,7 +213,7 @@ const ItemCard = memo(function ItemCardComponent({
             <h3 className={`font-bold ${isSkin ? 'text-xl' : 'text-lg'} text-white`}>
               {item.name || 'Item sin nombre'}
             </h3>
-            
+
             {/* Nivel requerido */}
             {item.requiredLevel > 1 && (
               <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
@@ -221,20 +221,20 @@ const ItemCard = memo(function ItemCardComponent({
               </span>
             )}
           </div>
-          
+
           <p className="text-sm text-gray-300 mb-4 min-h-[40px]">
             {item.description || 'Sin descripción disponible'}
           </p>
-          
+
           {/* 📊 Efectos */}
           {item.effect && (
             <div className="flex flex-wrap gap-2 mb-4">
               {Object.entries(item.effect).map(([key, value]) => {
                 let displayText = `+${value}`;
                 let displayKey = key;
-                
+
                 // Formatear textos de efecto
-                switch(key) {
+                switch (key) {
                   case 'clickMultiplier':
                     displayKey = 'Click Power';
                     displayText = `x${value}`;
@@ -245,7 +245,7 @@ const ItemCard = memo(function ItemCardComponent({
                     break;
                   case 'energyRegen':
                     displayKey = 'Energy Regen';
-                    displayText = `+${(value-1)*100}%`;
+                    displayText = `+${(value - 1) * 100}%`;
                     break;
                   case 'maxEnergy':
                     displayKey = 'Max Energy';
@@ -255,7 +255,7 @@ const ItemCard = memo(function ItemCardComponent({
                     displayText = `x${value}`;
                     break;
                 }
-                
+
                 return (
                   <span key={key} className="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded">
                     {displayText} {displayKey}
@@ -287,7 +287,7 @@ const ItemCard = memo(function ItemCardComponent({
                 </div>
               )}
             </div>
-            
+
             {/* Precio en CROC */}
             <div className={`text-center p-2 rounded-lg bg-emerald-500/10 ${!canAffordCroc ? 'opacity-70' : ''}`}>
               <div className="text-xs text-gray-400 mb-1">CROC Tokens</div>
@@ -307,7 +307,7 @@ const ItemCard = memo(function ItemCardComponent({
               )}
             </div>
           </div>
-          
+
           {/* Descuento */}
           {discount > 0 && (
             <div className="mt-2 text-center">
@@ -357,24 +357,22 @@ const ItemCard = memo(function ItemCardComponent({
               <Button
                 onClick={() => onBuyItem(item, false, discount)}
                 disabled={!canAffordCoins || (status.disabled && item.type !== "consumable")}
-                className={`w-full font-semibold ${
-                  !canAffordCoins || (status.disabled && item.type !== "consumable")
-                    ? "bg-gray-700 cursor-not-allowed" 
+                className={`w-full font-semibold ${!canAffordCoins || (status.disabled && item.type !== "consumable")
+                    ? "bg-gray-700 cursor-not-allowed"
                     : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
-                }`}
+                  }`}
               >
                 <Coins className="w-4 h-4 mr-2" />
                 {item.currency === 'croc' ? 'N/A' : 'Monedas'}
               </Button>
-              
+
               <Button
                 onClick={() => onBuyItem(item, true, discount)}
                 disabled={!canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'}
-                className={`w-full font-semibold ${
-                  !canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'
-                    ? "bg-gray-700 cursor-not-allowed" 
+                className={`w-full font-semibold ${!canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'
+                    ? "bg-gray-700 cursor-not-allowed"
                     : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-                }`}
+                  }`}
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 CROC
@@ -398,18 +396,21 @@ export function ShopView({
   tokenPrice = 0.05,
   user,
   toast: toastProp,
-  playSound: playSoundProp
+  playSound: playSoundProp,
+  gameConfig, // [NEW]
 }) {
+  const { shopItems: SHOP_ITEMS = [] } = gameConfig || {};
+
   // 🔧 Inicializar hooks y props con fallbacks
   const soundHook = useSound();
   const toastHook = useToast();
   const { playSound: playSoundHook } = soundHook;
   const { toast: toastHookFn } = toastHook;
-  
+
   // Usar props si están disponibles, de lo contrario usar hooks
   const playSound = playSoundProp || playSoundHook;
   const toast = toastProp || toastHookFn;
-  
+
   // 🔍 Validaciones críticas
   if (!buyShopItem || typeof buyShopItem !== 'function') {
     console.error('❌ buyShopItem no está disponible o no es una función');
@@ -418,7 +419,7 @@ export function ShopView({
         <div className="text-center text-red-500">
           <h2 className="text-2xl font-bold mb-4">⚠️ Error en la tienda</h2>
           <p>La función de compra no está disponible</p>
-          <Button 
+          <Button
             onClick={() => window.location.reload()}
             className="mt-4"
           >
@@ -428,17 +429,17 @@ export function ShopView({
       </div>
     );
   }
-  
+
   const [selectedTab, setSelectedTab] = useState("skins");
   const [previewSkin, setPreviewSkin] = useState(activeSkin);
   const [showConfirm, setShowConfirm] = useState(null);
 
   // ✅ CALCULAR ESTADÍSTICAS CON useMemo (SÍNCRONO)
   const stats = useMemo(() => {
-    const safeItems = Array.isArray(SHOP_ITEMS) 
+    const safeItems = Array.isArray(SHOP_ITEMS)
       ? SHOP_ITEMS.filter(item => item && item.id)
       : [];
-    
+
     if (safeItems.length === 0) {
       return {
         totalItems: 0,
@@ -449,30 +450,30 @@ export function ShopView({
         completionRate: 0
       };
     }
-    
+
     const ownedSkins = ownedItems.filter(itemId => {
       const item = safeItems.find(i => i.id === itemId);
       return item && item.type === 'skin';
     }).length;
-    
+
     const totalSkins = safeItems.filter(item => item.type === 'skin').length;
     const totalItems = safeItems.length;
-    
+
     const totalValue = ownedItems.reduce((sum, itemId) => {
       const item = safeItems.find(i => i.id === itemId);
       return sum + (item?.price || 0);
     }, 0);
-    
+
     // ✅ OFERTAS DIARIAS DETERMINÍSTICAS (cambian una vez al día)
     const dayOfYear = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
     const seed = dayOfYear;
-    
+
     // Generador pseudoaleatorio determinístico
     const seededRandom = (index) => {
       const x = Math.sin(seed + index) * 10000;
       return x - Math.floor(x);
     };
-    
+
     const dailyOffers = safeItems
       .filter(item => item.type === 'skin' || item.type === 'item')
       .sort((a, b) => {
@@ -486,7 +487,7 @@ export function ShopView({
         discount: Math.floor(seededRandom(index) * 30) + 10, // 10-40% descuento
         expiresIn: 24
       }));
-    
+
     return {
       totalItems,
       ownedSkins,
@@ -497,11 +498,11 @@ export function ShopView({
     };
   }, [ownedItems]);
 
-  const safeItems = useMemo(() => 
-    Array.isArray(SHOP_ITEMS) 
+  const safeItems = useMemo(() =>
+    Array.isArray(SHOP_ITEMS)
       ? SHOP_ITEMS.filter(item => item && item.id)
       : []
-  , []);
+    , []);
 
   const collectionDiscount = useMemo(() => {
     if (stats.totalSkins === 0) return 0;
@@ -518,26 +519,26 @@ export function ShopView({
   }, [selectedTab, safeItems]);
 
   // 🎭 Obtener datos de la skin en preview
-  const previewSkinData = useMemo(() => 
-    safeItems.find((i) => i.id === previewSkin) || 
+  const previewSkinData = useMemo(() =>
+    safeItems.find((i) => i.id === previewSkin) ||
     safeItems.find((i) => i.id === activeSkin) ||
     safeItems.find((i) => i.type === "skin")
-  , [previewSkin, activeSkin, safeItems]);
-  
+    , [previewSkin, activeSkin, safeItems]);
+
   const getItemImage = (item) => {
     if (item?.image) return item.image;
     return `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item?.id || "croc"}`;
   };
 
-  const previewImage = useMemo(() => 
+  const previewImage = useMemo(() =>
     getItemImage(previewSkinData)
-  , [previewSkinData]);
+    , [previewSkinData]);
 
   // ✅ FUNCIONES MEMOIZADAS
   const memoizedHandlePreview = useCallback((skinId) => {
     setPreviewSkin(skinId);
     if (playSound) playSound("uiClick");
-    
+
     const skin = safeItems.find(i => i.id === skinId);
     if (skin && toast) {
       toast({
@@ -550,24 +551,24 @@ export function ShopView({
 
   const memoizedHandleBuyItem = useCallback((item, useCroc = false, discount = 0) => {
     if (!buyShopItem) return;
-    
+
     // Verificar saldo rápidamente
-    const basePrice = useCroc 
+    const basePrice = useCroc
       ? (item.priceCroc || Math.floor((item.price || 0) * 0.1))
       : (item.price || 0);
-    
+
     const finalPrice = Math.floor(basePrice * (1 - discount / 100));
     const balance = useCroc ? nativeTokenBalance : coins;
-    
+
     if (balance < finalPrice) {
       const needed = finalPrice - balance;
       const currencyName = useCroc ? 'CROC' : 'monedas';
-      
+
       if (toast) {
-        toast({ 
-          title: `💰 ${currencyName} Insuficientes`, 
-          description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`, 
-          duration: 3000 
+        toast({
+          title: `💰 ${currencyName} Insuficientes`,
+          description: `Necesitas ${needed} ${currencyName} más para "${item.name}".`,
+          duration: 3000
         });
       }
       if (playSound) playSound("error");
@@ -601,23 +602,23 @@ export function ShopView({
 
   const confirmPurchase = useCallback(() => {
     if (!showConfirm || !buyShopItem) return;
-    
+
     const { item, useCroc, discount } = showConfirm;
-    
+
     try {
       buyShopItem(item.id, useCroc, discount);
-      
+
       if (toast) {
-        toast({ 
-          title: "🎉 ¡Compra Exitosa!", 
+        toast({
+          title: "🎉 ¡Compra Exitosa!",
           description: `Has adquirido "${item.name}" por ${showConfirm.price} ${useCroc ? 'CROC' : 'monedas'}${discount > 0 ? ` (${discount}% descuento)` : ''}`,
-          duration: 4000 
+          duration: 4000
         });
       }
-      
+
       if (playSound) playSound("buy");
       setShowConfirm(null);
-      
+
     } catch (error) {
       console.error('❌ Error en confirmPurchase:', error);
       if (toast) {
@@ -634,10 +635,10 @@ export function ShopView({
   // 🎯 Renderizar pestaña actual
   const renderTabContent = useCallback(() => {
     const items = filteredItems;
-    
+
     if (items.length === 0) {
       return (
-        <motion.div 
+        <motion.div
           className="text-center py-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -656,9 +657,9 @@ export function ShopView({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item, index) => (
-          <ItemCard 
-            key={item.id} 
-            item={item} 
+          <ItemCard
+            key={item.id}
+            item={item}
             index={index}
             isDailyOffer={stats.dailyOffers.some(offer => offer.id === item.id)}
             onPreview={memoizedHandlePreview}
@@ -676,23 +677,23 @@ export function ShopView({
         ))}
       </div>
     );
-  }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview, 
-      memoizedHandleBuyItem, memoizedHandleEquipSkin, ownedItems, activeSkin, 
-      coins, nativeTokenBalance, collectionDiscount, tokenPrice, playSound, toast]);
+  }, [filteredItems, selectedTab, stats.dailyOffers, memoizedHandlePreview,
+    memoizedHandleBuyItem, memoizedHandleEquipSkin, ownedItems, activeSkin,
+    coins, nativeTokenBalance, collectionDiscount, tokenPrice, playSound, toast]);
 
   return (
     <div className="min-h-screen game-bg p-4 md:p-6">
       {/* Modal de confirmación */}
       <AnimatePresence>
         {showConfirm && (
-          <motion.div 
+          <motion.div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowConfirm(null)}
           >
-            <motion.div 
+            <motion.div
               className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
@@ -701,17 +702,17 @@ export function ShopView({
             >
               <h3 className="text-xl font-bold mb-4 text-white">🔐 Confirmar Compra</h3>
               <p className="text-gray-300 mb-6">
-                ¿Estás seguro de que deseas comprar <strong>{showConfirm.item.name}</strong> por 
+                ¿Estás seguro de que deseas comprar <strong>{showConfirm.item.name}</strong> por
                 <span className={`font-bold ml-1 ${showConfirm.useCroc ? 'text-emerald-400' : 'text-yellow-400'}`}>
                   {showConfirm.price} {showConfirm.useCroc ? 'CROC' : 'monedas'}?
                 </span>
                 {showConfirm.discount > 0 && (
                   <div className="mt-2 text-sm text-green-400">
-                    🎯 Ahorras {Math.floor((showConfirm.price / (1 - showConfirm.discount/100) - showConfirm.price))} {showConfirm.useCroc ? 'CROC' : 'monedas'} ({showConfirm.discount}% descuento)
+                    🎯 Ahorras {Math.floor((showConfirm.price / (1 - showConfirm.discount / 100) - showConfirm.price))} {showConfirm.useCroc ? 'CROC' : 'monedas'} ({showConfirm.discount}% descuento)
                   </div>
                 )}
               </p>
-              
+
               <div className="flex gap-3">
                 <Button
                   onClick={() => setShowConfirm(null)}
@@ -734,7 +735,7 @@ export function ShopView({
 
       <div className="max-w-7xl mx-auto">
         {/* 🏁 Encabezado */}
-        <motion.div 
+        <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -748,7 +749,7 @@ export function ShopView({
         </motion.div>
 
         {/* 💰 Saldo y estadísticas */}
-        <motion.div 
+        <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -777,7 +778,7 @@ export function ShopView({
                 ≈ ${((nativeTokenBalance || 0) * tokenPrice).toFixed(2)} USD
               </p>
             </div>
-            
+
             <div className="stats-card rounded-xl p-5 text-center hover-lift bg-gradient-to-br from-purple-900/30 to-pink-800/30 border border-purple-700/30">
               <div className="flex items-center justify-center mb-2">
                 <Crown className="w-6 h-6 mr-2 text-purple-400" />
@@ -787,13 +788,13 @@ export function ShopView({
               </div>
               <p className="text-sm text-purple-200/70">Skins coleccionadas</p>
               <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
-                <div 
+                <div
                   className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full"
                   style={{ width: `${stats.completionRate}%` }}
                 />
               </div>
             </div>
-            
+
             <div className="stats-card rounded-xl p-5 text-center hover-lift bg-gradient-to-br from-blue-900/30 to-cyan-800/30 border border-blue-700/30">
               <div className="flex items-center justify-center mb-2">
                 <Award className="w-6 h-6 mr-2 text-blue-400" />
@@ -811,7 +812,7 @@ export function ShopView({
 
         {/* 🔥 OFERTAS DIARIAS */}
         {stats.dailyOffers.length > 0 && (
-          <motion.div 
+          <motion.div
             className="mb-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -832,12 +833,12 @@ export function ShopView({
                 <span className="text-sm">24h restantes</span>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {stats.dailyOffers.map((item, index) => (
-                <ItemCard 
+                <ItemCard
                   key={`daily-${item.id}`}
-                  item={item} 
+                  item={item}
                   index={index}
                   isDailyOffer={true}
                   onPreview={memoizedHandlePreview}
@@ -861,7 +862,7 @@ export function ShopView({
           {/* 🎨 Panel izquierdo - Preview y Estadísticas */}
           <div className="lg:col-span-1 space-y-6">
             {/* 🐊 Preview de skin */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-2xl p-6 hover-lift bg-gradient-to-br from-gray-900/50 to-gray-800/50 border border-gray-700/30"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -871,7 +872,7 @@ export function ShopView({
                 <Eye className="w-6 h-6 mr-3 text-blue-400" />
                 Vista Previa
               </h3>
-              
+
               <div className="flex flex-col items-center">
                 {/* BORDE OVALADO PARA LA SKIN */}
                 <div className="relative mb-6">
@@ -887,19 +888,19 @@ export function ShopView({
                       />
                     </div>
                   </div>
-                  
+
                   <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-primary to-purple-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
                     {previewSkinData?.name || "Skin por defecto"}
                   </div>
                 </div>
-                
+
                 <div className="text-center space-y-3 w-full">
                   {previewSkinData && (
                     <>
                       <p className="text-sm text-gray-300">
                         {previewSkinData.description || "Sin descripción"}
                       </p>
-                      
+
                       <div className="grid grid-cols-2 gap-3 mt-4">
                         <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700/30">
                           <div className="text-xs text-gray-400 mb-1">Tipo</div>
@@ -912,7 +913,7 @@ export function ShopView({
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Botón de equipar si ya está comprada */}
                       {ownedItems.includes(previewSkin) && activeSkin !== previewSkin && (
                         <Button
@@ -930,7 +931,7 @@ export function ShopView({
             </motion.div>
 
             {/* 📊 Estadísticas de colección */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-2xl p-6 hover-lift bg-gradient-to-br from-gray-900/50 to-gray-800/50 border border-gray-700/30"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -940,7 +941,7 @@ export function ShopView({
                 <TrendingUp className="w-6 h-6 mr-3 text-green-400" />
                 Tu Colección
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
@@ -950,13 +951,13 @@ export function ShopView({
                     </span>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-2.5">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full transition-all duration-1000"
                       style={{ width: `${stats.completionRate}%` }}
                     />
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-r from-green-900/30 to-emerald-800/30 p-4 rounded-xl border border-green-700/30">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-green-300">Descuento activo:</span>
@@ -968,7 +969,7 @@ export function ShopView({
                     Por cada skin que colecciones, obtienes un descuento adicional en todas tus compras
                   </p>
                 </div>
-                
+
                 <div className="bg-gradient-to-r from-blue-900/30 to-cyan-800/30 p-4 rounded-xl border border-blue-700/30">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-blue-300">Valor total:</span>
@@ -986,7 +987,7 @@ export function ShopView({
 
           {/* 🛍️ Panel derecho - Catálogo */}
           <div className="lg:col-span-3">
-            <motion.div 
+            <motion.div
               className="mb-6"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1010,18 +1011,16 @@ export function ShopView({
                         if (playSound) playSound("uiClick");
                       }}
                       variant={isActive ? "default" : "outline"}
-                      className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${
-                        isActive 
-                          ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600` 
+                      className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${isActive
+                          ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600`
                           : `border-gray-700 hover:border-${tab.color}-500 hover:bg-${tab.color}-900/20`
-                      }`}
+                        }`}
                     >
                       <Icon className="w-5 h-5" />
                       {tab.label}
                       {tab.count > 0 && (
-                        <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
-                          isActive ? 'bg-white/30' : 'bg-gray-800'
-                        }`}>
+                        <span className={`ml-2 text-xs px-2 py-1 rounded-full ${isActive ? 'bg-white/30' : 'bg-gray-800'
+                          }`}>
                           {tab.count}
                         </span>
                       )}
@@ -1047,7 +1046,7 @@ export function ShopView({
                       {selectedTab === "consumables" && "Ítens consumibles para ayudarte en tu aventura"}
                     </p>
                   </div>
-                  
+
                   <div className="text-center md:text-right">
                     <div className="text-sm text-gray-400 mb-1">Saldo disponible</div>
                     <div className="text-2xl font-bold text-yellow-400 flex items-center gap-4">
@@ -1077,7 +1076,7 @@ export function ShopView({
       </div>
 
       {/* 🔥 Banner de promoción */}
-      <motion.div 
+      <motion.div
         className="mt-12 p-8 bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 rounded-2xl border border-purple-600/30 text-center relative overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1097,7 +1096,7 @@ export function ShopView({
             />
           ))}
         </div>
-        
+
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl">
@@ -1106,12 +1105,12 @@ export function ShopView({
             <div className="text-left">
               <h4 className="text-xl font-bold text-white mb-1">🎯 CONSEJO DEL DÍA</h4>
               <p className="text-purple-200">
-                Las skins no solo cambian la apariencia, ¡también aumentan tu motivación y pueden darte 
+                Las skins no solo cambian la apariencia, ¡también aumentan tu motivación y pueden darte
                 ventajas exclusivas en eventos especiales!
               </p>
             </div>
           </div>
-          
+
           <Button
             onClick={() => {
               setSelectedTab("skins");

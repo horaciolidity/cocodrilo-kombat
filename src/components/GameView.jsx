@@ -18,7 +18,8 @@ import {
   Target,
   Award,
 } from 'lucide-react';
-import { UPGRADES, SHOP_ITEMS } from '@/config/gameConfig';
+// Imports removed
+// UPGRADES and SHOP_ITEMS are now passed via gameConfig
 import {
   LineChart,
   Line,
@@ -56,15 +57,19 @@ export function GameView({
   toast,
   user,
   tokenPrice,
-  liquidity, 
+  liquidity,
   priceData,
   referralStats,
   refreshReferralStats,
   calculateRealClickPower,
   getReferralLink,
+  getReferralLink,
   onBuyToken,
+  gameConfig, // [NEW]
 }) {
- 
+  const { upgrades: UPGRADES = [], shopItems: SHOP_ITEMS = [] } = gameConfig || {};
+
+
   const priceDataToUse = priceData || generateRandomPriceData(tokenPrice);
 
   const [isClicked, setIsClicked] = useState(false);
@@ -91,7 +96,7 @@ export function GameView({
       const interval = setInterval(() => {
         refreshReferralStats();
       }, 30000);
-      
+
       return () => clearInterval(interval);
     }
   }, [user, refreshReferralStats]);
@@ -103,7 +108,7 @@ export function GameView({
       try {
         videoRefIdle.current.loop = true;
         videoRefBite.current.loop = false;
-        
+
         const loadVideo = (videoElement, src) => {
           return new Promise((resolve) => {
             videoElement.src = src;
@@ -115,7 +120,7 @@ export function GameView({
               videoElement.onerror = () => resolve(false);
               videoElement.onloadeddata = () => resolve(true);
             };
-            
+
             setTimeout(() => resolve(false), 4000);
           });
         };
@@ -134,7 +139,7 @@ export function GameView({
         }
 
         setVideoLoaded(idleLoaded || biteLoaded);
-        
+
       } catch (error) {
         console.error("🎥 Error inicializando videos:", error);
         setVideoLoaded(false);
@@ -144,28 +149,28 @@ export function GameView({
     initializeVideos();
   }, []);
 
- const getCurrentClickPower = () => {
-  if (calculateRealClickPower) {
-    return calculateRealClickPower();
-  }
-  
-  // Fallback cálculo simple
-  let clickPower = 1;
-  
-  Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
-    const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
-    if (upgradeConfig && upgradeData?.level > 0) {
-      if (upgradeConfig.type === 'click') {
-        clickPower += upgradeConfig.basePower * upgradeData.level;
-      } else if (upgradeConfig.type === 'multiplier') {
-        const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
-        clickPower *= (1 + multiplierBonus);
-      }
+  const getCurrentClickPower = () => {
+    if (calculateRealClickPower) {
+      return calculateRealClickPower();
     }
-  });
-  
-  return Math.floor(clickPower);
-};
+
+    // Fallback cálculo simple
+    let clickPower = 1;
+
+    Object.entries(upgrades || {}).forEach(([upgradeId, upgradeData]) => {
+      const upgradeConfig = UPGRADES.find(u => u.id === upgradeId);
+      if (upgradeConfig && upgradeData?.level > 0) {
+        if (upgradeConfig.type === 'click') {
+          clickPower += upgradeConfig.basePower * upgradeData.level;
+        } else if (upgradeConfig.type === 'multiplier') {
+          const multiplierBonus = (upgradeConfig.basePower - 1) * upgradeData.level;
+          clickPower *= (1 + multiplierBonus);
+        }
+      }
+    });
+
+    return Math.floor(clickPower);
+  };
 
   const handleCrocClick = (event) => {
     if (gameState.energy <= 0) {
@@ -173,7 +178,7 @@ export function GameView({
       el.classList.add('shake');
       playSound('error');
       setTimeout(() => el.classList.remove('shake'), 500);
-      
+
       toast({
         title: "⚡ Sin Energía",
         description: `La energía se regenera automáticamente. Actual: ${gameState.energy}/${gameState.maxEnergy}`,
@@ -190,7 +195,7 @@ export function GameView({
       try {
         videoRefIdle.current.pause();
         videoRefBite.current.currentTime = 0;
-        
+
         const playPromise = videoRefBite.current.play();
         if (playPromise !== undefined) {
           playPromise.catch(err => {
@@ -205,7 +210,7 @@ export function GameView({
             videoRefIdle.current.currentTime = 0;
           });
         };
-        
+
         videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
       } catch (error) {
         console.log("🎥 Error en animación de video");
@@ -219,7 +224,7 @@ export function GameView({
 
     const currentClickPower = getCurrentClickPower();
     const coinsEarned = Math.floor(currentClickPower);
-    
+
     clickEffect.textContent = `+${coinsEarned}`;
     clickEffect.style.position = 'absolute';
     clickEffect.style.left = `${x}px`;
@@ -234,9 +239,9 @@ export function GameView({
     const lvl = gameState.level;
     clickEffect.style.color =
       lvl < 5 ? '#bef264' :
-      lvl < 10 ? '#86efac' :
-      lvl < 20 ? '#4ade80' :
-      lvl < 30 ? '#22c55e' : '#16a34a';
+        lvl < 10 ? '#86efac' :
+          lvl < 20 ? '#4ade80' :
+            lvl < 30 ? '#22c55e' : '#16a34a';
 
     clickEffect.style.textShadow = '0 0 8px rgba(0,0,0,0.8)';
 
@@ -285,15 +290,15 @@ export function GameView({
   const actualTokenPrice = tokenPrice;
   const projectedCrocValue = (gameState.nativeTokenBalance || 0) * actualTokenPrice;
   const totalProjectedValue = projectedCrocValue;
-// En GameView.jsx - Desafíos élite (nivel 10+)
-const eliteChallenges = [
-  {
-    name: "Maestro del AutoClick",
-    goal: "Nivel 50 en AutoClick",
-    reward: "500 CROC + 100k monedas",
-    current: upgrades?.autoClick?.level || 0
-  }
-];
+  // En GameView.jsx - Desafíos élite (nivel 10+)
+  const eliteChallenges = [
+    {
+      name: "Maestro del AutoClick",
+      goal: "Nivel 50 en AutoClick",
+      reward: "500 CROC + 100k monedas",
+      current: upgrades?.autoClick?.level || 0
+    }
+  ];
   return (
     <div className="min-h-screen game-bg p-4 mobile-optimized">
       {/* 📊 Stats rápidas */}
@@ -331,15 +336,15 @@ const eliteChallenges = [
 
       {/* 🎯 Widget de Referidos Móvil */}
       <div className="block md:hidden mb-4">
-        <ReferralsWidget 
-          referralStats={referralStats} 
+        <ReferralsWidget
+          referralStats={referralStats}
           onCopyLink={copyReferralLink}
         />
       </div>
 
       {/* ✅ VALOR CROC MÓVIL */}
       <div className="block md:hidden mb-4">
-        <ProjectedValueMobile 
+        <ProjectedValueMobile
           projectedValue={totalProjectedValue}
           tokenBalance={gameState.nativeTokenBalance || 0}
           tokenPrice={actualTokenPrice}
@@ -347,7 +352,7 @@ const eliteChallenges = [
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+
         {/* 🐊 Zona del cocodrilo */}
         <div className="lg:col-span-2 flex flex-col items-center justify-center min-h-[400px] relative">
           <motion.div
@@ -361,14 +366,13 @@ const eliteChallenges = [
               className={`relative w-[22rem] h-[22rem] sm:w-[18rem] sm:h-[18rem] md:w-[26rem] md:h-[26rem] 
                 rounded-full select-none overflow-hidden
                 transition-transform duration-150 border-[6px] flex items-center justify-center cursor-pointer
-                ${
-                  activeSkin === 'skin_golden_croc'
-                    ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)] bg-yellow-500/10'
-                    : activeSkin === 'skin_camo_croc'
+                ${activeSkin === 'skin_golden_croc'
+                  ? 'border-yellow-300 shadow-[0_0_80px_rgba(250,204,21,0.8)] bg-yellow-500/10'
+                  : activeSkin === 'skin_camo_croc'
                     ? 'border-lime-400 shadow-[0_0_80px_rgba(132,204,22,0.7)] bg-green-500/10'
                     : activeSkin === 'skin_cyborg_croc'
-                    ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)] bg-blue-500/10'
-                    : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)] bg-emerald-500/10'
+                      ? 'border-sky-300 shadow-[0_0_90px_rgba(56,189,248,0.8)] bg-blue-500/10'
+                      : 'border-green-300 shadow-[0_0_70px_rgba(34,197,94,0.6)] bg-emerald-500/10'
                 }`}
             >
               <video
@@ -455,7 +459,7 @@ const eliteChallenges = [
               <div className="flex justify-between text-sm mb-2">
                 <span className="flex items-center gap-1">
                   <Zap className="w-4 h-4 text-blue-400" />
-                  Energía 
+                  Energía
                   {gameState.energy < gameState.maxEnergy && (
                     <motion.span
                       animate={{ scale: [1, 1.2, 1] }}
@@ -473,13 +477,12 @@ const eliteChallenges = [
               </div>
               <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
                 <div
-                  className={`h-3 rounded-full transition-all duration-1000 shadow-lg ${
-                    gameState.energy > 50 
-                      ? 'bg-green-500' 
-                      : gameState.energy > 20 
-                      ? 'bg-yellow-500' 
-                      : 'bg-red-500'
-                  } ${gameState.energy < gameState.maxEnergy ? 'pulse-energy' : ''}`}
+                  className={`h-3 rounded-full transition-all duration-1000 shadow-lg ${gameState.energy > 50
+                      ? 'bg-green-500'
+                      : gameState.energy > 20
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                    } ${gameState.energy < gameState.maxEnergy ? 'pulse-energy' : ''}`}
                   style={{ width: `${(gameState.energy / gameState.maxEnergy) * 100}%` }}
                 />
               </div>
@@ -571,7 +574,7 @@ const eliteChallenges = [
 
 function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
   return (
-    <motion.div 
+    <motion.div
       className="bg-gradient-to-br from-yellow-900/90 to-amber-800/90 border border-yellow-500/50 rounded-xl p-4 backdrop-blur-md shadow-lg"
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -615,9 +618,9 @@ function ProjectedValueMobile({ projectedValue, tokenBalance, tokenPrice }) {
 
 function ReferralsWidget({ referralStats, onCopyLink }) {
   const hasReferrals = referralStats?.referralsCount > 0;
-  
+
   return (
-    <motion.div 
+    <motion.div
       className="bg-gradient-to-br from-green-900/90 to-emerald-800/90 border border-green-500/50 rounded-xl p-4 backdrop-blur-md shadow-lg"
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -666,7 +669,7 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
       </div>
 
       {hasReferrals && (
-        <motion.div 
+        <motion.div
           className="bg-green-700/30 border border-green-500/30 rounded-lg p-2 text-center"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -682,45 +685,45 @@ function ReferralsWidget({ referralStats, onCopyLink }) {
   );
 }
 
-function TokenInfoPanel({ 
-  tokenPrice, 
-  liquidity, 
-  priceData, 
-  onBuyToken, 
-  referralStats, 
+function TokenInfoPanel({
+  tokenPrice,
+  liquidity,
+  priceData,
+  onBuyToken,
+  referralStats,
   onCopyReferralLink,
   nativeTokenBalance,
   projectedValue
 }) {
   const hasReferrals = referralStats?.referralsCount > 0;
-  
+
   const currentPrice = tokenPrice || 0.05;
   const tokenValue = nativeTokenBalance * currentPrice;
-  
+
   const [chartData, setChartData] = useState(priceData || []);
-  
+
   useEffect(() => {
     if (priceData && priceData.length > 0) {
       setChartData(priceData.slice(-30));
     }
   }, [priceData]);
-  
+
   return (
     <div className="stats-card rounded-xl p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold flex items-center">
-          <DollarSign className="w-6 h-6 mr-2 text-yellow-400" /> 
+          <DollarSign className="w-6 h-6 mr-2 text-yellow-400" />
           CROC Token 🐊
         </h3>
-        
-        <motion.div 
+
+        <motion.div
           className="px-3 py-1 rounded-full bg-gradient-to-r from-yellow-900/50 to-amber-800/50 border border-yellow-500/30"
-          animate={{ 
+          animate={{
             scale: [1, 1.05, 1],
             opacity: [0.8, 1, 0.8]
           }}
-          transition={{ 
-            duration: 2, 
+          transition={{
+            duration: 2,
             repeat: Infinity,
             ease: "easeInOut"
           }}
@@ -770,14 +773,14 @@ function TokenInfoPanel({
 
       <div className="h-32 w-full mb-4">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart 
-            data={chartData} 
+          <LineChart
+            data={chartData}
             margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
           >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="#374151" 
-              opacity={0.3} 
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#374151"
+              opacity={0.3}
             />
             <XAxis
               dataKey="name"
@@ -810,8 +813,8 @@ function TokenInfoPanel({
               stroke="#FBBF24"
               strokeWidth={2}
               dot={false}
-              activeDot={{ 
-                r: 4, 
+              activeDot={{
+                r: 4,
                 fill: '#F59E0B',
                 stroke: '#FFFFFF',
                 strokeWidth: 1
@@ -867,9 +870,8 @@ function EnergyStatCard({ energy, maxEnergy, isRegenerating = false }) {
       <p className="text-xs text-muted-foreground">Energía</p>
       <div className="w-full bg-gray-700 rounded-full h-1.5 md:h-2 mt-2">
         <div
-          className={`h-1.5 md:h-2 rounded-full transition-all duration-1000 ${
-            energy > 50 ? 'bg-green-500' : energy > 20 ? 'bg-yellow-500' : 'bg-red-500'
-          } ${isRegenerating ? 'pulse-energy' : ''}`}
+          className={`h-1.5 md:h-2 rounded-full transition-all duration-1000 ${energy > 50 ? 'bg-green-500' : energy > 20 ? 'bg-yellow-500' : 'bg-red-500'
+            } ${isRegenerating ? 'pulse-energy' : ''}`}
           style={{ width: `${(energy / maxEnergy) * 100}%` }}
         />
       </div>
@@ -905,9 +907,8 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
                   <img
                     src={upgrade.image}
                     alt={upgrade.name}
-                    className={`w-full h-full object-cover ${
-                      canAfford ? "brightness-100" : "brightness-50 grayscale"
-                    } transition-all duration-300`}
+                    className={`w-full h-full object-cover ${canAfford ? "brightness-100" : "brightness-50 grayscale"
+                      } transition-all duration-300`}
                   />
                   {canAfford && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -939,11 +940,10 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
                     onClick={() => buyUpgrade(upgrade.id)}
                     disabled={!canAfford}
                     size="sm"
-                    className={`mobile-button ${
-                      canAfford
+                    className={`mobile-button ${canAfford
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-gray-600 cursor-not-allowed"
-                    }`}
+                      }`}
                   >
                     Comprar
                   </Button>
@@ -987,11 +987,10 @@ function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
         <Button
           onClick={handleClaim}
           disabled={!dailyRewards.available}
-          className={`w-full mobile-button ${
-            dailyRewards.available
+          className={`w-full mobile-button ${dailyRewards.available
               ? 'bg-pink-600 hover:bg-pink-700 sparkle-effect'
               : 'bg-gray-600'
-          }`}
+            }`}
         >
           {dailyRewards.available
             ? 'Reclamar Recompensa'
