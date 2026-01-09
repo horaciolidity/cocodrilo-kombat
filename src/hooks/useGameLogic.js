@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ACHIEVEMENTS,
+  FARMING_MILESTONES,
   INITIAL_GAME_STATE as DEFAULT_INITIAL_GAME_STATE
 } from '@/config/gameConfig';
 
