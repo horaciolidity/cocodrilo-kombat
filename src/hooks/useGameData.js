@@ -263,7 +263,79 @@ export function useGameData(user, gameConfig) {
     }
   };
 
-  // ... (getOrCreatePlayer remains mostly the same, just calling the new processReferral) ...
+  // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR
+  const getOrCreatePlayerStats = async (playerId) => {
+    // 1. Buscar stats existentes
+    const { data: existingStats } = await supabase
+      .from('player_stats')
+      .select('*')
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if (existingStats) {
+      return existingStats;
+    }
+
+    // 2. Si no existen, crear stats iniciales
+    const initialStats = {
+      player_id: playerId,
+      coins: INITIAL_GAME_STATE.coins,
+      level: INITIAL_GAME_STATE.level,
+      energy: INITIAL_GAME_STATE.energy,
+      max_energy: INITIAL_GAME_STATE.maxEnergy,
+      click_power: INITIAL_GAME_STATE.clickPower,
+      coins_per_second: INITIAL_GAME_STATE.coinsPerSecond,
+      experience: INITIAL_GAME_STATE.experience,
+      total_coins: INITIAL_GAME_STATE.totalCoins,
+      native_token_balance: INITIAL_GAME_STATE.nativeTokenBalance,
+      last_active: new Date().toISOString()
+    };
+
+    const { data: newStats, error } = await supabase
+      .from('player_stats')
+      .insert([initialStats])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creando stats:', error);
+      throw error;
+    }
+
+    return newStats;
+  };
+
+  // 🎯 OBTENER ESTADÍSTICAS DE REFERIDOS
+  const getReferralStats = async (playerId) => {
+    // Esta lógica ya está integrada en la carga inicial y el refresh
+    // Pero si necesitamos una función standalone:
+    return {
+      referralsCount: 0,
+      crocFromRefs: 0,
+      coinsFromRefs: 0
+    };
+    // El refreshReferralStats hace el trabajo pesado real.
+  };
+
+  // 🗺️ MAPEADOR DE STATS A GAMESTATE (DB -> Frontend)
+  const mapStatsToGameState = (stats) => ({
+    coins: Number(stats.coins) || 0,
+    totalCoins: Number(stats.total_coins) || 0,
+    clickPower: Number(stats.click_power) || 1,
+    coinsPerSecond: Number(stats.coins_per_second) || 0,
+    totalClicks: Number(stats.clicks) || 0,
+    level: Number(stats.level) || 1,
+    experience: Number(stats.experience) || 0,
+    energy: Number(stats.energy) || 100,
+    maxEnergy: Number(stats.max_energy) || 100,
+    nativeTokenBalance: Number(stats.native_token_balance) || 0,
+    referralsCount: stats.referrals_count || 0,
+    crocFromRefs: Number(stats.croc_from_refs) || 0,
+    coinsFromRefs: Number(stats.coins_from_refs) || 0,
+    playerId: stats.player_id
+  });
+
+  // ... existing getOrCreatePlayer ...
 
   // 🔄 SINCRONIZAR PROGRESO DEL JUEGO (RPC SEGURA)
   const syncGameData = useCallback(async (updates = {}) => {
