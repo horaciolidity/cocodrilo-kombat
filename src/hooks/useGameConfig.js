@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
     UPGRADES as FALLBACK_UPGRADES,
@@ -139,7 +139,7 @@ export const useGameConfig = () => {
         }
     };
 
-    return {
+    return useMemo(() => ({
         upgrades,
         missions,
         shopItems,
@@ -148,5 +148,5 @@ export const useGameConfig = () => {
         usingFallback,
         error,
         refreshConfig: fetchConfig
-    };
+    }), [upgrades, missions, shopItems, cards, loading, usingFallback, error]);
 };
