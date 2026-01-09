@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  INITIAL_GAME_STATE,
   INITIAL_GAME_STATE
 } from '@/config/gameConfig';
 
