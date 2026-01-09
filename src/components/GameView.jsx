@@ -63,7 +63,6 @@ export function GameView({
   refreshReferralStats,
   calculateRealClickPower,
   getReferralLink,
-  getReferralLink,
   onBuyToken,
   gameConfig, // [NEW]
 }) {
@@ -478,10 +477,10 @@ export function GameView({
               <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
                 <div
                   className={`h-3 rounded-full transition-all duration-1000 shadow-lg ${gameState.energy > 50
-                      ? 'bg-green-500'
-                      : gameState.energy > 20
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
+                    ? 'bg-green-500'
+                    : gameState.energy > 20
+                      ? 'bg-yellow-500'
+                      : 'bg-red-500'
                     } ${gameState.energy < gameState.maxEnergy ? 'pulse-energy' : ''}`}
                   style={{ width: `${(gameState.energy / gameState.maxEnergy) * 100}%` }}
                 />
@@ -941,8 +940,8 @@ function UpgradePanel({ upgradesConfig, upgradesState, buyUpgrade, coins, calcul
                     disabled={!canAfford}
                     size="sm"
                     className={`mobile-button ${canAfford
-                        ? "bg-green-600 hover:bg-green-700"
-                        : "bg-gray-600 cursor-not-allowed"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gray-600 cursor-not-allowed"
                       }`}
                   >
                     Comprar
@@ -988,8 +987,8 @@ function DailyRewardPanel({ dailyRewards, claimDailyReward }) {
           onClick={handleClaim}
           disabled={!dailyRewards.available}
           className={`w-full mobile-button ${dailyRewards.available
-              ? 'bg-pink-600 hover:bg-pink-700 sparkle-effect'
-              : 'bg-gray-600'
+            ? 'bg-pink-600 hover:bg-pink-700 sparkle-effect'
+            : 'bg-gray-600'
             }`}
         >
           {dailyRewards.available
