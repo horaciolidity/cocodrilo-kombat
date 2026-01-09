@@ -649,6 +649,8 @@ function App() {
                 tokenPrice={tokenPrice}
                 tokenPriceHistory={priceHistory}
                 refreshTokenPrice={refreshPrice}
+                user={user}
+                referralStats={referralStats}
               />
             )}
 

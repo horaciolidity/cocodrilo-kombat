@@ -33,9 +33,19 @@ export function AdminView({ user, toast }) {
 
     const checkAdmin = async () => {
         if (!user) return;
-        const adminEmails = ['admin@cocodrilo.com', user.email];
-        if (adminEmails.includes(user.email)) {
+
+        // Normalización de email para evitar problemas de mayúsculas/espacios
+        const userEmail = user.email?.toLowerCase().trim();
+        const allowedAdmins = [
+            'admin@cocodrilo.com',
+            'horaciowalterortiz@gmail.com'
+        ];
+
+        if (allowedAdmins.includes(userEmail)) {
             setIsAdmin(true);
+        } else {
+            console.log("Acceso denegado a:", userEmail);
+            setIsAdmin(false);
         }
         setLoading(false);
     };

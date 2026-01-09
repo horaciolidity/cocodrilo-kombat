@@ -1,29 +1,32 @@
 // src/components/WalletView.jsx
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Wallet, 
-  Zap, 
-  Link, 
-  Copy, 
-  Check, 
-  Coins, 
-  Gift, 
+import {
+  Wallet,
+  Zap,
+  Link,
+  Copy,
+  Check,
+  Coins,
+  Gift,
   Lock,
   ExternalLink,
   Sparkles,
   AlertCircle,
   Shield,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Users
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export function WalletView({ 
-  toast, 
+export function WalletView({
+  toast,
   playSound,
   nativeTokenBalance = 0,
-  tokenPrice = 0.05
+  tokenPrice = 0.05,
+  user,
+  referralStats
 }) {
   const [walletAddress, setWalletAddress] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -48,7 +51,7 @@ export function WalletView({
   const connectWallet = async () => {
     setLoading(true);
     playSound('uiClick');
-    
+
     // Simulación de conexión (en producción usarías Web3)
     setTimeout(() => {
       setIsConnected(true);
@@ -76,21 +79,21 @@ export function WalletView({
   ================================= */
   const copyAddress = () => {
     if (!isConnected) return;
-    
+
     // Generar dirección simulada
-    const simulatedAddress = `0x${Array.from({length: 40}, () => 
+    const simulatedAddress = `0x${Array.from({ length: 40 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join('')}`;
-    
+
     navigator.clipboard.writeText(simulatedAddress);
     setIsCopied(true);
     playSound('uiClick');
-    
+
     toast({
       title: "📋 Dirección copiada",
       description: "Dirección de wallet copiada al portapapeles",
     });
-    
+
     setTimeout(() => setIsCopied(false), 2000);
   };
 
@@ -107,10 +110,10 @@ export function WalletView({
       playSound('error');
       return;
     }
-    
+
     const amount = Math.min(10, nativeTokenBalance);
     setStakeAmount(prev => prev + amount);
-    
+
     // En producción, aquí llamarías a updateGameState para restar del balance
     toast({
       title: "🔒 Stake realizado",
@@ -128,11 +131,11 @@ export function WalletView({
       playSound('uiClick');
       return;
     }
-    
+
     // En producción, aquí sumarías al balance central
     const claimedAmount = pendingRewards;
     setPendingRewards(0);
-    
+
     toast({
       title: "🎁 Recompensas reclamadas",
       description: `+${claimedAmount.toFixed(3)} CROC añadidos a tu balance`,
@@ -149,12 +152,12 @@ export function WalletView({
       playSound('uiClick');
       return;
     }
-    
+
     // En producción, aquí devolverías al balance central
     const unstakeAmount = stakeAmount;
     setStakeAmount(0);
     setPendingRewards(0);
-    
+
     toast({
       title: "🔓 Stake retirado",
       description: `${unstakeAmount} CROC devueltos a tu balance`,
@@ -185,25 +188,25 @@ export function WalletView({
   };
 
 
- // WalletView.jsx - AGREGAR EN EL COMPONENTE
-const [crocPrice, setCrocPrice] = useState(tokenPrice || 0.05);
+  // WalletView.jsx - AGREGAR EN EL COMPONENTE
+  const [crocPrice, setCrocPrice] = useState(tokenPrice || 0.05);
 
-// 🔄 Actualizar precio periódicamente
-useEffect(() => {
-  const interval = setInterval(() => {
-    // Simular fluctuación suave ±10%
-    const fluctuation = 1 + (Math.random() * 0.2 - 0.1); // ±10%
-    const newPrice = tokenPrice * fluctuation;
-    setCrocPrice(parseFloat(newPrice.toFixed(6)));
-  }, 8000);
+  // 🔄 Actualizar precio periódicamente
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Simular fluctuación suave ±10%
+      const fluctuation = 1 + (Math.random() * 0.2 - 0.1); // ±10%
+      const newPrice = tokenPrice * fluctuation;
+      setCrocPrice(parseFloat(newPrice.toFixed(6)));
+    }, 8000);
 
-  return () => clearInterval(interval);
-}, [tokenPrice]);
+    return () => clearInterval(interval);
+  }, [tokenPrice]);
 
-// 💰 Calcular valores actualizados
-const updatedProjectedValue = nativeTokenBalance * crocPrice;
-const updatedStakeValue = stakeAmount * crocPrice;
-const updatedRewardsValue = pendingRewards * crocPrice;
+  // 💰 Calcular valores actualizados
+  const updatedProjectedValue = nativeTokenBalance * crocPrice;
+  const updatedStakeValue = stakeAmount * crocPrice;
+  const updatedRewardsValue = pendingRewards * crocPrice;
 
 
   return (
@@ -211,12 +214,12 @@ const updatedRewardsValue = pendingRewards * crocPrice;
       <div className="max-w-4xl mx-auto">
         {/* 🏁 Encabezado */}
         <div className="text-center mb-8">
-          <motion.h1 
+          <motion.h1
             className="text-3xl md:text-4xl font-bold mb-3 gradient-text flex items-center justify-center"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Wallet className="w-8 h-8 mr-3 text-primary" /> 
+            <Wallet className="w-8 h-8 mr-3 text-primary" />
             Dashboard de Wallet
           </motion.h1>
           <p className="text-muted-foreground">
@@ -225,7 +228,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
         </div>
 
         {/* 💰 Panel de Balance Principal */}
-        <motion.div 
+        <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -239,12 +242,12 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                   <Coins className="w-8 h-8 text-yellow-400" />
                 </div>
                 <h3 className="text-sm text-muted-foreground mb-2">Tokens CROC</h3>
-               <div className="text-3xl font-bold text-yellow-400 mb-2">
+                <div className="text-3xl font-bold text-yellow-400 mb-2">
                   ${updatedProjectedValue.toFixed(2)}
-               </div>
+                </div>
                 <div className="text-sm text-green-400 flex items-center gap-1">
-                 <TrendingUp className="w-4 h-4" />
-                   {nativeTokenBalance.toLocaleString()} CROC @ ${crocPrice.toFixed(6)}
+                  <TrendingUp className="w-4 h-4" />
+                  {nativeTokenBalance.toLocaleString()} CROC @ ${crocPrice.toFixed(6)}
                 </div>
               </div>
             </div>
@@ -287,7 +290,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
           {/* 🎨 Panel Izquierdo - Conexión y Estado */}
           <div className="space-y-6">
             {/* Estado de Conexión */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -297,7 +300,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                 <Shield className="w-6 h-6 mr-2 text-blue-400" />
                 Estado de Wallet
               </h3>
-              
+
               {isConnected ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-green-900/30 rounded-lg border border-green-700/30">
@@ -323,7 +326,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                     <p className="text-sm text-muted-foreground mb-2">Tu dirección:</p>
                     <div className="flex items-center gap-2 p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
                       <code className="text-xs font-mono text-gray-300 flex-1 truncate">
-                        0x{Array.from({length: 16}, () => 
+                        0x{Array.from({ length: 16 }, () =>
                           Math.floor(Math.random() * 16).toString(16)
                         ).join('')}...
                       </code>
@@ -384,7 +387,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
             </motion.div>
 
             {/* 🎯 Panel de Información de Token */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -394,7 +397,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                 <Sparkles className="w-6 h-6 mr-2 text-yellow-400" />
                 Información del Token
               </h3>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Símbolo:</span>
@@ -419,7 +422,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
           {/* 🎨 Panel Derecho - Stake y Acciones */}
           <div className="space-y-6">
             {/* Panel de Stake */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -429,7 +432,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                 <Zap className="w-6 h-6 mr-2 text-emerald-400" />
                 Sistema de Stake
               </h3>
-              
+
               <div className="mb-6 p-4 bg-gradient-to-r from-emerald-900/20 to-green-900/20 rounded-lg border border-emerald-700/30">
                 <div className="text-center mb-4">
                   <div className="text-2xl font-bold text-emerald-400 mb-2">
@@ -449,7 +452,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                     </span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-yellow-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(100, (stakeAmount / (nativeTokenBalance || 1)) * 100)}%` }}
                     />
@@ -466,7 +469,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                     <Lock className="w-4 h-4 mr-2" />
                     Stake
                   </Button>
-                  
+
                   <Button
                     onClick={handleClaimRewards}
                     disabled={pendingRewards <= 0}
@@ -475,7 +478,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                     <Gift className="w-4 h-4 mr-2" />
                     Reclamar
                   </Button>
-                  
+
                   <Button
                     onClick={handleUnstake}
                     disabled={stakeAmount <= 0}
@@ -510,7 +513,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
             </motion.div>
 
             {/* 🔗 Enlaces rápidos */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -520,7 +523,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                 <ExternalLink className="w-6 h-6 mr-2 text-blue-400" />
                 Enlaces Rápidos
               </h3>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
@@ -536,7 +539,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Explorador
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -551,7 +554,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Puente
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -566,7 +569,7 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Analytics
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -586,8 +589,67 @@ const updatedRewardsValue = pendingRewards * crocPrice;
           </div>
         </div>
 
+        {/* 🚀 PANEL DE REFERIDOS (FAIRLAUNCH) */}
+        <motion.div
+          className="mt-8 mb-8 stats-card rounded-xl p-6 bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold mb-2 flex items-center text-cyan-400">
+                <Users className="w-8 h-8 mr-3" />
+                Sistema de Referidos Fairlaunch
+              </h3>
+              <p className="text-gray-300 mb-4">
+                ¡Invita a amigos y gana el <strong className="text-yellow-400">10%</strong> de sus ingresos para siempre!
+                Ayuda a crecer la comunidad del pantano.
+              </p>
+
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="bg-black/30 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold text-white">{referralStats?.referralsCount || 0}</div>
+                  <div className="text-xs text-gray-400">Amigos</div>
+                </div>
+                <div className="bg-black/30 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold text-emerald-400">{referralStats?.crocFromRefs || 0}</div>
+                  <div className="text-xs text-gray-400">CROC Ganado</div>
+                </div>
+                <div className="bg-black/30 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold text-yellow-400">{referralStats?.coinsFromRefs || 0}</div>
+                  <div className="text-xs text-gray-400">Coins Ganadas</div>
+                </div>
+              </div>
+
+              {/* Botón de copiar enlace */}
+              <div className="flex gap-2">
+                <div className="flex-1 bg-black/40 p-3 rounded-lg border border-cyan-500/20 font-mono text-xs text-cyan-200 truncate flex items-center">
+                  https://cocodrilo.com?ref={user?.referral_code || '...'}
+                </div>
+                <Button
+                  onClick={() => {
+                    const link = `https://cocodrilo-kombat.vercel.app/?ref=${user?.referral_code}`;
+                    navigator.clipboard.writeText(link);
+                    toast({ title: "Enlace Copiado", description: "¡Compártelo con tus amigos!" });
+                    playSound('uiClick');
+                  }}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="hidden md:block w-48 h-48 bg-cyan-500/10 rounded-full flex items-center justify-center border-4 border-cyan-500/20 relative animate-pulse-slow">
+              <Users className="w-24 h-24 text-cyan-400/80" />
+              <div className="absolute inset-0 rounded-full border border-cyan-400/50 animate-ping opacity-20"></div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* 📜 Footer informativo */}
-        <motion.div 
+        <motion.div
           className="mt-8 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -603,8 +665,9 @@ const updatedRewardsValue = pendingRewards * crocPrice;
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
+              {/* Fixed missing import or use of Sparkles if not available */}
               <Sparkles className="w-5 h-5 text-blue-400" />
               <div>
                 <p className="text-sm font-semibold text-blue-300">Próximas funciones</p>
