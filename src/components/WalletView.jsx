@@ -612,100 +612,80 @@ export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, t
                     {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 </div>
-                 
-                 <Button className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold" onClick={copyReferralLink}>
-                    <Users className="w-4 h-4 mr-2" />
-                    Invitar Amigos
-                 </Button>
 
-                 <div className="mt-4 pt-4 border-t border-white/10">
-                    <p className="text-sm text-muted-foreground mb-2">💡 ¿Quieres compartir tu enlace en video?</p>
-                    <Button variant="secondary" size="sm" className="w-full" onClick={() => window.open('https://youtube.com', '_blank')}>
-                        📹 Crear Video (Gana CROC extra)
-                    </Button>
-                 </div>
+                <Button className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold" onClick={copyReferralLink}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Invitar Amigos
+                </Button>
+
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-sm text-muted-foreground mb-2">💡 ¿Quieres compartir tu enlace en video?</p>
+                  <Button variant="secondary" size="sm" className="w-full" onClick={() => window.open('https://youtube.com', '_blank')}>
+                    📹 Crear Video (Gana CROC extra)
+                  </Button>
+                </div>
               </div>
             </div>
 
             {/* DERECHA: Tabla de Tiers */}
             <div className="w-full xl:w-96 bg-black/20 rounded-xl p-4 border border-white/5">
-                <h4 className="font-semibold text-cyan-300 mb-4 flex items-center">
-                    <Trophy className="w-4 h-4 mr-2" />
-                    Escala de Recompensas
-                </h4>
-                <div className="space-y-2">
-                    {[
-                        { count: 1, reward: '500 Coins', active: (referralStats?.referralsCount || 0) >= 1 },
-                        { count: 3, reward: '2,500 Coins + 10 CROC', active: (referralStats?.referralsCount || 0) >= 3 },
-                        { count: 10, reward: '10,000 Coins + 50 CROC', active: (referralStats?.referralsCount || 0) >= 10 },
-                        { count: 25, reward: 'Skin Exclusiva', active: (referralStats?.referralsCount || 0) >= 25 },
-                        { count: 100, reward: '1,000 CROC', active: (referralStats?.referralsCount || 0) >= 100 },
-                    ].map((tier, idx) => (
-                        <div key={idx} className={`flex items-center justify-between p-2 rounded text-sm ${tier.active ? 'bg-cyan-900/40 text-cyan-100 border border-cyan-500/30' : 'bg-white/5 text-gray-500'}`}>
-                            <div className="flex items-center">
-                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${tier.active ? 'bg-cyan-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
-                                    {tier.count}
-                                </span>
-                                <span>Amigos</span>
-                            </div>
-                            <span className={tier.active ? 'font-bold text-yellow-300' : ''}>{tier.reward}</span>
-                        </div>
-                    ))}
-                </div>
+              <h4 className="font-semibold text-cyan-300 mb-4 flex items-center">
+                <Trophy className="w-4 h-4 mr-2" />
+                Escala de Recompensas
+              </h4>
+              <div className="space-y-2">
+                {[
+                  { count: 1, reward: '500 Coins', active: (referralStats?.referralsCount || 0) >= 1 },
+                  { count: 3, reward: '2,500 Coins + 10 CROC', active: (referralStats?.referralsCount || 0) >= 3 },
+                  { count: 10, reward: '10,000 Coins + 50 CROC', active: (referralStats?.referralsCount || 0) >= 10 },
+                  { count: 25, reward: 'Skin Exclusiva', active: (referralStats?.referralsCount || 0) >= 25 },
+                  { count: 100, reward: '1,000 CROC', active: (referralStats?.referralsCount || 0) >= 100 },
+                ].map((tier, idx) => (
+                  <div key={idx} className={`flex items-center justify-between p-2 rounded text-sm ${tier.active ? 'bg-cyan-900/40 text-cyan-100 border border-cyan-500/30' : 'bg-white/5 text-gray-500'}`}>
+                    <div className="flex items-center">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${tier.active ? 'bg-cyan-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
+                        {tier.count}
+                      </span>
+                      <span>Amigos</span>
+                    </div>
+                    <span className={tier.active ? 'font-bold text-yellow-300' : ''}>{tier.reward}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </motion.div>
-                <Button
-                  onClick={() => {
-                    const link = `https://cocodrilo-kombat.vercel.app/?ref=${user?.referral_code}`;
-                    navigator.clipboard.writeText(link);
-                    toast({ title: "Enlace Copiado", description: "¡Compártelo con tus amigos!" });
-                    playSound('uiClick');
-                  }}
-                  className="bg-cyan-600 hover:bg-cyan-700"
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
+
+
+        {/* 📜 Footer informativo */}
+        <motion.div
+          className="mt-8 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Shield className="w-5 h-5 text-yellow-400" />
+              <div>
+                <p className="text-sm font-semibold text-yellow-300">Modo de demostración</p>
+                <p className="text-xs text-gray-400">
+                  Las funciones de wallet son una simulación. En producción se conectarán a contratos reales.
+                </p>
               </div>
             </div>
 
-            <div className="hidden md:block w-48 h-48 bg-cyan-500/10 rounded-full flex items-center justify-center border-4 border-cyan-500/20 relative animate-pulse-slow">
-              <Users className="w-24 h-24 text-cyan-400/80" />
-              <div className="absolute inset-0 rounded-full border border-cyan-400/50 animate-ping opacity-20"></div>
+            <div className="flex items-center gap-3">
+              {/* Fixed missing import or use of Sparkles if not available */}
+              <Sparkles className="w-5 h-5 text-blue-400" />
+              <div>
+                <p className="text-sm font-semibold text-blue-300">Próximas funciones</p>
+                <p className="text-xs text-gray-400">
+                  Trading en DEX, NFTs coleccionables, gobernanza.
+                </p>
+              </div>
             </div>
-          </div >
-        </motion.div >
-
-    {/* 📜 Footer informativo */ }
-    < motion.div
-  className = "mt-8 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50"
-  initial = {{ opacity: 0 }
-}
-animate = {{ opacity: 1 }}
-transition = {{ delay: 0.4 }}
-        >
-  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-    <div className="flex items-center gap-3">
-      <Shield className="w-5 h-5 text-yellow-400" />
-      <div>
-        <p className="text-sm font-semibold text-yellow-300">Modo de demostración</p>
-        <p className="text-xs text-gray-400">
-          Las funciones de wallet son una simulación. En producción se conectarán a contratos reales.
-        </p>
-      </div>
-    </div>
-
-    <div className="flex items-center gap-3">
-      {/* Fixed missing import or use of Sparkles if not available */}
-      <Sparkles className="w-5 h-5 text-blue-400" />
-      <div>
-        <p className="text-sm font-semibold text-blue-300">Próximas funciones</p>
-        <p className="text-xs text-gray-400">
-          Trading en DEX, NFTs coleccionables, gobernanza.
-        </p>
-      </div>
-    </div>
-  </div>
+          </div>
         </motion.div >
       </div >
     </div >
