@@ -10,9 +10,18 @@ export function Web3Provider({ children }) {
 
     // Check if provider exists
     const getProvider = () => {
-        if (typeof window !== 'undefined' && window.ethereum) {
+        if (typeof window === 'undefined') return null;
+
+        // If multiple providers are present, try to find MetaMask
+        if (window.ethereum?.providers) {
+            return window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
+        }
+
+        // Return standard window.ethereum if it exists
+        if (window.ethereum) {
             return window.ethereum;
         }
+
         return null;
     };
 
@@ -75,20 +84,30 @@ export function Web3Provider({ children }) {
     useEffect(() => {
         const provider = getProvider();
         if (provider) {
-            provider.on('accountsChanged', handleAccountsChanged);
-            provider.on('chainChanged', handleChainChanged);
+            // Only attach listeners if provider supports them
+            if (provider.on) {
+                provider.on('accountsChanged', handleAccountsChanged);
+                provider.on('chainChanged', handleChainChanged);
+            }
 
-            // Wrap initial requests in try/catch to avoid unhandled promise rejections
-            // especially which happen when some extensions inject window.ethereum but fail to respond
             const fetchInitialStatus = async () => {
+                // DON'T auto-fetch if it's not MetaMask and we are in a potentially conflicting environment
+                // To avoid "i: Failed to connect to MetaMask" or similar injected errors
+                if (provider.isMetaMask === false && window.tronWeb) {
+                    console.log("ℹ️ Skipping auto-web3 fetch as TronLink is detected and provider is not MetaMask");
+                    return;
+                }
+
                 try {
+                    // Use a very short timeout or just don't do it if not requested?
+                    // Let's try to fetch but with more localized error handling
                     const accounts = await provider.request({ method: 'eth_accounts' });
-                    handleAccountsChanged(accounts);
+                    if (accounts) handleAccountsChanged(accounts);
 
                     const chain = await provider.request({ method: 'eth_chainId' });
-                    setChainId(chain);
+                    if (chain) setChainId(chain);
                 } catch (err) {
-                    console.warn("⚠️ Initial Web3 state fetch failed (provider might be locked or not fully initialized):", err.message);
+                    // Silently fail initial fetch to avoid console clutter
                 }
             };
 
@@ -96,8 +115,10 @@ export function Web3Provider({ children }) {
 
             return () => {
                 if (provider.removeListener) {
-                    provider.removeListener('accountsChanged', handleAccountsChanged);
-                    provider.removeListener('chainChanged', handleChainChanged);
+                    try {
+                        provider.removeListener('accountsChanged', handleAccountsChanged);
+                        provider.removeListener('chainChanged', handleChainChanged);
+                    } catch (e) { }
                 }
             };
         }
