@@ -350,6 +350,46 @@ export function useGameData(user, gameConfig) {
     }
   };
 
+  // 🎯 RECLAMAR CÓDIGO DIARIO (RPC)
+  const claimDailyCode = async (code) => {
+    try {
+      console.log('🎁 Reclamando código diario:', code);
+      const { data, error } = await supabase.rpc('claim_daily_code', {
+        p_code: code
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        return { success: false, error: data.error };
+      }
+
+      console.log('✅ Código reclamado:', data);
+
+      // Update local state
+      setGameData(prev => ({
+        ...prev,
+        gameState: {
+          ...prev.gameState,
+          coins: (prev.gameState.coins || 0) + data.reward_coins,
+          totalCoins: (prev.gameState.totalCoins || 0) + data.reward_coins,
+          nativeTokenBalance: (prev.gameState.nativeTokenBalance || 0) + (data.reward_croc || 0)
+        }
+      }));
+
+      return {
+        success: true,
+        reward_coins: data.reward_coins,
+        reward_croc: data.reward_croc,
+        message: data.message
+      };
+
+    } catch (error) {
+      console.error('❌ Error claiming daily code:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // 🎯 ESTADÍSTICAS JUGADOR DEFAULT
 
   // 🎯 OBTENER O CREAR ESTADÍSTICAS DEL JUGADOR
@@ -1127,6 +1167,7 @@ export function useGameData(user, gameConfig) {
     forceUpdateReferrerRewards,
     claimDailyReward, // 🆕
     verifyMissionCode, // 🆕
+    claimDailyCode, // New function for daily codes
 
     // 🏆 FUNCIONES DE RANKING
     loadRanking,
