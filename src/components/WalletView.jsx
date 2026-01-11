@@ -66,7 +66,7 @@ export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, t
       toast({ title: "Error", description: "No se encontró código de referido.", variant: "destructive" });
       return;
     }
-    const link = `https://cocodrilo.com?ref=${code}`;
+    const link = `https://cocodrilo-kombat.vercel.app/?ref=${code}`;
     navigator.clipboard.writeText(link);
     setIsCopied(true);
     toast({
@@ -603,7 +603,7 @@ export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, t
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <div className="flex-1 bg-black/60 p-3 rounded-lg border border-cyan-500/20 font-mono text-xs sm:text-sm text-cyan-200 truncate flex items-center select-all">
-                    https://cocodrilo.com?ref={player?.referral_code || user?.referral_code || '...'}
+                    https://cocodrilo-kombat.vercel.app/?ref={player?.referral_code || user?.referral_code || '...'}
                   </div>
                   <Button
                     onClick={copyReferralLink}

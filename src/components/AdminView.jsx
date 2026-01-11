@@ -361,18 +361,22 @@ function MissionsEditor({ toast }) {
             const updateData = {
                 name: editForm.name,
                 description: editForm.description,
-                reward_coins: parseInt(editForm.reward_coins),
-                secret_code: editForm.secret_code,
-                validation_type: editForm.validation_type,
+                reward_coins: parseInt(editForm.reward_coins) || 0,
+                validation_type: editForm.validation_type || 'click',
                 requirement_metadata: {
-                    url: editForm.url,
-                    actionText: editForm.actionText
+                    url: editForm.url || null,
+                    actionText: editForm.actionText || null
                 }
             };
 
+            // Add secret_code if validation_type is 'code'
+            if (editForm.validation_type === 'code' && editForm.secret_code) {
+                updateData.secret_code = editForm.secret_code;
+            }
+
             // Add YouTube-specific fields
             if (editForm.validation_type === 'video_watch' || editForm.validation_type === 'youtube_actions') {
-                updateData.youtube_url = editForm.youtube_url || editForm.url;
+                updateData.youtube_url = editForm.youtube_url || editForm.url || null;
                 updateData.video_actions = editForm.video_actions || {
                     subscribe: false,
                     like: false,
@@ -380,6 +384,8 @@ function MissionsEditor({ toast }) {
                     follow: false
                 };
             }
+
+            console.log('💾 Guardando misión:', updateData);
 
             const { error } = await supabase
                 .from('game_missions')
@@ -390,9 +396,10 @@ function MissionsEditor({ toast }) {
 
             await fetchMissions(); // Reload to get fresh data
             setEditingId(null);
-            toast({ title: "Guardado", description: "Misión actualizada correctamente." });
+            toast({ title: "✅ Guardado", description: "Misión actualizada correctamente." });
         } catch (e) {
-            toast({ title: "Error", description: e.message, variant: "destructive" });
+            console.error('❌ Error guardando misión:', e);
+            toast({ title: "❌ Error", description: e.message, variant: "destructive" });
         }
     };
 

@@ -466,7 +466,7 @@ export function useGameData(user, gameConfig) {
 
   // ... existing getOrCreatePlayer ...
 
-  // 🔄 SINCRONIZAR PROGRESO DEL JUEGO (RPC SEGURA)
+  // 🔄 SINCRONIZAR PROGRESO DEL JUEGO (RPC SEGURA - VERSIÓN COMPLETA)
   const syncGameData = useCallback(async (updates = {}) => {
     // Si no hay jugador o ya estamos sincronizando, poner en cola
     if (!gameData.player?.id || gameData.syncInProgress) {
@@ -481,7 +481,7 @@ export function useGameData(user, gameConfig) {
     }
 
     const now = Date.now();
-    // Debounce de 30 segundos para llamadas RPC, para ahorrar costos y reducir estrés en BD
+    // Debounce de 30 segundos para llamadas RPC generales, para ahorrar costos
     // EXCEPTO si es una actualización crítica (ej. compra) que se forzará aparte
     if (now - lastSyncRef.current < 30000 && !updates._force) {
       pendingSyncRef.current = { ...pendingSyncRef.current, ...updates };
@@ -505,54 +505,47 @@ export function useGameData(user, gameConfig) {
 
       pendingSyncRef.current = {}; // Limpiar cola
 
-      // Calcular deltas para RPC
-      // NOTA: En una implementación ideal, el cliente enviaría "acciones" (clics, compras)
-      // en lugar de estados. Por ahora, calculamos la diferencia aproximada para el RPC.
-      // Esto es una mejora sobre el update directo, pero aún susceptible a manipulación si no se
-      // validan bien los inputs en el backend.
+      console.log('🔄 Sincronizando estado completo del juego (RPC)...');
 
-      const currentRemoteState = gameData.lastSyncState || gameData.gameState; // Necesitaríamos trackear el último estado confirmado
+      // 🎯 PREPARAR PAYLOAD COMPLETO PARA EL NUEVO RPC sync_game_state
+      // Usamos el estado actual combinado con los updates que vienen en el payload
+      const payload = {
+        p_coins: Math.floor(allUpdates.coins ?? gameData.gameState.coins),
+        p_total_coins: Math.floor(allUpdates.total_coins ?? allUpdates.totalCoins ?? gameData.gameState.totalCoins),
+        p_energy: Math.floor(allUpdates.energy ?? gameData.gameState.energy),
+        p_max_energy: Math.floor(allUpdates.max_energy ?? allUpdates.maxEnergy ?? gameData.gameState.maxEnergy),
+        p_clicks: Math.floor(allUpdates.clicks ?? allUpdates.totalClicks ?? gameData.gameState.totalClicks),
+        p_level: Math.floor(allUpdates.level ?? gameData.gameState.level),
+        p_experience: Math.floor(allUpdates.experience ?? gameData.gameState.experience),
+        p_upgrades: allUpdates.upgrades ?? gameData.upgrades,
+        p_missions: allUpdates.missions ?? gameData.missions,
+        p_owned_items: allUpdates.owned_items ?? allUpdates.ownedItems ?? gameData.ownedItems,
+        p_owned_cards: allUpdates.owned_cards ?? allUpdates.ownedCards ?? gameData.ownedCards,
+        p_active_skin: allUpdates.active_skin ?? allUpdates.activeSkin ?? gameData.activeSkin,
+        p_achievements_unlocked: allUpdates.achievements_unlocked ?? allUpdates.achievementsUnlocked ?? gameData.achievementsUnlocked,
+        p_farming_milestones: allUpdates.farming_milestones ?? allUpdates.farmingMilestones ?? gameData.farmingMilestones,
+        p_daily_rewards: allUpdates.daily_rewards ?? allUpdates.dailyRewards ?? gameData.dailyRewards,
+        p_native_token_balance: allUpdates.native_token_balance ?? allUpdates.nativeTokenBalance ?? gameData.gameState.nativeTokenBalance
+      };
 
-      // Simplificación: Enviamos acumulados desde la última vez
-      // (Aquí asumimos que el cliente es honesto con los deltas, pero el RPC limitará valores absurdos)
-
-      const coinsEarned = Math.max(0, (allUpdates.coins || gameData.gameState.coins) - (currentRemoteState.coins || 0));
-      const energySpent = Math.max(0, (currentRemoteState.energy || 100) - (allUpdates.energy || gameData.gameState.energy));
-      const clicksMade = Math.max(0, (allUpdates.clicks || gameData.gameState.totalClicks) - (currentRemoteState.clicks || 0));
-      const experienceGained = Math.max(0, (allUpdates.experience || gameData.gameState.experience) - (currentRemoteState.experience || 0));
-
-      if (coinsEarned === 0 && energySpent === 0 && clicksMade === 0 && experienceGained === 0) {
-        setGameData(prev => ({ ...prev, syncInProgress: false }));
-        return;
-      }
-
-      console.log('🔄 Sincronizando progreso (RPC)...', { coinsEarned, energySpent });
-
-      const { data, error } = await supabase.rpc('sync_game_progress', {
-        p_coins_earned: Math.floor(coinsEarned),
-        p_energy_spend: Math.floor(energySpent),
-        p_clicks: Math.floor(clicksMade),
-        p_experience: Math.floor(experienceGained)
-      });
+      const { data, error } = await supabase.rpc('sync_game_state', payload);
 
       if (error) throw error;
 
       if (!data.success) {
         console.warn('⚠️ Servidor rechazó sincronización:', data.error);
-        // Aquí podríamos revertir el estado local si fuera necesario
       } else {
-        console.log('✅ Progreso guardado.');
+        console.log('✅ Estado sincronizado exitosamente.');
       }
 
       lastSyncRef.current = Date.now();
 
-      // Actualizar el estado de referencia
-      // (En una app real, deberíamos quizás recargar del servidor o confiar en nuestro optimismo)
       setGameData(prev => ({
         ...prev,
         lastSync: new Date().toISOString(),
         lastSyncState: JSON.parse(JSON.stringify(prev.gameState)), // Snapshot
-        syncInProgress: false
+        syncInProgress: false,
+        syncErrorCount: 0 // Reset error counter on success
       }));
 
     } catch (error) {
@@ -560,7 +553,6 @@ export function useGameData(user, gameConfig) {
       // Restaurar pendientes para reintentar
       pendingSyncRef.current = { ...updates, ...pendingSyncRef.current };
 
-      // Incrementar contador de errores
       setGameData(prev => ({
         ...prev,
         syncInProgress: false,

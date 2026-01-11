@@ -612,7 +612,7 @@ function App() {
                 ownedItems={ownedItems}
                 activeSkin={activeSkin}
                 buyShopItem={buyShopItem}
-                equipSkin={memoizedHandleEquipSkin}
+                equipSkin={equipSkin}
                 tokenPrice={tokenPrice}
                 user={user}
                 toast={toast}
