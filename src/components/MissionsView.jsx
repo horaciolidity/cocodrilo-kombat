@@ -108,7 +108,8 @@ export function MissionsView({
       const result = await verifyMissionCode(missionId, code);
       if (result.success) {
         playSound('success');
-        toast({ title: "✅ Código Correcto!", description: `+${result.reward} Monedas` });
+        toast({ title: "✅ Código Correcto!", description: `+${result.reward_coins} Monedas` });
+        // Manually trigger local update or reload if needed, but App state might sync
       } else {
         playSound('error');
         toast({ title: "❌ Código Incorrecto", description: result.error || "Inténtalo de nuevo", variant: "destructive" });
@@ -119,8 +120,6 @@ export function MissionsView({
       setVerifying(null);
     }
   };
-
-  // 📊 Calcular estadísticas de misiones
 
   // 📊 Calcular estadísticas de misiones
   const completedMissions = Object.values(missions || {}).filter(m => m?.completed).length;
@@ -190,7 +189,7 @@ export function MissionsView({
             const missionState = missions?.[mission.id] || { completed: false, claimed: false, progress: 0 };
             const progress = getMissionProgress(mission);
             const Icon = mission.icon || Award;
-            const isSocialMission = mission.requirement?.type?.startsWith('social_');
+            const isSocialMission = mission.requirement?.type?.startsWith('social_') || mission.requirement?.type === 'video_watch';
 
             return (
               <motion.div
@@ -294,7 +293,23 @@ export function MissionsView({
                       </div>
                     )}
 
-                    {!missionState.completed && mission.requirement?.type !== 'code' && (
+                    {/* VIDEO WATCH */}
+                    {!missionState.completed && mission.requirement?.type === 'video_watch' && (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button
+                          onClick={() => handleSocialMission(mission.id, mission.requirement.url, mission.requirement.actionText || "Ver Video")}
+                          variant="outline"
+                          className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
+                        >
+                          <Share2 className="w-4 h-4 mr-2" />
+                          {mission.requirement.actionText || "Ver Video"}
+                        </Button>
+                        <p className="text-[10px] text-center text-muted-foreground">Ve el video para completar</p>
+                      </div>
+                    )}
+
+                    {/* STANDARD / SOCIAL */}
+                    {!missionState.completed && mission.requirement?.type !== 'code' && mission.requirement?.type !== 'video_watch' && (
                       isSocialMission ? (
                         <Button
                           onClick={() => handleSocialMission(
@@ -355,9 +370,9 @@ export function MissionsView({
                           </span>
                         )}
 
-                        {mission.requirement?.type === 'code' && (
+                        {mission.validation_type === 'code' && (
                           <span className="px-2 py-1 bg-pink-900/30 rounded-lg flex items-center gap-1">
-                            <Lock className="w-3 h-3 text-pink-400" />
+                            <Check className="w-3 h-3 text-pink-400" />
                             <span className="text-pink-300 font-bold">Código Secreto</span>
                           </span>
                         )}

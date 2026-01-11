@@ -311,10 +311,7 @@ export function AdminView({ user, toast }) {
                 </TabsContent>
 
                 <TabsContent value="users">
-                    <div className="text-center py-10 opacity-50">
-                        <Users className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-                        <p>Gestión de usuarios próximamente</p>
-                    </div>
+                    <UsersList toast={toast} />
                 </TabsContent>
             </Tabs>
         </div>
@@ -349,7 +346,11 @@ function MissionsEditor({ toast }) {
 
     const handleEdit = (mission) => {
         setEditingId(mission.id);
-        setEditForm({ ...mission });
+        setEditForm({
+            ...mission,
+            url: mission.requirement_metadata?.url || '',
+            actionText: mission.requirement_metadata?.actionText || ''
+        });
     };
 
     const handleSave = async () => {
@@ -361,7 +362,12 @@ function MissionsEditor({ toast }) {
                     description: editForm.description,
                     reward_coins: parseInt(editForm.reward_coins),
                     secret_code: editForm.secret_code,
-                    validation_type: editForm.validation_type
+                    validation_type: editForm.validation_type,
+                    requirement_metadata: {
+                        ...mission.requirement_metadata,
+                        url: editForm.url,
+                        actionText: editForm.actionText
+                    }
                 })
                 .eq('id', editingId);
 
@@ -438,7 +444,9 @@ function MissionsEditor({ toast }) {
                                             >
                                                 <option value="click">Click / Verificación</option>
                                                 <option value="code">Código Secreto</option>
-                                                <option value="social_share">Social Share</option>
+                                                <option value="video_watch">Ver Video (YouTube)</option>
+                                                <option value="social_share">Compartir Social</option>
+                                                <option value="daily_code">Código Diario (Recurrente)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -450,6 +458,27 @@ function MissionsEditor({ toast }) {
                                                 onChange={e => setEditForm({ ...editForm, secret_code: e.target.value })}
                                                 placeholder="Ej: CROC2024"
                                             />
+                                        </div>
+                                    )}
+
+                                    {(editForm.validation_type === 'video_watch' || editForm.validation_type === 'social_share') && (
+                                        <div className="space-y-2 mt-2 border-t pt-2">
+                                            <div>
+                                                <Label>URL del Video / Enlace</Label>
+                                                <Input
+                                                    value={editForm.url || ''}
+                                                    onChange={e => setEditForm({ ...editForm, url: e.target.value })}
+                                                    placeholder="https://youtube.com/..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Texto del Botón</Label>
+                                                <Input
+                                                    value={editForm.actionText || ''}
+                                                    onChange={e => setEditForm({ ...editForm, actionText: e.target.value })}
+                                                    placeholder="Ej: Ver Video"
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -537,6 +566,74 @@ function GlobalConfigEditor({ toast }) {
                 <p className="text-xs text-muted-foreground mt-2">
                     Esta fecha se usa para la cuenta regresiva global.
                 </p>
+            </div>
+        </div>
+    );
+}
+
+function UsersList({ toast }) {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('player_stats')
+                .select(`
+                    *,
+                    players (username, email, referral_code)
+                `)
+                .order('total_coins', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            setUsers(data || []);
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error", description: "No se pudieron cargar usuarios.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) return <div>Cargando usuarios...</div>;
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold">Listado de Usuarios (Top 50)</h3>
+                <Button onClick={fetchUsers} size="sm" variant="outline"><RefreshCw className="w-4 h-4" /></Button>
+            </div>
+
+            <div className="border rounded-md overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                        <tr>
+                            <th className="p-2 text-left">Usuario</th>
+                            <th className="p-2 text-right">Coins</th>
+                            <th className="p-2 text-right">CROC</th>
+                            <th className="p-2 text-right">Refs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((stat) => (
+                            <tr key={stat.player_id} className="border-t border-border/50">
+                                <td className="p-2">
+                                    <div className="font-bold">{stat.players?.username || 'Anon'}</div>
+                                    <div className="text-xs text-muted-foreground">{stat.players?.email}</div>
+                                </td>
+                                <td className="p-2 text-right">{stat.total_coins?.toLocaleString()}</td>
+                                <td className="p-2 text-right">{Number(stat.native_token_balance)?.toFixed(2)}</td>
+                                <td className="p-2 text-right">{stat.referrals_count}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

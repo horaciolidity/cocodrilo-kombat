@@ -296,7 +296,8 @@ export function useGameData(user, gameConfig) {
         gameState: {
           ...prev.gameState,
           coins: Number(data.total_coins), // Sync total
-          totalCoins: Number(data.total_coins)
+          totalCoins: Number(data.total_coins),
+          nativeTokenBalance: (prev.gameState.nativeTokenBalance || 0) + (Number(data.reward_croc) || 0)
         },
         dailyRewards: {
           streak: data.new_streak,

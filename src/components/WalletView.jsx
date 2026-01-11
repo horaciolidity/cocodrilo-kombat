@@ -21,14 +21,7 @@ import {
 import { motion } from 'framer-motion';
 import { useWeb3 } from '@/contexts/Web3Context';
 
-export function WalletView({
-  toast,
-  playSound,
-  nativeTokenBalance = 0,
-  tokenPrice = 0.05,
-  user,
-  referralStats
-}) {
+export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, tokenPriceHistory, refreshTokenPrice, user, player, referralStats }) {
   const { account, chainId, connectWallet, disconnectWallet, isConnected, isConnecting } = useWeb3();
 
   // Local states for other features
@@ -53,20 +46,32 @@ export function WalletView({
 
   /* ================================
      📋 Copiar dirección - MEJORADO
-  ================================= */
+  =================================  /* 🖇️ Copiar dirección y referido */
   const copyAddress = () => {
-    if (!isConnected) return;
-
-    // Use real account
+    if (!account) return;
     navigator.clipboard.writeText(account);
     setIsCopied(true);
-    playSound('uiClick');
-
     toast({
-      title: "📋 Dirección copiada",
-      description: "Dirección de wallet copiada al portapapeles",
+      title: "Copiado",
+      description: "Dirección copiada al portapapeles",
     });
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
+  const copyReferralLink = () => {
+    // PREFERIR player.referral_code, si no user.referral_code
+    const code = player?.referral_code || user?.referral_code;
+    if (!code) {
+      toast({ title: "Error", description: "No se encontró código de referido.", variant: "destructive" });
+      return;
+    }
+    const link = `https://cocodrilo.com?ref=${code}`;
+    navigator.clipboard.writeText(link);
+    setIsCopied(true);
+    toast({
+      title: "¡Enlace Copiado!",
+      description: "Compártelo con tus amigos para ganar recompensas.",
+    });
     setTimeout(() => setIsCopied(false), 2000);
   };
 
@@ -560,44 +565,96 @@ export function WalletView({
           </div>
         </div>
 
-        {/* 🚀 PANEL DE REFERIDOS (FAIRLAUNCH) */}
+        {/* 🚀 PANEL DE REFERIDOS (TIERED SYSTEM) */}
         <motion.div
-          className="mt-8 mb-8 stats-card rounded-xl p-6 bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30"
+          className="mt-8 mb-8 stats-card rounded-xl p-6 bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-500/30"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex-1">
+          <div className="flex flex-col xl:flex-row items-start justify-between gap-8">
+            {/* IZQUIERDA: Stats y Link */}
+            <div className="flex-1 w-full">
               <h3 className="text-2xl font-bold mb-2 flex items-center text-cyan-400">
                 <Users className="w-8 h-8 mr-3" />
-                Sistema de Referidos Fairlaunch
+                Sistema de Referidos
               </h3>
-              <p className="text-gray-300 mb-4">
-                ¡Invita a amigos y gana el <strong className="text-yellow-400">10%</strong> de sus ingresos para siempre!
-                Ayuda a crecer la comunidad del pantano.
+              <p className="text-gray-300 mb-6 text-sm md:text-base">
+                Invita amigos y desbloquea recompensas en monedas y tokens CROC.
               </p>
 
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="bg-black/30 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold text-white">{referralStats?.referralsCount || 0}</div>
-                  <div className="text-xs text-gray-400">Amigos</div>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-black/40 p-3 rounded-lg text-center border border-white/5">
+                  <div className="text-xl font-bold text-white">{referralStats?.referralsCount || 0}</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Amigos</div>
                 </div>
-                <div className="bg-black/30 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold text-emerald-400">{referralStats?.crocFromRefs || 0}</div>
-                  <div className="text-xs text-gray-400">CROC Ganado</div>
+                <div className="bg-black/40 p-3 rounded-lg text-center border border-white/5">
+                  <div className="text-xl font-bold text-emerald-400">{referralStats?.crocFromRefs || 0}</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">CROC</div>
                 </div>
-                <div className="bg-black/30 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold text-yellow-400">{referralStats?.coinsFromRefs || 0}</div>
-                  <div className="text-xs text-gray-400">Coins Ganadas</div>
+                <div className="bg-black/40 p-3 rounded-lg text-center border border-white/5">
+                  <div className="text-xl font-bold text-yellow-400">{referralStats?.coinsFromRefs || 0}</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Coins</div>
                 </div>
               </div>
 
               {/* Botón de copiar enlace */}
-              <div className="flex gap-2">
-                <div className="flex-1 bg-black/40 p-3 rounded-lg border border-cyan-500/20 font-mono text-xs text-cyan-200 truncate flex items-center">
-                  https://cocodrilo.com?ref={user?.referral_code || '...'}
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-black/60 p-3 rounded-lg border border-cyan-500/20 font-mono text-xs sm:text-sm text-cyan-200 truncate flex items-center select-all">
+                    https://cocodrilo.com?ref={player?.referral_code || user?.referral_code || '...'}
+                  </div>
+                  <Button
+                    onClick={copyReferralLink}
+                    variant="outline"
+                    className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-950 hover:text-cyan-300 min-w-[50px]"
+                  >
+                    {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
                 </div>
+                 
+                 <Button className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold" onClick={copyReferralLink}>
+                    <Users className="w-4 h-4 mr-2" />
+                    Invitar Amigos
+                 </Button>
+
+                 <div className="mt-4 pt-4 border-t border-white/10">
+                    <p className="text-sm text-muted-foreground mb-2">💡 ¿Quieres compartir tu enlace en video?</p>
+                    <Button variant="secondary" size="sm" className="w-full" onClick={() => window.open('https://youtube.com', '_blank')}>
+                        📹 Crear Video (Gana CROC extra)
+                    </Button>
+                 </div>
+              </div>
+            </div>
+
+            {/* DERECHA: Tabla de Tiers */}
+            <div className="w-full xl:w-96 bg-black/20 rounded-xl p-4 border border-white/5">
+                <h4 className="font-semibold text-cyan-300 mb-4 flex items-center">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Escala de Recompensas
+                </h4>
+                <div className="space-y-2">
+                    {[
+                        { count: 1, reward: '500 Coins', active: (referralStats?.referralsCount || 0) >= 1 },
+                        { count: 3, reward: '2,500 Coins + 10 CROC', active: (referralStats?.referralsCount || 0) >= 3 },
+                        { count: 10, reward: '10,000 Coins + 50 CROC', active: (referralStats?.referralsCount || 0) >= 10 },
+                        { count: 25, reward: 'Skin Exclusiva', active: (referralStats?.referralsCount || 0) >= 25 },
+                        { count: 100, reward: '1,000 CROC', active: (referralStats?.referralsCount || 0) >= 100 },
+                    ].map((tier, idx) => (
+                        <div key={idx} className={`flex items-center justify-between p-2 rounded text-sm ${tier.active ? 'bg-cyan-900/40 text-cyan-100 border border-cyan-500/30' : 'bg-white/5 text-gray-500'}`}>
+                            <div className="flex items-center">
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${tier.active ? 'bg-cyan-500 text-black' : 'bg-gray-700 text-gray-400'}`}>
+                                    {tier.count}
+                                </span>
+                                <span>Amigos</span>
+                            </div>
+                            <span className={tier.active ? 'font-bold text-yellow-300' : ''}>{tier.reward}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </div>
+        </motion.div>
                 <Button
                   onClick={() => {
                     const link = `https://cocodrilo-kombat.vercel.app/?ref=${user?.referral_code}`;
@@ -616,40 +673,41 @@ export function WalletView({
               <Users className="w-24 h-24 text-cyan-400/80" />
               <div className="absolute inset-0 rounded-full border border-cyan-400/50 animate-ping opacity-20"></div>
             </div>
-          </div>
-        </motion.div>
+          </div >
+        </motion.div >
 
-        {/* 📜 Footer informativo */}
-        <motion.div
-          className="mt-8 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
+    {/* 📜 Footer informativo */ }
+    < motion.div
+  className = "mt-8 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50"
+  initial = {{ opacity: 0 }
+}
+animate = {{ opacity: 1 }}
+transition = {{ delay: 0.4 }}
         >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-yellow-400" />
-              <div>
-                <p className="text-sm font-semibold text-yellow-300">Modo de demostración</p>
-                <p className="text-xs text-gray-400">
-                  Las funciones de wallet son una simulación. En producción se conectarán a contratos reales.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Fixed missing import or use of Sparkles if not available */}
-              <Sparkles className="w-5 h-5 text-blue-400" />
-              <div>
-                <p className="text-sm font-semibold text-blue-300">Próximas funciones</p>
-                <p className="text-xs text-gray-400">
-                  Trading en DEX, NFTs coleccionables, gobernanza.
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="flex items-center gap-3">
+      <Shield className="w-5 h-5 text-yellow-400" />
+      <div>
+        <p className="text-sm font-semibold text-yellow-300">Modo de demostración</p>
+        <p className="text-xs text-gray-400">
+          Las funciones de wallet son una simulación. En producción se conectarán a contratos reales.
+        </p>
       </div>
     </div>
+
+    <div className="flex items-center gap-3">
+      {/* Fixed missing import or use of Sparkles if not available */}
+      <Sparkles className="w-5 h-5 text-blue-400" />
+      <div>
+        <p className="text-sm font-semibold text-blue-300">Próximas funciones</p>
+        <p className="text-xs text-gray-400">
+          Trading en DEX, NFTs coleccionables, gobernanza.
+        </p>
+      </div>
+    </div>
+  </div>
+        </motion.div >
+      </div >
+    </div >
   );
 }

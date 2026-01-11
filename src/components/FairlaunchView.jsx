@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { 
-  Rocket, 
-  Zap, 
-  Users, 
-  Shield, 
-  ExternalLink, 
-  CalendarDays, 
+import {
+  Rocket,
+  Zap,
+  Users,
+  Shield,
+  ExternalLink,
+  CalendarDays,
   Clock,
   DollarSign,
   TrendingUp,
@@ -42,26 +42,28 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
-export function FairlaunchView({ 
-  toast, 
-  tokenPrice = 0.05
+export function FairlaunchView({
+  toast,
+  tokenPrice = 0.05,
+  user,
+  onNavigate
 }) {
   const { toast: uiToast } = useToast();
-  
+
   // 🎯 ESTADOS OPTIMIZADOS - usando useRef para evitar re-renders
   const [fairlaunchPhase, setFairlaunchPhase] = useState('pre-launch');
   const [timeLeft, setTimeLeft] = useState({ days: 3, hours: 0, minutes: 0, seconds: 0 });
   const [userParticipation, setUserParticipation] = useState(0);
   const [showSimulation, setShowSimulation] = useState(false);
   const [simulationAmount, setSimulationAmount] = useState(100);
-  
+
   // 🎯 Usar useRef para valores que no necesitan re-render
   const participationStatsRef = useRef({
     totalRaised: 125000,
     participants: 347,
     progress: 6.25
   });
-  
+
   const fairlaunchDetailsRef = useRef({
     startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
     endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 días desde ahora
@@ -103,21 +105,21 @@ export function FairlaunchView({
     let mounted = true;
     let animationFrameId = null;
     let lastUpdateTime = Date.now();
-    
+
     const updateCountdown = () => {
       if (!mounted) return;
-      
+
       const now = Date.now();
       // Solo actualizar cada 1000ms (1 segundo)
       if (now - lastUpdateTime < 1000) {
         animationFrameId = requestAnimationFrame(updateCountdown);
         return;
       }
-      
+
       lastUpdateTime = now;
       const targetDate = fairlaunchDetailsRef.current.startDate;
       const difference = targetDate.getTime() - now;
-      
+
       if (difference > 0) {
         setTimeLeft({
           days: Math.floor(difference / (1000 * 60 * 60 * 24)),
@@ -128,12 +130,12 @@ export function FairlaunchView({
       } else {
         setFairlaunchPhase('active');
       }
-      
+
       animationFrameId = requestAnimationFrame(updateCountdown);
     };
-    
+
     updateCountdown();
-    
+
     return () => {
       mounted = false;
       if (animationFrameId) {
@@ -155,16 +157,16 @@ export function FairlaunchView({
 
     const newParticipation = userParticipation + simulationAmount;
     setUserParticipation(newParticipation);
-    
+
     // Actualizar ref sin causar re-render
     participationStatsRef.current.totalRaised += simulationAmount;
-    
+
     toast({
       title: "🚀 ¡Participación Exitosa!",
       description: `Has participado con $${simulationAmount} (${simulationTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })} CROC)`,
       duration: 6000,
     });
-    
+
     setShowSimulation(false);
     setSimulationAmount(100);
   }, [fairlaunchPhase, userParticipation, simulationAmount, simulationTokens, toast, timeLeft]);
@@ -193,7 +195,7 @@ export function FairlaunchView({
   // 🎯 COMPONENTES MEMOIZADOS
   const ProgressBar = useMemo(() => {
     const stats = participationStatsRef.current;
-    
+
     return (
       <div className="relative mb-4">
         <div className="flex justify-between text-sm mb-2">
@@ -207,9 +209,9 @@ export function FairlaunchView({
             Hard Cap: ${fairlaunchDetailsRef.current.hardCap.toLocaleString()}
           </span>
         </div>
-        
+
         <div className="w-full bg-gray-700 rounded-full h-4 shadow-inner relative">
-          <div 
+          <div
             className="absolute top-0 bottom-0 w-1 bg-yellow-400"
             style={{ left: `${softCapPercentage}%` }}
           >
@@ -217,21 +219,21 @@ export function FairlaunchView({
               Soft Cap
             </div>
           </div>
-          
-          <motion.div 
+
+          <motion.div
             className="h-4 rounded-full bg-gradient-to-r from-green-500 via-emerald-400 to-cyan-400 relative overflow-hidden"
             initial={{ width: 0 }}
             animate={{ width: `${progressPercentage}%` }}
             transition={{ duration: 1.5, ease: "easeOut" }}
           >
-            <motion.div 
+            <motion.div
               className="absolute top-0 left-0 bottom-0 w-8 bg-white/30"
               animate={{ x: ["0%", "100%"] }}
               transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
             />
           </motion.div>
         </div>
-        
+
         <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>0%</span>
           <span>{Math.round(progressPercentage)}%</span>
@@ -242,44 +244,41 @@ export function FairlaunchView({
   }, [progressPercentage, softCapPercentage]);
 
   const CountdownCard = useMemo(() => (
-    <motion.div 
-      className={`p-6 rounded-xl border-2 mb-6 ${
-        fairlaunchPhase === 'pre-launch' 
-          ? 'border-blue-500/50 bg-gradient-to-r from-blue-900/20 to-cyan-900/20' 
-          : fairlaunchPhase === 'active'
+    <motion.div
+      className={`p-6 rounded-xl border-2 mb-6 ${fairlaunchPhase === 'pre-launch'
+        ? 'border-blue-500/50 bg-gradient-to-r from-blue-900/20 to-cyan-900/20'
+        : fairlaunchPhase === 'active'
           ? 'border-green-500/50 bg-gradient-to-r from-green-900/20 to-emerald-900/20'
           : 'border-purple-500/50 bg-gradient-to-r from-purple-900/20 to-pink-900/20'
-      }`}
+        }`}
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-lg ${
-            fairlaunchPhase === 'pre-launch' ? 'bg-blue-600/30' :
+          <div className={`p-3 rounded-lg ${fairlaunchPhase === 'pre-launch' ? 'bg-blue-600/30' :
             fairlaunchPhase === 'active' ? 'bg-green-600/30' :
-            'bg-purple-600/30'
-          }`}>
-            <Timer className={`w-6 h-6 ${
-              fairlaunchPhase === 'pre-launch' ? 'text-blue-400' :
+              'bg-purple-600/30'
+            }`}>
+            <Timer className={`w-6 h-6 ${fairlaunchPhase === 'pre-launch' ? 'text-blue-400' :
               fairlaunchPhase === 'active' ? 'text-green-400' :
-              'text-purple-400'
-            }`} />
+                'text-purple-400'
+              }`} />
           </div>
           <div>
             <h3 className="font-bold text-lg text-white">
               {fairlaunchPhase === 'pre-launch' ? '🚀 Lanzamiento en:' :
-               fairlaunchPhase === 'active' ? '🔥 Finaliza en:' :
-               '✅ Fairlaunch Finalizado'}
+                fairlaunchPhase === 'active' ? '🔥 Finaliza en:' :
+                  '✅ Fairlaunch Finalizado'}
             </h3>
             <p className="text-sm text-gray-400">
               {fairlaunchPhase === 'pre-launch' ? 'Prepárate para el despegue' :
-               fairlaunchPhase === 'active' ? '¡Última oportunidad para participar!' :
-               'Gracias por tu participación'}
+                fairlaunchPhase === 'active' ? '¡Última oportunidad para participar!' :
+                  'Gracias por tu participación'}
             </p>
           </div>
         </div>
-        
+
         <div className="text-center">
           <div className="text-3xl md:text-4xl font-bold mb-1 text-white font-mono">
             {fairlaunchPhase !== 'completed' ? formatTimeLeft() : 'COMPLETADO'}
@@ -289,22 +288,21 @@ export function FairlaunchView({
             {fairlaunchPhase === 'active' && `Final: ${fairlaunchDetailsRef.current.endDate.toLocaleDateString()}`}
           </div>
         </div>
-        
-        <div className={`px-4 py-2 rounded-full text-sm font-bold ${
-          fairlaunchPhase === 'pre-launch' ? 'bg-blue-500 text-white' :
+
+        <div className={`px-4 py-2 rounded-full text-sm font-bold ${fairlaunchPhase === 'pre-launch' ? 'bg-blue-500 text-white' :
           fairlaunchPhase === 'active' ? 'bg-green-500 text-white' :
-          'bg-purple-500 text-white'
-        }`}>
+            'bg-purple-500 text-white'
+          }`}>
           {fairlaunchPhase === 'pre-launch' ? 'PRÓXIMAMENTE' :
-           fairlaunchPhase === 'active' ? 'EN CURSO 🔥' :
-           'FINALIZADO ✅'}
+            fairlaunchPhase === 'active' ? 'EN CURSO 🔥' :
+              'FINALIZADO ✅'}
         </div>
       </div>
     </motion.div>
   ), [fairlaunchPhase, formatTimeLeft]);
 
   const TokenInfoCard = useMemo(() => (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -313,7 +311,7 @@ export function FairlaunchView({
         <Package className="w-6 h-6 mr-2 text-yellow-400" />
         Detalles del Token CROC
       </h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-3">
           <DetailItem icon={DollarSign} label="Precio inicial:" value={`$${tokenPrice.toFixed(4)}`} color="text-green-400" />
@@ -322,7 +320,7 @@ export function FairlaunchView({
           <DetailItem icon={Network} label="Red:" value="Optimism" color="text-purple-400" />
           <DetailItem icon={Cpu} label="Estándar:" value="ERC-20" color="text-gray-400" />
         </div>
-        
+
         <div className="space-y-3">
           <DetailItem icon={LockKeyhole} label="Liquidity Lock:" value="12 meses" color="text-green-400" />
           <DetailItem icon={CalendarDays} label="Vesting equipo:" value="6 meses lineal" color="text-yellow-400" />
@@ -336,11 +334,11 @@ export function FairlaunchView({
 
   const ParticipationSimulation = useMemo(() => {
     if (!showSimulation) return null;
-    
+
     const potentialReturn = calculatePotentialReturn(simulationAmount);
-    
+
     return (
-      <motion.div 
+      <motion.div
         className="p-6 bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-xl border border-blue-700/50 mb-6"
         initial={{ opacity: 0, height: 0 }}
         animate={{ opacity: 1, height: 'auto' }}
@@ -360,7 +358,7 @@ export function FairlaunchView({
             ✕
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -380,13 +378,13 @@ export function FairlaunchView({
                 ${simulationAmount}
               </span>
             </div>
-            
+
             <div className="flex justify-between text-xs text-gray-400 mt-2">
               <span>Mín: $50</span>
               <span>Máx: $10,000</span>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-blue-900/30 rounded-lg">
               <div className="text-sm text-blue-300 mb-1">Tokens recibidos</div>
@@ -394,7 +392,7 @@ export function FairlaunchView({
                 {simulationTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })} CROC
               </div>
             </div>
-            
+
             <div className="p-3 bg-green-900/30 rounded-lg">
               <div className="text-sm text-green-300 mb-1">Precio por token</div>
               <div className="text-xl font-bold text-white">
@@ -402,7 +400,7 @@ export function FairlaunchView({
               </div>
             </div>
           </div>
-          
+
           <div className="p-3 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 rounded-lg border border-yellow-700/30">
             <h4 className="font-semibold text-yellow-300 mb-2 text-sm">Rendimiento potencial:</h4>
             <div className="grid grid-cols-3 gap-2">
@@ -420,7 +418,7 @@ export function FairlaunchView({
               </div>
             </div>
           </div>
-          
+
           <Button
             onClick={handleParticipate}
             className="w-full bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-bold py-3"
@@ -433,17 +431,30 @@ export function FairlaunchView({
     );
   }, [showSimulation, simulationAmount, simulationTokens, tokenPrice, handleParticipate, calculatePotentialReturn]);
 
+  /* 🔐 ADM Check helper (Duplicate purely for UI logic if needed, or rely on prop if passed) */
+  const isAdmin = user && (user.email === 'admin@cocodrilo.com' || user.email === 'horaciowalterortiz@gmail.com');
+
   return (
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-6xl mx-auto">
         {/* 🏁 Encabezado */}
-        <motion.div 
-          className="text-center mb-8"
+        <motion.div
+          className="text-center mb-8 relative"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="absolute top-0 right-0 border-red-500 text-red-400 hover:bg-red-900/20"
+              onClick={() => onNavigate('admin')}
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Panel Admin
+            </Button>
+          )}
           <h1 className="text-3xl md:text-4xl font-bold mb-3 gradient-text flex items-center justify-center">
-            <Rocket className="w-8 h-8 mr-3 text-purple-400" /> 
+            <Rocket className="w-8 h-8 mr-3 text-purple-400" />
             Fairlaunch del Token CROC en Optimism
           </h1>
           <p className="text-muted-foreground max-w-3xl mx-auto">
@@ -458,7 +469,7 @@ export function FairlaunchView({
           {/* 📊 Panel izquierdo - Información clave */}
           <div className="lg:col-span-2 space-y-6">
             {/* 📈 Barra de progreso */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -476,9 +487,9 @@ export function FairlaunchView({
                   </div>
                 </div>
               </div>
-              
+
               {ProgressBar}
-              
+
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="p-3 bg-blue-900/20 rounded-lg">
                   <div className="text-2xl font-bold text-blue-400">
@@ -505,7 +516,7 @@ export function FairlaunchView({
             {TokenInfoCard}
 
             {/* 🎯 Beneficios */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -515,27 +526,27 @@ export function FairlaunchView({
                 <Award className="w-6 h-6 mr-2 text-purple-400" />
                 Incentivos y Recompensas
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <BenefitCard 
+                <BenefitCard
                   icon={ListChecks}
                   title="Completa Misiones"
                   description="Cada misión completada te da tokens extra para el Fairlaunch."
                   color="green"
                 />
-                <BenefitCard 
+                <BenefitCard
                   icon={UserPlus}
                   title="Invita Amigos"
                   description="Gana 50 CROC extra por cada amigo que invites y participe."
                   color="blue"
                 />
-                <BenefitCard 
+                <BenefitCard
                   icon={Target}
                   title="Early Birds"
                   description="Los primeros 100 participantes reciben un bono adicional del 10%."
                   color="yellow"
                 />
-                <BenefitCard 
+                <BenefitCard
                   icon={TrendingUp}
                   title="Listing en Exchanges"
                   description="Listado garantizado en Uniswap V3, SushiSwap y más exchanges."
@@ -548,7 +559,7 @@ export function FairlaunchView({
           {/* 🎮 Panel derecho - Participación */}
           <div className="space-y-6">
             {/* 💰 Tu participación */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -558,7 +569,7 @@ export function FairlaunchView({
                 <Wallet className="w-6 h-6 mr-2 text-green-400" />
                 Tu Participación
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-lg border border-green-700/30">
                   <div className="text-center mb-2">
@@ -567,21 +578,21 @@ export function FairlaunchView({
                     </div>
                     <div className="text-sm text-green-300">Total invertido</div>
                   </div>
-                  
+
                   <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div 
+                    <div
                       className="h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
                       style={{ width: `${Math.min(100, (userParticipation / 10000) * 100)}%` }}
                     />
                   </div>
-                  
+
                   <div className="text-xs text-gray-400 mt-2 text-center">
-                    {userParticipation > 0 
+                    {userParticipation > 0
                       ? `${((userParticipation / 10000) * 100).toFixed(1)}% de tu límite máximo`
                       : 'Aún no has participado'}
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Button
                     onClick={() => setShowSimulation(true)}
@@ -590,22 +601,21 @@ export function FairlaunchView({
                     <Calculator className="w-5 h-5 mr-2" />
                     Simular Participación
                   </Button>
-                  
+
                   <Button
                     onClick={handleParticipate}
                     disabled={fairlaunchPhase !== 'active'}
-                    className={`w-full ${
-                      fairlaunchPhase === 'active'
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white sparkle-effect'
-                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                    } py-3`}
+                    className={`w-full ${fairlaunchPhase === 'active'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white sparkle-effect'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      } py-3`}
                   >
                     <ExternalLink className="w-5 h-5 mr-2" />
-                    {fairlaunchPhase === 'active' 
-                      ? 'Participar Ahora' 
+                    {fairlaunchPhase === 'active'
+                      ? 'Participar Ahora'
                       : fairlaunchPhase === 'pre-launch'
-                      ? 'Próximamente'
-                      : 'Finalizado'}
+                        ? 'Próximamente'
+                        : 'Finalizado'}
                   </Button>
                 </div>
               </div>
@@ -615,7 +625,7 @@ export function FairlaunchView({
             {ParticipationSimulation}
 
             {/* ⚠️ Advertencias importantes */}
-            <motion.div 
+            <motion.div
               className="stats-card rounded-xl p-6 border-2 border-yellow-500/30 bg-gradient-to-br from-yellow-900/10 to-amber-900/10"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -625,7 +635,7 @@ export function FairlaunchView({
                 <AlertCircle className="w-6 h-6 mr-2" />
                 Información Importante
               </h3>
-              
+
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
@@ -633,21 +643,21 @@ export function FairlaunchView({
                     <strong>Red Optimism:</strong> Todas las transacciones se procesarán en la red Optimism.
                   </p>
                 </div>
-                
+
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-yellow-200">
                     <strong>Mínimo/Máximo:</strong> Participación mínima $50, máxima $10,000 por wallet.
                   </p>
                 </div>
-                
+
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-yellow-200">
                     <strong>Vesting:</strong> Los tokens del equipo tienen vesting de 6 meses.
                   </p>
                 </div>
-                
+
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-yellow-200">
@@ -655,7 +665,7 @@ export function FairlaunchView({
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-4 p-3 bg-gradient-to-r from-gray-800/50 to-gray-900/50 rounded-lg">
                 <p className="text-xs text-gray-400 text-center">
                   Fairlaunch activo del {fairlaunchDetailsRef.current.startDate.toLocaleDateString()} al {fairlaunchDetailsRef.current.endDate.toLocaleDateString()}

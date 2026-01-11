@@ -637,6 +637,8 @@ function App() {
                 toast={toast}
                 tokenPrice={tokenPrice}
                 refreshPrice={refreshPrice}
+                user={user}
+                onNavigate={handleNavigation}
               />
             )}
 
@@ -651,6 +653,7 @@ function App() {
                 tokenPriceHistory={priceHistory}
                 refreshTokenPrice={refreshPrice}
                 user={user}
+                player={player}
                 referralStats={referralStats}
               />
             )}
