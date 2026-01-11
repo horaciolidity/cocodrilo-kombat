@@ -28,6 +28,7 @@ export function useGameData(user, gameConfig) {
     lastSync: null,
     lastSyncState: null,
     syncInProgress: false,
+    syncErrorCount: 0, // Fail-safe counter
     gameConfig: {} // Global config like fair_launch_date
   });
 
@@ -432,6 +433,12 @@ export function useGameData(user, gameConfig) {
       return;
     }
 
+    // ⛔ FAIL-SAFE: Si hay demasiados errores consecutivos, detener sync para evitar Loops
+    if ((gameData.syncErrorCount || 0) > 3) {
+      console.warn('⛔ Sync detenido por error persistente (Loop protection)');
+      return;
+    }
+
     const now = Date.now();
     // Debounce de 30 segundos para llamadas RPC, para ahorrar costos y reducir estrés en BD
     // EXCEPTO si es una actualización crítica (ej. compra) que se forzará aparte
@@ -511,7 +518,13 @@ export function useGameData(user, gameConfig) {
       console.error('❌ Error en sync (RPC):', error);
       // Restaurar pendientes para reintentar
       pendingSyncRef.current = { ...updates, ...pendingSyncRef.current };
-      setGameData(prev => ({ ...prev, syncInProgress: false }));
+
+      // Incrementar contador de errores
+      setGameData(prev => ({
+        ...prev,
+        syncInProgress: false,
+        syncErrorCount: (prev.syncErrorCount || 0) + 1
+      }));
     }
   }, [gameData]);
 

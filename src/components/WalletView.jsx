@@ -34,6 +34,7 @@ export function WalletView({
   // Local states for other features
   const [stakeAmount, setStakeAmount] = useState(0);
   const [pendingRewards, setPendingRewards] = useState(0);
+  const [isCopied, setIsCopied] = useState(false);
 
   // ✅ Valor proyectado de tokens CROC
   const projectedValue = nativeTokenBalance * tokenPrice;
