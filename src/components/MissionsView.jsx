@@ -26,7 +26,6 @@ export function MissionsView({
   gameState,
   upgrades,
   toast,
-  toast,
   playSound,
   verifyMissionCode // 🆕 Prop passed from parent
 }) {
@@ -197,10 +196,10 @@ export function MissionsView({
               <motion.div
                 key={mission.id}
                 className={`mission-card rounded-xl p-4 md:p-6 shadow-lg transition-all duration-300 backdrop-blur-sm ${missionState.completed
-                    ? missionState.claimed
-                      ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50'
-                      : 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50'
-                    : 'bg-card/80 border border-border/50 hover:border-primary/50'
+                  ? missionState.claimed
+                    ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50'
+                    : 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50'
+                  : 'bg-card/80 border border-border/50 hover:border-primary/50'
                   }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -211,8 +210,8 @@ export function MissionsView({
                   {/* 🎯 Información de la misión */}
                   <div className="flex items-start mb-2 md:mb-0 flex-1">
                     <div className={`p-3 rounded-lg mr-3 ${missionState.completed
-                        ? 'bg-green-700/50'
-                        : 'bg-gray-700/50'
+                      ? 'bg-green-700/50'
+                      : 'bg-gray-700/50'
                       }`}>
                       <Icon className={`w-6 h-6 ${missionState.completed ? 'text-green-300' : 'text-primary'
                         }`} />
