@@ -105,7 +105,10 @@ export function useGameData(user, gameConfig) {
         ownedItems: stats.owned_items || [],
         activeSkin: stats.active_skin || null,
         achievementsUnlocked: stats.achievements_unlocked || [],
-        dailyRewards: stats.daily_rewards || { lastClaim: null, streak: 0, available: true },
+        dailyRewards: {
+          ...stats.daily_rewards,
+          available: !stats.daily_rewards?.lastClaim || (Date.now() - new Date(stats.daily_rewards.lastClaim).getTime() > 20 * 60 * 60 * 1000)
+        } || { lastClaim: null, streak: 0, available: true },
         farmingMilestones: stats.farming_milestones || initialMilestones,
         referralStats,
         gameConfig: configMap,
