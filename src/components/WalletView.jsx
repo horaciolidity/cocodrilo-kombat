@@ -335,7 +335,7 @@ export function WalletView({
                   <Button
                     onClick={connectWallet}
                     size="lg"
-                    disabled={loading}
+                    disabled={isConnecting}
                     className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
                   >
                     {isConnecting ? (
