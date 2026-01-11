@@ -19,6 +19,7 @@ import {
   Users
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useWeb3 } from '@/contexts/Web3Context';
 
 export function WalletView({
   toast,
@@ -28,12 +29,10 @@ export function WalletView({
   user,
   referralStats
 }) {
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [isCopied, setIsCopied] = useState(false);
+  const { account, chainId, connectWallet, disconnectWallet, isConnected, isConnecting } = useWeb3();
+
+  // Local states for other features
   const [stakeAmount, setStakeAmount] = useState(0);
-  const [pendingRewards, setPendingRewards] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   // ✅ Valor proyectado de tokens CROC
   const projectedValue = nativeTokenBalance * tokenPrice;
@@ -46,33 +45,9 @@ export function WalletView({
   }, [nativeTokenBalance]);
 
   /* ================================
-     🔌 Conexión de Wallet - SIMULADA
+     🔌 Conexión de Wallet - REAL (Web3Context)
   ================================= */
-  const connectWallet = async () => {
-    setLoading(true);
-    playSound('uiClick');
-
-    // Simulación de conexión (en producción usarías Web3)
-    setTimeout(() => {
-      setIsConnected(true);
-      setLoading(false);
-      toast({
-        title: "✅ Wallet Conectada",
-        description: "Conexión simulada para demostración",
-      });
-      playSound('success');
-    }, 1000);
-  };
-
-  const disconnectWallet = () => {
-    setIsConnected(false);
-    setWalletAddress(null);
-    playSound('uiClick');
-    toast({
-      title: "👋 Wallet Desconectada",
-      description: "Tu wallet se desconectó correctamente",
-    });
-  };
+  // Logic handled by hook
 
   /* ================================
      📋 Copiar dirección - MEJORADO
@@ -80,12 +55,8 @@ export function WalletView({
   const copyAddress = () => {
     if (!isConnected) return;
 
-    // Generar dirección simulada
-    const simulatedAddress = `0x${Array.from({ length: 40 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')}`;
-
-    navigator.clipboard.writeText(simulatedAddress);
+    // Use real account
+    navigator.clipboard.writeText(account);
     setIsCopied(true);
     playSound('uiClick');
 
@@ -178,12 +149,12 @@ export function WalletView({
     }
   }, [stakeAmount]);
 
-  // 📊 Información de la red (simulada)
+  // 📊 Información de la red
   const networkInfo = {
-    name: "CROC Testnet",
-    chainId: 31337,
-    rpcUrl: "https://testnet.croc.xyz",
-    explorer: "https://explorer.croc.xyz",
+    name: chainId === '0x1' ? "Ethereum Mainnet" : (chainId ? `Chain ID: ${chainId}` : "Desconectado"),
+    chainId: chainId,
+    rpcUrl: "N/A",
+    explorer: "https://etherscan.io",
     stakingAPY: "15-25%"
   };
 
@@ -326,9 +297,7 @@ export function WalletView({
                     <p className="text-sm text-muted-foreground mb-2">Tu dirección:</p>
                     <div className="flex items-center gap-2 p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
                       <code className="text-xs font-mono text-gray-300 flex-1 truncate">
-                        0x{Array.from({ length: 16 }, () =>
-                          Math.floor(Math.random() * 16).toString(16)
-                        ).join('')}...
+                        {account}
                       </code>
                       <Button
                         onClick={copyAddress}
@@ -367,7 +336,7 @@ export function WalletView({
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
                   >
-                    {loading ? (
+                    {isConnecting ? (
                       <>
                         <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                         Conectando...

@@ -17,6 +17,10 @@ import {
   Sparkles,
   Target,
   Award,
+  Trophy, // New Icon
+  Hammer, // New Icon
+  Timer, // New Icon
+  Crown // New Icon
 } from 'lucide-react';
 // Imports removed
 // UPGRADES and SHOP_ITEMS are now passed via gameConfig
@@ -76,6 +80,23 @@ export function GameView({
   const { playSound } = useSound();
   const videoRefIdle = useRef(null);
   const videoRefBite = useRef(null);
+
+  // Calculate next claim time text
+  const getNextClaimText = () => {
+    if (dailyRewards?.available) return "¡Reclamar!";
+    if (!dailyRewards?.lastClaim) return "¡Reclamar!";
+
+    const last = new Date(dailyRewards.lastClaim);
+    const next = new Date(last.getTime() + 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    if (now >= next) return "¡Reclamar!";
+
+    const diff = next - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${mins}m`;
+  };
 
   const handleBuyToken = () => {
     toast({

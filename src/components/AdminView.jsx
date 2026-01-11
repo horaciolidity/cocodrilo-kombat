@@ -264,8 +264,17 @@ export function AdminView({ user, toast }) {
                     <MissionsEditor toast={toast} />
                 </TabsContent>
 
-                {/* NEW CONFIG TAB */}
                 <TabsContent value="config">
+                    <Card className="mb-6">
+                        <CardHeader>
+                            <CardTitle>Configuración Global</CardTitle>
+                            <CardDescription>Ajustes generales del juego (Fair Launch, etc.)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <GlobalConfigEditor toast={toast} />
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Inicialización de Base de Datos</CardTitle>
@@ -350,7 +359,9 @@ function MissionsEditor({ toast }) {
                 .update({
                     name: editForm.name,
                     description: editForm.description,
-                    reward_coins: parseInt(editForm.reward_coins)
+                    reward_coins: parseInt(editForm.reward_coins),
+                    secret_code: editForm.secret_code,
+                    validation_type: editForm.validation_type
                 })
                 .eq('id', editingId);
 
@@ -409,14 +420,38 @@ function MissionsEditor({ toast }) {
                                             onChange={e => setEditForm({ ...editForm, description: e.target.value })}
                                         />
                                     </div>
-                                    <div>
-                                        <Label>Recompensa (Monedas)</Label>
-                                        <Input
-                                            type="number"
-                                            value={editForm.reward_coins}
-                                            onChange={e => setEditForm({ ...editForm, reward_coins: e.target.value })}
-                                        />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <Label>Recompensa (Coins)</Label>
+                                            <Input
+                                                type="number"
+                                                value={editForm.reward_coins}
+                                                onChange={e => setEditForm({ ...editForm, reward_coins: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Tipo Validación</Label>
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={editForm.validation_type || 'click'}
+                                                onChange={e => setEditForm({ ...editForm, validation_type: e.target.value })}
+                                            >
+                                                <option value="click">Click / Verificación</option>
+                                                <option value="code">Código Secreto</option>
+                                                <option value="social_share">Social Share</option>
+                                            </select>
+                                        </div>
                                     </div>
+                                    {editForm.validation_type === 'code' && (
+                                        <div>
+                                            <Label className="text-pink-400">Código Secreto</Label>
+                                            <Input
+                                                value={editForm.secret_code || ''}
+                                                onChange={e => setEditForm({ ...editForm, secret_code: e.target.value })}
+                                                placeholder="Ej: CROC2024"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="text-sm">
@@ -426,14 +461,82 @@ function MissionsEditor({ toast }) {
                                             Reward: {mission.reward_coins} 💰
                                         </span>
                                         <span className="bg-blue-500/20 text-blue-500 px-2 py-1 rounded text-xs font-mono">
-                                            Type: {mission.requirement_type}
+                                            Type: {mission.validation_type || mission.requirement_type}
                                         </span>
+                                        {mission.secret_code && (
+                                            <span className="bg-pink-500/20 text-pink-500 px-2 py-1 rounded text-xs font-mono">
+                                                Code: {mission.secret_code}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
                 ))}
+            </div>
+        </div>
+    );
+}
+
+function GlobalConfigEditor({ toast }) {
+    const [config, setConfig] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [endDate, setEndDate] = useState("");
+
+    useEffect(() => {
+        fetchConfig();
+    }, []);
+
+    const fetchConfig = async () => {
+        setLoading(true);
+        const { data } = await supabase.from('game_config').select('*').eq('key', 'fair_launch').single();
+        if (data) {
+            setConfig(data);
+            if (data.value && data.value.end_date) {
+                // Format for datetime-local input: YYYY-MM-DDThh:mm
+                const date = new Date(data.value.end_date);
+                setEndDate(date.toISOString().slice(0, 16));
+            }
+        }
+        setLoading(false);
+    };
+
+    const handleSave = async () => {
+        try {
+            const isoDate = new Date(endDate).toISOString();
+            const { error } = await supabase
+                .from('game_config')
+                .upsert({
+                    key: 'fair_launch',
+                    value: { end_date: isoDate },
+                    updated_at: new Date().toISOString()
+                });
+
+            if (error) throw error;
+            toast({ title: "Guardado", description: "Configuración actualizada." });
+        } catch (e) {
+            toast({ title: "Error", description: e.message, variant: "destructive" });
+        }
+    };
+
+    if (loading) return <div>Cargando config...</div>;
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <Label>Fecha Fin Fair Launch (UTC)</Label>
+                <div className="flex gap-2 mt-1">
+                    <Input
+                        type="datetime-local"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                    />
+                    <Button onClick={handleSave}><Save className="w-4 h-4 mr-2" /> Guardar</Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                    Esta fecha se usa para la cuenta regresiva global.
+                </p>
             </div>
         </div>
     );

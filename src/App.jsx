@@ -555,13 +555,13 @@ function App() {
           }>
             {currentView === "game" && (
               <GameView
-                gameState={gameState}
-                upgrades={upgrades}
+                gameState={gameData.gameState}
+                upgrades={gameData.upgrades}
                 buyUpgrade={buyUpgrade}
-                handleClick={handleClick}
-                dailyRewards={dailyRewards}
-                claimDailyReward={claimDailyReward}
-                activeSkin={activeSkin}
+                handleClick={handleCardClick}
+                dailyRewards={gameData.dailyRewards}
+                claimDailyReward={gameData.claimDailyReward}
+                activeSkin={gameData.activeSkin}
                 toast={toast}
                 user={user}
                 tokenPrice={tokenPrice}
@@ -578,14 +578,15 @@ function App() {
 
             {currentView === "missions" && (
               <MissionsView
-                missions={missions}
+                missions={gameData.missions}
                 completeMission={completeMission}
                 claimMissionReward={claimMissionReward}
-                gameState={gameState}
-                upgrades={upgrades}
+                gameState={gameData.gameState}
+                upgrades={gameData.upgrades}
                 toast={toast}
                 playSound={playSound}
                 gameConfig={gameConfig}
+                verifyMissionCode={gameData.verifyMissionCode}
               />
             )}
 
