@@ -15,7 +15,13 @@ import {
   UserPlus,
   Target,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Youtube,
+  ThumbsUp,
+  MessageCircle,
+  UserCheck,
+  RefreshCw,
+  Check
 } from 'lucide-react';
 import { MISSIONS, CARDS_DATA } from '@/config/gameConfig';
 
@@ -189,7 +195,7 @@ export function MissionsView({
             const missionState = missions?.[mission.id] || { completed: false, claimed: false, progress: 0 };
             const progress = getMissionProgress(mission);
             const Icon = mission.icon || Award;
-            const isSocialMission = mission.requirement?.type?.startsWith('social_') || mission.requirement?.type === 'video_watch';
+            const isSocialMission = mission.requirement?.type?.startsWith('social_') || mission.requirement?.type === 'video_watch' || mission.validation_type === 'youtube_actions';
 
             return (
               <motion.div
@@ -305,6 +311,76 @@ export function MissionsView({
                           {mission.requirement.actionText || "Ver Video"}
                         </Button>
                         <p className="text-[10px] text-center text-muted-foreground">Ve el video para completar</p>
+                      </div>
+                    )}
+
+                    {/* YOUTUBE ACTIONS */}
+                    {!missionState.completed && mission.validation_type === 'youtube_actions' && (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button
+                          onClick={() => {
+                            const url = mission.youtube_url || mission.requirement?.url;
+                            if (url) {
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                              toast({
+                                title: "📺 Video Abierto",
+                                description: "Completa las acciones requeridas y vuelve para reclamar tu recompensa",
+                                duration: 5000
+                              });
+                            }
+                          }}
+                          variant="outline"
+                          className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
+                        >
+                          <Youtube className="w-4 h-4 mr-2" />
+                          Abrir Video de YouTube
+                        </Button>
+                        {mission.video_actions && (
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <p className="font-semibold">Acciones requeridas:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {mission.video_actions.subscribe && <span className="flex items-center gap-1 bg-red-900/20 px-2 py-1 rounded"><UserCheck className="w-3 h-3" /> Suscribirse</span>}
+                              {mission.video_actions.like && <span className="flex items-center gap-1 bg-blue-900/20 px-2 py-1 rounded"><ThumbsUp className="w-3 h-3" /> Like</span>}
+                              {mission.video_actions.comment && <span className="flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded"><MessageCircle className="w-3 h-3" /> Comentar</span>}
+                              {mission.video_actions.follow && <span className="flex items-center gap-1 bg-purple-900/20 px-2 py-1 rounded"><UserPlus className="w-3 h-3" /> Seguir</span>}
+                            </div>
+                          </div>
+                        )}
+                        <Button
+                          onClick={() => completeMission(mission.id, true)}
+                          size="sm"
+                          className="w-full bg-green-600 hover:bg-green-700 mt-2"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Ya completé las acciones
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* DAILY CODE */}
+                    {!missionState.completed && mission.validation_type === 'daily_code' && (
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="text-xs text-muted-foreground mb-1">
+                          <p>💡 Busca el código secreto en nuestros videos diarios</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Código diario..."
+                            className="flex-1 bg-black/30 border border-cyan-600 rounded px-2 py-1 text-sm text-white uppercase"
+                            value={secretCodeInput[mission.id] || ''}
+                            onChange={(e) => setSecretCodeInput({ ...secretCodeInput, [mission.id]: e.target.value.toUpperCase() })}
+                            maxLength={20}
+                          />
+                          <Button
+                            onClick={() => handleCodeVerification(mission.id)}
+                            size="sm"
+                            disabled={verifying === mission.id}
+                            className="bg-cyan-600 hover:bg-cyan-700"
+                          >
+                            {verifying === mission.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                          </Button>
+                        </div>
                       </div>
                     )}
 

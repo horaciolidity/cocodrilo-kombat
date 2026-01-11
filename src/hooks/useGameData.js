@@ -1139,7 +1139,8 @@ export function useGameData(user, gameConfig) {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [gameData.player?.id, refreshReferralStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameData.player?.id]);
 
   return {
     // 🎯 DATOS COMPLETOS

@@ -16,7 +16,8 @@ import {
   Shield,
   TrendingUp,
   RefreshCw,
-  Users
+  Users,
+  Trophy
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useWeb3 } from '@/contexts/Web3Context';
