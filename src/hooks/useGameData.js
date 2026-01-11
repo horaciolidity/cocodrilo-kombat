@@ -530,7 +530,22 @@ export function useGameData(user, gameConfig) {
 
       const { data, error } = await supabase.rpc('sync_game_state', payload);
 
-      if (error) throw error;
+      if (error) {
+        // Special handling for missing RPC function
+        if (error.code === 'PGRST202') {
+          console.error('❌ ERROR CRÍTICO: La función RPC "sync_game_state" no existe en Supabase.');
+          console.error('👉 Por favor, ejecuta la migración "20240111_sync_game_state_rpc.sql" en tu SQL Editor.');
+
+          // Increment error count aggressively for this specific error to stop the loop fast
+          setGameData(prev => ({
+            ...prev,
+            syncInProgress: false,
+            syncErrorCount: (prev.syncErrorCount || 0) + 1
+          }));
+          return;
+        }
+        throw error;
+      }
 
       if (!data.success) {
         console.warn('⚠️ Servidor rechazó sincronización:', data.error);
@@ -558,6 +573,11 @@ export function useGameData(user, gameConfig) {
         syncInProgress: false,
         syncErrorCount: (prev.syncErrorCount || 0) + 1
       }));
+
+      // If error count is reaching limit, notify user via alert or more visible log
+      if ((gameData.syncErrorCount || 0) >= 2) {
+        console.error('⛔ Demasiados errores de sincronización. Revisa la consola y las migraciones de Supabase.');
+      }
     }
   }, [gameData]);
 

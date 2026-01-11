@@ -24,10 +24,15 @@ export function Web3Provider({ children }) {
             return;
         }
 
+        // Specific MetaMask detection if needed
+        const isMetaMask = provider.isMetaMask;
+        console.log('🔌 Connecting to provider...', isMetaMask ? ' (MetaMask detected)' : '');
+
         try {
             setIsConnecting(true);
             setError(null);
 
+            // Some providers/environments might fail on these requests even if window.ethereum exists
             const accounts = await provider.request({ method: 'eth_requestAccounts' });
             const chain = await provider.request({ method: 'eth_chainId' });
 
@@ -35,8 +40,14 @@ export function Web3Provider({ children }) {
             setChainId(chain);
 
         } catch (err) {
-            console.error("Error connecting wallet:", err);
-            setError(err.message);
+            console.error("❌ Error connecting wallet:", err);
+
+            // Handle specific "provider not found" or "failed to connect" errors
+            if (err.message?.includes('MetaMask extension not found') || err.code === -32601) {
+                setError("MetaMask extension not found or not responding.");
+            } else {
+                setError(err.message || "Failed to connect to wallet");
+            }
         } finally {
             setIsConnecting(false);
         }
@@ -67,14 +78,21 @@ export function Web3Provider({ children }) {
             provider.on('accountsChanged', handleAccountsChanged);
             provider.on('chainChanged', handleChainChanged);
 
-            // Check current status
-            provider.request({ method: 'eth_accounts' })
-                .then(handleAccountsChanged)
-                .catch(console.error);
+            // Wrap initial requests in try/catch to avoid unhandled promise rejections
+            // especially which happen when some extensions inject window.ethereum but fail to respond
+            const fetchInitialStatus = async () => {
+                try {
+                    const accounts = await provider.request({ method: 'eth_accounts' });
+                    handleAccountsChanged(accounts);
 
-            provider.request({ method: 'eth_chainId' })
-                .then(setChainId)
-                .catch(console.error);
+                    const chain = await provider.request({ method: 'eth_chainId' });
+                    setChainId(chain);
+                } catch (err) {
+                    console.warn("⚠️ Initial Web3 state fetch failed (provider might be locked or not fully initialized):", err.message);
+                }
+            };
+
+            fetchInitialStatus();
 
             return () => {
                 if (provider.removeListener) {
