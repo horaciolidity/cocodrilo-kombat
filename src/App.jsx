@@ -558,7 +558,7 @@ function App() {
                 gameState={gameData.gameState}
                 upgrades={gameData.upgrades}
                 buyUpgrade={buyUpgrade}
-                handleClick={handleCardClick}
+                handleClick={handleClick}
                 dailyRewards={gameData.dailyRewards}
                 claimDailyReward={gameData.claimDailyReward}
                 activeSkin={gameData.activeSkin}
