@@ -508,9 +508,10 @@ export function useGameLogic({
 
     // Actualizar monedas
     const newGameState = {
-      coins: gameState.coins + mission.reward.coins,
-      totalCoins: gameState.totalCoins + mission.reward.coins,
-      experience: gameState.experience + (mission.reward.xp || 0)
+      coins: gameState.coins + (mission.reward.coins || 0),
+      totalCoins: gameState.totalCoins + (mission.reward.coins || 0),
+      experience: gameState.experience + (mission.reward.xp || 0),
+      nativeTokenBalance: (gameState.nativeTokenBalance || 0) + (mission.reward.croc || 0)
     };
 
     updateGameState(newGameState);

@@ -587,6 +587,7 @@ function App() {
                 playSound={playSound}
                 gameConfig={gameConfig}
                 verifyMissionCode={gameData.verifyMissionCode}
+                claimDailyCode={gameData.claimDailyCode}
               />
             )}
 

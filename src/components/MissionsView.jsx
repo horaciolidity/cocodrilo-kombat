@@ -34,7 +34,8 @@ export function MissionsView({
   toast,
   playSound,
   verifyMissionCode, // 🆕 Prop passed from parent
-  gameConfig // 🆕 Prop for global config
+  gameConfig, // 🆕 Prop for global config
+  claimDailyCode
 }) {
   const [secretCodeInput, setSecretCodeInput] = React.useState({}); // Store input per mission
   const [verifying, setVerifying] = React.useState(null);
@@ -112,10 +113,24 @@ export function MissionsView({
 
     setVerifying(missionId);
     try {
-      const result = await verifyMissionCode(missionId, code);
+      const mission = MISSIONS.find(m => m.id === missionId);
+      let result;
+
+      if (mission?.validation_type === 'daily_code') {
+        result = await claimDailyCode(code);
+      } else {
+        result = await verifyMissionCode(missionId, code);
+      }
+
       if (result.success) {
         playSound('success');
-        toast({ title: "✅ Código Correcto!", description: `+${result.reward_coins} Monedas` });
+        const coinReward = result.reward_coins || result.reward || 0;
+        const crocReward = result.reward_croc || 0;
+
+        let msg = `+${coinReward} Monedas`;
+        if (crocReward > 0) msg += ` y +${crocReward} CROC`;
+
+        toast({ title: "✅ Código Correcto!", description: msg });
         // Manually trigger local update or reload if needed, but App state might sync
       } else {
         playSound('error');
@@ -438,6 +453,13 @@ export function MissionsView({
                           <span className="px-2 py-1 bg-yellow-900/30 rounded-lg flex items-center gap-1">
                             <DollarSign className="w-3 h-3 text-yellow-400" />
                             <span className="text-yellow-300 font-bold">+{mission.reward.coins} 💰</span>
+                          </span>
+                        )}
+
+                        {mission.reward.croc > 0 && (
+                          <span className="px-2 py-1 bg-emerald-900/30 rounded-lg flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-300 font-bold">+{mission.reward.croc} CROC</span>
                           </span>
                         )}
 

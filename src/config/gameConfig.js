@@ -286,6 +286,24 @@ export const MISSIONS = [
     icon: UserPlusIcon,
     category: "Social",
   },
+  {
+    id: "daily_youtube_sub",
+    name: "Suscripción Diaria YouTube",
+    description: "Visita nuestro canal y completa las acciones diarias para ganar CROC y Monedas.",
+    reward: { coins: 2500, xp: 100, croc: 10 },
+    icon: Youtube,
+    category: "Diario",
+    validation_type: "youtube_actions"
+  },
+  {
+    id: "daily_secret_code",
+    name: "Código Secreto del Vídeo",
+    description: "Busca el código de 6 dígitos en el vídeo de hoy y multiplícalo.",
+    reward: { coins: 0, xp: 150 }, // Reward is dynamic from DB but we show 0 or description
+    icon: CalendarCheck,
+    category: "Diario",
+    validation_type: "daily_code"
+  },
 ];
 
 export const INITIAL_MISSIONS_STATE = MISSIONS.reduce((acc, mission) => {
@@ -339,7 +357,7 @@ export const SHOP_ITEMS = [
     description: 'Pura elegancia dorada. +15% poder de click',
     rarity: 'legendary',
     requiredLevel: 10,
-    effect: { 
+    effect: {
       clickMultiplier: 1.15,
       cpsBoost: 10
     }
