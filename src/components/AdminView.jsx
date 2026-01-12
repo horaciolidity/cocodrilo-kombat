@@ -567,9 +567,10 @@ function MissionsEditor({ toast }) {
 }
 
 function GlobalConfigEditor({ toast }) {
-    const [config, setConfig] = useState(null);
+    const [configData, setConfigData] = useState({});
     const [loading, setLoading] = useState(true);
     const [endDate, setEndDate] = useState("");
+    const [youtubeUrl, setYoutubeUrl] = useState("");
 
     useEffect(() => {
         fetchConfig();
@@ -577,19 +578,33 @@ function GlobalConfigEditor({ toast }) {
 
     const fetchConfig = async () => {
         setLoading(true);
-        const { data } = await supabase.from('game_config').select('*').eq('key', 'fair_launch').single();
-        if (data) {
-            setConfig(data);
-            if (data.value && data.value.end_date) {
-                // Format for datetime-local input: YYYY-MM-DDThh:mm
-                const date = new Date(data.value.end_date);
+        try {
+            const { data, error } = await supabase.from('game_config').select('*');
+            if (error) throw error;
+
+            const configObj = {};
+            data.forEach(item => {
+                configObj[item.key] = item.value;
+            });
+
+            setConfigData(configObj);
+
+            if (configObj.fair_launch?.end_date) {
+                const date = new Date(configObj.fair_launch.end_date);
                 setEndDate(date.toISOString().slice(0, 16));
             }
+
+            if (configObj.daily_youtube_link?.url) {
+                setYoutubeUrl(configObj.daily_youtube_link.url);
+            }
+        } catch (e) {
+            console.error("Error fetching config:", e);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
-    const handleSave = async () => {
+    const handleSaveLaunch = async () => {
         try {
             const isoDate = new Date(endDate).toISOString();
             const { error } = await supabase
@@ -601,7 +616,26 @@ function GlobalConfigEditor({ toast }) {
                 });
 
             if (error) throw error;
-            toast({ title: "Guardado", description: "Configuración actualizada." });
+            toast({ title: "Guardado", description: "Fecha de Fair Launch actualizada." });
+            fetchConfig();
+        } catch (e) {
+            toast({ title: "Error", description: e.message, variant: "destructive" });
+        }
+    };
+
+    const handleSaveYoutube = async () => {
+        try {
+            const { error } = await supabase
+                .from('game_config')
+                .upsert({
+                    key: 'daily_youtube_link',
+                    value: { url: youtubeUrl },
+                    updated_at: new Date().toISOString()
+                });
+
+            if (error) throw error;
+            toast({ title: "Enlace Guardado", description: "El enlace diario de YouTube ha sido actualizado." });
+            fetchConfig();
         } catch (e) {
             toast({ title: "Error", description: e.message, variant: "destructive" });
         }
@@ -610,19 +644,41 @@ function GlobalConfigEditor({ toast }) {
     if (loading) return <div>Cargando config...</div>;
 
     return (
-        <div className="space-y-4">
-            <div>
-                <Label>Fecha Fin Fair Launch (UTC)</Label>
-                <div className="flex gap-2 mt-1">
+        <div className="space-y-6">
+            <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+                <Label className="text-primary font-bold mb-2 block">🚀 Fair Launch Countdown</Label>
+                <div className="flex gap-2">
                     <Input
                         type="datetime-local"
                         value={endDate}
                         onChange={e => setEndDate(e.target.value)}
                     />
-                    <Button onClick={handleSave}><Save className="w-4 h-4 mr-2" /> Guardar</Button>
+                    <Button onClick={handleSaveLaunch} className="bg-indigo-600">
+                        <Save className="w-4 h-4 mr-2" /> Guardar
+                    </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                    Esta fecha se usa para la cuenta regresiva global.
+                    Esta fecha controla el contador global en la vista de Fairlaunch.
+                </p>
+            </div>
+
+            <div className="p-4 bg-red-900/10 rounded-lg border border-red-900/30">
+                <Label className="text-red-400 font-bold mb-2 block flex items-center gap-2">
+                    <LucideIcons.Youtube className="w-5 h-5" /> Enlace Diario YouTube (Suscripción)
+                </Label>
+                <div className="flex gap-2">
+                    <Input
+                        type="url"
+                        value={youtubeUrl}
+                        onChange={e => setYoutubeUrl(e.target.value)}
+                        placeholder="https://youtube.com/..."
+                    />
+                    <Button onClick={handleSaveYoutube} variant="destructive">
+                        <Save className="w-4 h-4 mr-2" /> Guardar Link
+                    </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                    Este link se usará globalmente para las misiones de suscripción diaria.
                 </p>
             </div>
         </div>

@@ -33,7 +33,9 @@ export function MissionsView({
   upgrades,
   toast,
   playSound,
-  verifyMissionCode // 🆕 Prop passed from parent
+  playSound,
+  verifyMissionCode, // 🆕 Prop passed from parent
+  gameConfig // 🆕 Prop for global config
 }) {
   const [secretCodeInput, setSecretCodeInput] = React.useState({}); // Store input per mission
   const [verifying, setVerifying] = React.useState(null);
@@ -319,7 +321,8 @@ export function MissionsView({
                       <div className="flex flex-col gap-2 w-full">
                         <Button
                           onClick={() => {
-                            const url = mission.youtube_url || mission.requirement?.url;
+                            const globalYoutubeUrl = gameConfig?.daily_youtube_link?.url;
+                            const url = mission.youtube_url || mission.requirement?.url || globalYoutubeUrl;
                             if (url) {
                               window.open(url, '_blank', 'noopener,noreferrer');
                               toast({
