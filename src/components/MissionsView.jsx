@@ -33,7 +33,6 @@ export function MissionsView({
   upgrades,
   toast,
   playSound,
-  playSound,
   verifyMissionCode, // 🆕 Prop passed from parent
   gameConfig // 🆕 Prop for global config
 }) {
