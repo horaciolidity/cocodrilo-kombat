@@ -512,8 +512,8 @@ export function useGameData(user, gameConfig) {
       const payload = {
         p_coins: Math.floor(allUpdates.coins ?? gameData.gameState.coins),
         p_total_coins: Math.floor(allUpdates.total_coins ?? allUpdates.totalCoins ?? gameData.gameState.totalCoins),
-        p_energy: Math.floor(allUpdates.energy ?? gameData.gameState.energy),
-        p_max_energy: Math.floor(allUpdates.max_energy ?? allUpdates.maxEnergy ?? gameData.gameState.maxEnergy),
+        p_energy: Math.floor(Number(allUpdates.energy ?? gameData.gameState.energy)),
+        p_max_energy: Math.floor(Number(allUpdates.max_energy ?? allUpdates.maxEnergy ?? gameData.gameState.maxEnergy)),
         p_clicks: Math.floor(allUpdates.clicks ?? allUpdates.totalClicks ?? gameData.gameState.totalClicks),
         p_level: Math.floor(allUpdates.level ?? gameData.gameState.level),
         p_experience: Math.floor(allUpdates.experience ?? gameData.gameState.experience),

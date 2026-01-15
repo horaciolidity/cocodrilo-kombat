@@ -146,7 +146,7 @@ export function MissionsView({
   // 📊 Calcular estadísticas de misiones
   const completedMissions = Object.values(missions || {}).filter(m => m?.completed).length;
   const claimedMissions = Object.values(missions || {}).filter(m => m?.claimed).length;
-  const totalMissions = MISSIONS.length;
+  const totalMissions = gameConfig?.missions?.length || MISSIONS.length;
   const completionRate = totalMissions > 0 ? (completedMissions / totalMissions) * 100 : 0;
 
   return (
@@ -207,11 +207,19 @@ export function MissionsView({
 
         {/* 🎯 Lista de misiones */}
         <div className="space-y-6">
-          {MISSIONS.map((mission, index) => {
+          {(gameConfig?.missions || MISSIONS).map((mission, index) => {
+            // 🛡️ Safety Check: Ensure mission and requirement exist
+            if (!mission || !mission.requirement) {
+              console.warn("⚠️ Misión inválida o sin requisitos:", mission);
+              return null;
+            }
+
             const missionState = missions?.[mission.id] || { completed: false, claimed: false, progress: 0 };
             const progress = getMissionProgress(mission);
             const Icon = mission.icon || Award;
-            const isSocialMission = mission.requirement?.type?.startsWith('social_') || mission.requirement?.type === 'video_watch' || mission.validation_type === 'youtube_actions';
+            // Safe check for type
+            const reqType = mission.requirement?.type || '';
+            const isSocialMission = reqType.startsWith('social_') || reqType === 'video_watch' || mission.validation_type === 'youtube_actions';
 
             return (
               <motion.div
@@ -295,7 +303,7 @@ export function MissionsView({
                     )}
 
                     {/* 🕵️ INPUT DE CÓDIGO */}
-                    {!missionState.completed && mission.requirement?.type === 'code' && (
+                    {!missionState.completed && reqType === 'code' && (
                       <div className="flex gap-2 w-full">
                         <input
                           type="text"
@@ -316,7 +324,7 @@ export function MissionsView({
                     )}
 
                     {/* VIDEO WATCH */}
-                    {!missionState.completed && mission.requirement?.type === 'video_watch' && (
+                    {!missionState.completed && reqType === 'video_watch' && (
                       <div className="flex flex-col gap-2 w-full">
                         <Button
                           onClick={() => handleSocialMission(mission.id, mission.requirement.url, mission.requirement.actionText || "Ver Video")}
@@ -402,7 +410,7 @@ export function MissionsView({
                     )}
 
                     {/* STANDARD / SOCIAL */}
-                    {!missionState.completed && mission.requirement?.type !== 'code' && mission.requirement?.type !== 'video_watch' && (
+                    {!missionState.completed && reqType !== 'code' && reqType !== 'video_watch' && (
                       isSocialMission ? (
                         <Button
                           onClick={() => handleSocialMission(
@@ -413,7 +421,7 @@ export function MissionsView({
                           size="sm"
                           className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                         >
-                          {mission.requirement.type === 'social_share' ?
+                          {reqType === 'social_share' ?
                             <Share2 className="w-4 h-4 mr-2" /> :
                             <UserPlus className="w-4 h-4 mr-2" />
                           }

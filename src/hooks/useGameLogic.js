@@ -99,7 +99,7 @@ export function useGameLogic({
         const currentMaxEnergy = gameStateRef.current.maxEnergy;
 
         if (currentEnergy < currentMaxEnergy) {
-          const newEnergy = Math.min(currentEnergy + 1, currentMaxEnergy);
+          const newEnergy = Math.min(Number(currentEnergy) + 1, Number(currentMaxEnergy));
 
           updateGameState({
             energy: newEnergy
@@ -433,7 +433,8 @@ export function useGameLogic({
 
   // 🎯 MISIONES
   const completeMission = useCallback((missionId, isSocial = false) => {
-    const mission = MISSIONS.find(m => m.id === missionId);
+    const activeMissions = gameConfig?.missions || MISSIONS;
+    const mission = activeMissions.find(m => m.id === missionId);
     if (!mission || missions[missionId]?.completed) return;
 
     let canComplete = false;
@@ -503,7 +504,8 @@ export function useGameLogic({
 
   // 🎁 RECLAMAR RECOMPENSA DE MISIÓN
   const claimMissionReward = useCallback((missionId) => {
-    const mission = MISSIONS.find(m => m.id === missionId);
+    const activeMissions = gameConfig?.missions || MISSIONS;
+    const mission = activeMissions.find(m => m.id === missionId);
     if (!mission || !missions[missionId]?.completed || missions[missionId]?.claimed) return;
 
     // Actualizar monedas
