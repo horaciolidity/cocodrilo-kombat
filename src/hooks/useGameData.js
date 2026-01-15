@@ -81,6 +81,8 @@ export function useGameData(user, gameConfig) {
       // 3. Obtener estadísticas de referidos
       const referralStats = await getReferralStats(player.id);
 
+      console.log('📊 Stats RAW DB:', stats); // Debug Log
+
       // 3b. Obtener Configuración Global (Fair Launch)
       const { data: globalConfig } = await supabase
         .from('game_config')
@@ -100,8 +102,9 @@ export function useGameData(user, gameConfig) {
         ...prev,
         player,
         gameState: mapStatsToGameState(stats),
-        upgrades: stats.upgrades || initialUpgrades,
-        missions: stats.missions || initialMissions,
+        // [FIX] Merge Initial + DB to ensure new items appear and empty DB doesn't break UI
+        upgrades: { ...initialUpgrades, ...(stats.upgrades || {}) },
+        missions: { ...initialMissions, ...(stats.missions || {}) },
         ownedCards: stats.owned_cards || [],
         ownedItems: stats.owned_items || [],
         activeSkin: stats.active_skin || null,
