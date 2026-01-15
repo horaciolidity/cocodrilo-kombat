@@ -143,16 +143,25 @@ export function useGameData(user, gameConfig) {
     console.log('🎯 Usuario:', user.id, 'Email:', user.email);
 
     // 1. Buscar jugador existente
-    const { data: existingPlayer } = await supabase
+    // 1. Buscar jugador existente (Manejar posibles duplicados)
+    const { data: existingPlayers, error: fetchError } = await supabase
       .from('players')
       .select('*')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .order('created_at', { ascending: true }); // Preferir el más antiguo (original)
 
-    if (existingPlayer) {
-      console.log('✅ Jugador existente:', existingPlayer.username);
-      console.log('🎯 =========== FIN getOrCreatePlayer ===========');
-      return existingPlayer;
+    if (fetchError) {
+      console.error("Error buscando jugador:", fetchError);
+      // No lanzamos error, intentamos crear uno nuevo si falla la consulta? No, mejor reintentar o fail safe.
+    }
+
+    if (existingPlayers && existingPlayers.length > 0) {
+      const player = existingPlayers[0]; // Tomar el primero (original)
+      console.log('✅ Jugador existente encontrado:', player.username);
+      if (existingPlayers.length > 1) {
+        console.warn(`⚠️ Se encontraron ${existingPlayers.length} jugadores para este usuario. Usando el original:`, player.id);
+      }
+      return player;
     }
 
     // 2. OBTENER CÓDIGO DE REFERIDO (SI EXISTE)
