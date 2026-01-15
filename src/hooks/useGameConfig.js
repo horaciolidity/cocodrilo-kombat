@@ -109,30 +109,31 @@ export const useGameConfig = () => {
             }
 
             // 2. Process Daily Codes as Virtual Missions
+            // [FIX] Only show the LATEST active code to prevent duplicates if admin created multiple
             if (dbDailyCodes && dbDailyCodes.length > 0) {
-                dbDailyCodes.forEach(code => {
-                    virtualMissions.push({
-                        id: `daily_code_${code.id}`,
-                        name: '🗝️ Código Secreto Diario',
-                        description: code.description || 'Encuentra el código secreto en el video de hoy.',
+                const latestCode = dbDailyCodes[0]; // Already ordered by active_date desc
 
-                        // [FIX] Add requirement to pass MissionsView validation
-                        requirement: {
-                            type: 'code',
-                            value: 1
-                        },
+                virtualMissions.push({
+                    id: `daily_code_${latestCode.id}`,
+                    name: '🗝️ Código Secreto Diario',
+                    description: latestCode.description || 'Encuentra el código secreto en el video de hoy.',
 
-                        reward: {
-                            coins: code.reward_coins || 0,
-                            croc: code.reward_croc || 0
-                        },
-                        icon: LucideIcons.Key,
-                        category: 'daily',
-                        validation_type: 'daily_code',
-                        secret_code: code.code, // Though validation is server-side usually
-                        is_active: true,
-                        is_virtual: true
-                    });
+                    // [FIX] Add requirement to pass MissionsView validation
+                    requirement: {
+                        type: 'code',
+                        value: 1
+                    },
+
+                    reward: {
+                        coins: latestCode.reward_coins || 0,
+                        croc: latestCode.reward_croc || 0
+                    },
+                    icon: LucideIcons.Key,
+                    category: 'daily',
+                    validation_type: 'daily_code',
+                    secret_code: latestCode.code,
+                    is_active: true,
+                    is_virtual: true
                 });
             }
 
