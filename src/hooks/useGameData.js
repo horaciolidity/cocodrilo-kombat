@@ -215,6 +215,9 @@ export function useGameData(user, gameConfig) {
 
         // PROCESAR REFERIDO SI EXISTE
         if (referralCodeToProcess) {
+          console.log('📊 Inicializando stats antes de referido (alternativo)...');
+          await getOrCreatePlayerStats(altPlayer.id);
+
           console.log('💰 Procesando referido para jugador alternativo...');
           await processReferral(altPlayer.id, referralCodeToProcess);
         }
@@ -228,7 +231,12 @@ export function useGameData(user, gameConfig) {
 
     console.log('✅ Jugador creado:', newPlayer.username);
 
-    // 5. PROCESAR REFERIDO SI HAY CÓDIGO
+    // 5. CRITICAL FIX: Crear stats ANTES de procesar referido
+    // Esto asegura que el RPC encuentre la fila en player_stats para dar las monedas
+    console.log('📊 Inicializando stats antes de referido...');
+    await getOrCreatePlayerStats(newPlayer.id);
+
+    // 6. PROCESAR REFERIDO SI HAY CÓDIGO
     if (referralCodeToProcess) {
       console.log('💰 Procesando referido para nuevo jugador...');
       await processReferral(newPlayer.id, referralCodeToProcess);
@@ -260,8 +268,20 @@ export function useGameData(user, gameConfig) {
 
       console.log('✅ Referido procesado con éxito:', data);
 
-      // Actualizar estado local
-      await refreshReferralStats();
+      // Si somos el REFERRER (quien invitó), actualizamos nuestro estado local
+      // Si somos el NUEVO usuario, el estado se cargará en el loadGameData siguiente
+      if (gameData.player && gameData.player.id !== newPlayerId) {
+        setGameData(prev => ({
+          ...prev,
+          gameState: {
+            ...prev.gameState,
+            nativeTokenBalance: (prev.gameState.nativeTokenBalance || 0) + (Number(data.bonus_croc) || 0),
+            coins: (prev.gameState.coins || 0) + (Number(data.bonus_coins) || 0),
+            totalCoins: (prev.gameState.totalCoins || 0) + (Number(data.bonus_coins) || 0)
+          }
+        }));
+        await refreshReferralStats();
+      }
 
       return {
         success: true,
