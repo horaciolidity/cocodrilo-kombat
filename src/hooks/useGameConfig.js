@@ -94,63 +94,64 @@ export const useGameConfig = () => {
                             youtube_url: m.youtube_url,
                             video_actions: m.video_actions,
                             is_active: m.is_active !== false // Default true if undefined
+                        }));
                         setMissions(mappedMissions);
-                        }
+                    }
 
                     if (dbShopItems?.length > 0) {
-                            const mappedItems = dbShopItems.map(i => ({
-                                id: i.id,
-                                name: i.name,
-                                type: i.type,
-                                price: Number(i.price_coins),
-                                priceCroc: Number(i.price_croc),
-                                currency: i.currency,
-                                image: i.image_url,
-                                rarity: i.rarity,
-                                requiredLevel: i.required_level,
-                                description: i.description,
-                                effect: i.effect_data || {}
-                            }));
-                            setShopItems(mappedItems);
-                        }
-
-                        if (dbCards?.length > 0) {
-                            const mappedCards = dbCards.map(c => ({
-                                id: c.id,
-                                name: c.name,
-                                description: c.description,
-                                rarity: c.rarity,
-                                icon: resolveIcon(c.icon_name),
-                                color: c.color,
-                                effect: {
-                                    type: c.effect_type,
-                                    value: Number(c.effect_value)
-                                }
-                            }));
-                            setCards(mappedCards);
-                        }
-
-                        setUsingFallback(false);
+                        const mappedItems = dbShopItems.map(i => ({
+                            id: i.id,
+                            name: i.name,
+                            type: i.type,
+                            price: Number(i.price_coins),
+                            priceCroc: Number(i.price_croc),
+                            currency: i.currency,
+                            image: i.image_url,
+                            rarity: i.rarity,
+                            requiredLevel: i.required_level,
+                            description: i.description,
+                            effect: i.effect_data || {}
+                        }));
+                        setShopItems(mappedItems);
                     }
+
+                    if (dbCards?.length > 0) {
+                        const mappedCards = dbCards.map(c => ({
+                            id: c.id,
+                            name: c.name,
+                            description: c.description,
+                            rarity: c.rarity,
+                            icon: resolveIcon(c.icon_name),
+                            color: c.color,
+                            effect: {
+                                type: c.effect_type,
+                                value: Number(c.effect_value)
+                            }
+                        }));
+                        setCards(mappedCards);
+                    }
+
+                    setUsingFallback(false);
                 }
-
-            } catch (e) {
-                console.error("Config fetch error:", e);
-                setError(e.message);
-                setUsingFallback(true);
-            } finally {
-                setLoading(false);
             }
-        };
 
-        return useMemo(() => ({
-            upgrades,
-            missions,
-            shopItems,
-            cards,
-            loading,
-            usingFallback,
-            error,
-            refreshConfig: fetchConfig
-        }), [upgrades, missions, shopItems, cards, loading, usingFallback, error]);
+        } catch (e) {
+            console.error("Config fetch error:", e);
+            setError(e.message);
+            setUsingFallback(true);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    return useMemo(() => ({
+        upgrades,
+        missions,
+        shopItems,
+        cards,
+        loading,
+        usingFallback,
+        error,
+        refreshConfig: fetchConfig
+    }), [upgrades, missions, shopItems, cards, loading, usingFallback, error]);
+};
