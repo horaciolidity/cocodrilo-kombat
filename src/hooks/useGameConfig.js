@@ -86,6 +86,15 @@ export const useGameConfig = () => {
                         id: 'daily_youtube_mission',
                         name: '📺 Misión Diaria YouTube',
                         description: 'Suscríbete y comenta en nuestro video diario.',
+
+                        // [FIX] Add requirement to pass MissionsView validation
+                        requirement: {
+                            type: 'video_watch',
+                            value: 1,
+                            url: ytConfig.url,
+                            actionText: 'Ver Video'
+                        },
+
                         reward: { coins: 1000, xp: 50 },
                         icon: LucideIcons.Youtube,
                         category: 'social',
@@ -106,6 +115,13 @@ export const useGameConfig = () => {
                         id: `daily_code_${code.id}`,
                         name: '🗝️ Código Secreto Diario',
                         description: code.description || 'Encuentra el código secreto en el video de hoy.',
+
+                        // [FIX] Add requirement to pass MissionsView validation
+                        requirement: {
+                            type: 'code',
+                            value: 1
+                        },
+
                         reward: {
                             coins: code.reward_coins || 0,
                             croc: code.reward_croc || 0
