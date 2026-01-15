@@ -893,6 +893,8 @@ function DailyCodesManager({ toast }) {
 function UsersList({ toast }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [duplicatesSummary, setDuplicatesSummary] = useState(null);
 
     useEffect(() => {
         fetchUsers();
@@ -920,14 +922,138 @@ function UsersList({ toast }) {
         }
     };
 
+    const analyzeDuplicates = async () => {
+        setAnalyzing(true);
+        try {
+            // Fetch ALL players to find duplicates
+            // Warning: inefficient for huge DBs, but fine for recovery
+            const { data: allPlayers, error } = await supabase
+                .from('players')
+                .select('id, user_id, username, created_at')
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            const userMap = {};
+            const duplicates = [];
+            let totalGhostCount = 0;
+
+            allPlayers.forEach(p => {
+                if (!userMap[p.user_id]) {
+                    userMap[p.user_id] = [];
+                }
+                userMap[p.user_id].push(p);
+            });
+
+            Object.entries(userMap).forEach(([userId, players]) => {
+                if (players.length > 1) {
+                    // Keep the first one (oldest)
+                    const original = players[0];
+                    const ghosts = players.slice(1);
+
+                    duplicates.push({
+                        user_id: userId,
+                        original: original,
+                        ghosts: ghosts
+                    });
+                    totalGhostCount += ghosts.length;
+                }
+            });
+
+            console.log("Analysis Result:", duplicates);
+
+            if (duplicates.length === 0) {
+                toast({ title: "Todo limpio", description: "No se encontraron usuarios duplicados." });
+                setDuplicatesSummary(null);
+            } else {
+                setDuplicatesSummary({
+                    affectedUsers: duplicates.length,
+                    totalGhosts: totalGhostCount,
+                    details: duplicates
+                });
+            }
+
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error", description: e.message, variant: "destructive" });
+        } finally {
+            setAnalyzing(false);
+        }
+    };
+
+    const executeCleanup = async () => {
+        if (!duplicatesSummary || !confirm(`¿Estás SEGURO de eliminar ${duplicatesSummary.totalGhosts} usuarios fantasmas? Esta acción no se puede deshacer.`)) return;
+
+        setAnalyzing(true);
+        try {
+            let deletedCount = 0;
+            const idsToDelete = [];
+
+            duplicatesSummary.details.forEach(item => {
+                item.ghosts.forEach(g => idsToDelete.push(g.id));
+            });
+
+            // Delete in batches of 50 to be safe
+            for (let i = 0; i < idsToDelete.length; i += 50) {
+                const batch = idsToDelete.slice(i, i + 50);
+                const { error } = await supabase
+                    .from('players')
+                    .delete()
+                    .in('id', batch);
+
+                if (error) throw error;
+                deletedCount += batch.length;
+            }
+
+            toast({ title: "Limpieza Completada", description: `Se eliminaron ${deletedCount} usuarios duplicados.` });
+            setDuplicatesSummary(null);
+            fetchUsers(); // Refresh list
+
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error limpieza", description: e.message, variant: "destructive" });
+        } finally {
+            setAnalyzing(false);
+        }
+    };
+
     if (loading) return <div>Cargando usuarios...</div>;
 
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">Listado de Usuarios (Top 50)</h3>
-                <Button onClick={fetchUsers} size="sm" variant="outline"><RefreshCw className="w-4 h-4" /></Button>
+                <div className="flex gap-2">
+                    <Button onClick={analyzeDuplicates} disabled={analyzing} variant="secondary">
+                        {analyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                        Analizar Duplicados
+                    </Button>
+                    <Button onClick={fetchUsers} size="sm" variant="outline"><RefreshCw className="w-4 h-4" /></Button>
+                </div>
             </div>
+
+            {duplicatesSummary && (
+                <div className="bg-orange-500/10 border border-orange-500/50 p-4 rounded-md">
+                    <h4 className="font-bold text-orange-500 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        Problemas Detectados
+                    </h4>
+                    <p className="text-sm mt-2">
+                        Se encontraron <strong>{duplicatesSummary.totalGhosts}</strong> cuentas fantasma (duplicadas) pertenecientes a <strong>{duplicatesSummary.affectedUsers}</strong> usuarios reales.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">
+                        Estas cuentas fueron creadas por error y están vacías. Eliminarlas recuperará el orden en el ranking.
+                    </p>
+                    <Button
+                        onClick={executeCleanup}
+                        variant="destructive"
+                        size="sm"
+                        disabled={analyzing}
+                    >
+                        {analyzing ? "Eliminando..." : "🛠️ Eliminar Fantasmas y Reparar DB"}
+                    </Button>
+                </div>
+            )}
 
             <div className="border rounded-md overflow-x-auto">
                 <table className="w-full text-sm">
