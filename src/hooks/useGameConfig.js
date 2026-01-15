@@ -40,38 +40,87 @@ export const useGameConfig = () => {
                 { data: dbMissions, error: errMissions },
                 { data: dbShopItems, error: errShopItems },
                 { data: dbCards, error: errCards },
-                { data: dbGlobalConfig, error: errGlobal } // [NEW]
+                { data: dbGlobalConfig, error: errGlobal }, // [NEW]
+                { data: dbDailyCodes, error: errCodes } // [NEW] Fetch daily codes
             ] = await Promise.all([
                 supabase.from('game_upgrades').select('*').order('base_price', { ascending: true }),
                 supabase.from('game_missions').select('*'),
                 supabase.from('game_shop_items').select('*'),
                 supabase.from('game_cards').select('*'),
-                supabase.from('game_config').select('*').limit(1) // [NEW] Fetch global config
+                supabase.from('game_config').select('*'), // [NEW] Fetch all global config items
+                supabase.from('daily_codes').select('*').eq('is_active', true).order('active_date', { ascending: false }) // [NEW]
             ]);
 
             if (errUpgrades) console.error("❌ Error fetching upgrades:", errUpgrades);
             if (errMissions) console.error("❌ Error fetching missions:", errMissions);
             if (errGlobal) console.error("❌ Error fetching global config:", errGlobal);
+            if (errCodes) console.error("❌ Error fetching daily codes:", errCodes);
 
-            if (errUpgrades || errMissions || errShopItems || errCards) {
+            if (errUpgrades || errMissions || errShopItems || errCards || errCodes) {
                 console.warn("⚠️ Supabase config fetch failed partial or total. Using Fallback for missing parts.");
                 // Ensure we don't block everything if just one table fails, but keeping 'usingFallback' logic simple for now
                 // setUsingFallback(true); 
             }
 
-            // 1. Process Global Config (Fair Launch, Youtube, etc)
+            // 1. Process Global Config & Virtual Missions
+            const virtualMissions = [];
+            let dailyYoutubeUrl = null;
+
             if (dbGlobalConfig && dbGlobalConfig.length > 0) {
-                const cfg = dbGlobalConfig[0];
-                console.log("✅ Global Config Loaded:", cfg);
-                setFairLaunch({
-                    start_date: cfg.fairlaunch_start,
-                    end_date: cfg.fairlaunch_end,
-                    is_active: cfg.fairlaunch_active
-                });
-                // Note: You might want to store other global vars like daily_youtube_link here
+                // Fair Launch
+                const flConfig = dbGlobalConfig.find(c => c.key === 'fair_launch')?.value;
+                if (flConfig) {
+                    setFairLaunch({
+                        start_date: flConfig.start_date,
+                        end_date: flConfig.end_date,
+                        is_active: flConfig.is_active
+                    });
+                }
+
+                // Daily YouTube
+                const ytConfig = dbGlobalConfig.find(c => c.key === 'daily_youtube_link')?.value;
+                if (ytConfig?.url) {
+                    dailyYoutubeUrl = ytConfig.url;
+                    // Inject Virtual Mission for Daily YouTube
+                    virtualMissions.push({
+                        id: 'daily_youtube_mission',
+                        name: '📺 Misión Diaria YouTube',
+                        description: 'Suscríbete y comenta en nuestro video diario.',
+                        reward: { coins: 1000, xp: 50 },
+                        icon: LucideIcons.Youtube,
+                        category: 'social',
+                        validation_type: 'youtube_actions',
+                        youtube_url: ytConfig.url,
+                        video_actions: { subscribe: true, like: true, comment: true },
+                        is_active: true,
+                        is_virtual: true // Flag to identify
+                    });
+                }
+                console.log("✅ Global Config Loaded.");
             }
 
-            // 2. Process Upgrades
+            // 2. Process Daily Codes as Virtual Missions
+            if (dbDailyCodes && dbDailyCodes.length > 0) {
+                dbDailyCodes.forEach(code => {
+                    virtualMissions.push({
+                        id: `daily_code_${code.id}`,
+                        name: '🗝️ Código Secreto Diario',
+                        description: code.description || 'Encuentra el código secreto en el video de hoy.',
+                        reward: {
+                            coins: code.reward_coins || 0,
+                            croc: code.reward_croc || 0
+                        },
+                        icon: LucideIcons.Key,
+                        category: 'daily',
+                        validation_type: 'daily_code',
+                        secret_code: code.code, // Though validation is server-side usually
+                        is_active: true,
+                        is_virtual: true
+                    });
+                });
+            }
+
+            // 3. Process Upgrades
             if (dbUpgrades?.length > 0) {
                 const mappedUpgrades = dbUpgrades.map(u => ({
                     id: u.id,
@@ -87,9 +136,10 @@ export const useGameConfig = () => {
                 setUpgrades(mappedUpgrades);
             }
 
-            // 3. Process Missions
+            // 4. Process Missions (Merge DB + Virtual)
+            let finalMissions = [];
+
             if (dbMissions?.length > 0) {
-                console.log(`✅ Loaded ${dbMissions.length} dynamic missions.`);
                 const mappedMissions = dbMissions.map(m => ({
                     id: m.id,
                     name: m.name,
@@ -103,23 +153,33 @@ export const useGameConfig = () => {
                         coins: Number(m.reward_coins),
                         xp: Number(m.reward_xp),
                         cardId: m.reward_card_id,
-                        croc: Number(m.reward_croc) // [FIX] Added croc reward mapping
+                        croc: Number(m.reward_croc)
                     },
                     icon: resolveIcon(m.icon_name),
                     category: m.category,
                     validation_type: m.validation_type,
                     youtube_url: m.youtube_url,
                     video_actions: m.video_actions,
-                    secret_code: m.secret_code, // [FIX] Ensure secret code is mapped if needed for local validation (though usually server-side)
+                    secret_code: m.secret_code,
                     is_active: m.is_active !== false
-                })).filter(m => m.is_active); // Only show active missions
+                })).filter(m => m.is_active);
 
-                setMissions(mappedMissions);
+                finalMissions = [...virtualMissions, ...mappedMissions];
             } else {
-                console.log("ℹ️ No dynamic missions found, using fallback.");
+                finalMissions = [...virtualMissions, ...FALLBACK_MISSIONS]; // Keep virtuals even if using fallback
             }
 
-            // 4. Shop & Cards (Keep existing logic)
+            // Remove duplicates if any ID clashes (unlikely but safe)
+            const uniqueMissions = Array.from(new Map(finalMissions.map(m => [m.id, m])).values());
+            setMissions(uniqueMissions);
+
+            if (dbMissions?.length > 0) {
+                console.log(`✅ Loaded ${uniqueMissions.length} total missions (${virtualMissions.length} virtual).`);
+            } else {
+                console.log("ℹ️ No dynamic missions found, using fallback + virtuals.");
+            }
+
+            // 5. Shop & Cards (Keep existing logic)
             if (dbShopItems?.length > 0) {
                 const mappedItems = dbShopItems.map(i => ({
                     id: i.id,
