@@ -50,10 +50,11 @@ import {
 
 // [NEW] Helper function for admin check
 const isAdmin = (user) => {
-  if (!user) return false;
+  if (!user || !user.email) return false;
   // TODO: Replace with proper role check from DB/Claims in production
-  const adminEmails = ['admin@cocodrilo.com', user.email];
-  return adminEmails.includes(user.email);
+  const adminEmails = ['admin@cocodrilo.com', 'horaciowalterortiz@gmail.com'];
+  // Strict check: email must be in the list
+  return adminEmails.includes(user.email.toLowerCase().trim());
 };
 
 // REEMPLAZA el componente ShopViewMemo con esto:

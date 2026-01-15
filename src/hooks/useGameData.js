@@ -565,6 +565,13 @@ export function useGameData(user, gameConfig) {
 
     } catch (error) {
       console.error('❌ Error en sync (RPC):', error);
+
+      // Si el error es perquè no existeix la fila en player_stats (race condition?), intentar crear-la
+      if (error.code === 'PGRST116' || (error.message && error.message.includes('JSON object requested, multiple (or no) rows returned'))) {
+        console.warn('⚠️ Posible race condition: player_stats no encontrado. Intentando recuperar...');
+        // Opcional: llamar a getOrCreatePlayerStats aquí si fuera seguro
+      }
+
       // Restaurar pendientes para reintentar
       pendingSyncRef.current = { ...updates, ...pendingSyncRef.current };
 
@@ -575,7 +582,7 @@ export function useGameData(user, gameConfig) {
       }));
 
       // If error count is reaching limit, notify user via alert or more visible log
-      if ((gameData.syncErrorCount || 0) >= 2) {
+      if ((gameData.syncErrorCount || 0) >= 3) {
         console.error('⛔ Demasiados errores de sincronización. Revisa la consola y las migraciones de Supabase.');
       }
     }
