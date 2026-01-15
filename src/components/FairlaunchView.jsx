@@ -46,7 +46,8 @@ export function FairlaunchView({
   toast,
   tokenPrice = 0.05,
   user,
-  onNavigate
+  onNavigate,
+  gameConfig // [NEW] Receive config
 }) {
   const { toast: uiToast } = useToast();
 
@@ -65,8 +66,8 @@ export function FairlaunchView({
   });
 
   const fairlaunchDetailsRef = useRef({
-    startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
-    endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 días desde ahora
+    startDate: gameConfig?.fair_launch?.start_date ? new Date(gameConfig.fair_launch.start_date) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Default 3 days
+    endDate: gameConfig?.fair_launch?.end_date ? new Date(gameConfig.fair_launch.end_date) : new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Default 10 days
     totalTokens: 100000000,
     tokensForSale: 40000000,
     hardCap: 2000000,
@@ -80,6 +81,16 @@ export function FairlaunchView({
     vestingPeriod: "6 meses lineal",
     network: "Optimism"
   });
+
+  // Effect to update ref when config changes (since ref doesn't trigger re-render, we might need state for dates if they change mid-session, but init is fine usually)
+  useEffect(() => {
+    if (gameConfig?.fair_launch) {
+      if (gameConfig.fair_launch.start_date) fairlaunchDetailsRef.current.startDate = new Date(gameConfig.fair_launch.start_date);
+      if (gameConfig.fair_launch.end_date) fairlaunchDetailsRef.current.endDate = new Date(gameConfig.fair_launch.end_date);
+      // Force re-calc of timeleft by triggering a minimal state update?
+      // Actually the existing interval will pick up the new Ref values on next tick.
+    }
+  }, [gameConfig]);
 
   // 🎯 MEMOIZAR valores calculados
   const progressPercentage = useMemo(() => {

@@ -641,6 +641,7 @@ function App() {
                 refreshPrice={refreshPrice}
                 user={user}
                 onNavigate={handleNavigation}
+                gameConfig={gameConfig} // [NEW] Pass config
               />
             )}
 
