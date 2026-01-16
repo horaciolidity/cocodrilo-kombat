@@ -350,17 +350,14 @@ export const SHOP_ITEMS = [
     id: 'skin_golden_croc',
     name: 'Cocodrilo Dorado',
     type: 'skin',
-    price: 100000, // 100K monedas
-    priceCroc: 1000, // 1000 CROC
+    price: 100000,
+    priceCroc: 1000,
     currency: 'both',
     image: '/images/skins/golden_croc.jpg',
     description: 'Pura elegancia dorada. +15% poder de click',
     rarity: 'legendary',
     requiredLevel: 10,
-    effect: {
-      clickMultiplier: 1.15,
-      cpsBoost: 10
-    }
+    effect: { clickMultiplier: 1.15, cpsBoost: 10 }
   },
   {
     id: 'skin_camo_croc',
@@ -373,10 +370,7 @@ export const SHOP_ITEMS = [
     description: 'Acecha en el pantano. +10% regeneración energía',
     rarity: 'rare',
     requiredLevel: 5,
-    effect: {
-      energyRegen: 1.1,
-      stealth: 25
-    }
+    effect: { energyRegen: 1.1, stealth: 25 }
   },
   {
     id: 'skin_fire_croc',
@@ -389,10 +383,7 @@ export const SHOP_ITEMS = [
     description: 'Lava pura. +25% poder de click',
     rarity: 'legendary',
     requiredLevel: 20,
-    effect: {
-      clickMultiplier: 1.25,
-      burnEffect: true
-    }
+    effect: { clickMultiplier: 1.25, burnEffect: true }
   },
   {
     id: 'skin_ice_croc',
@@ -405,10 +396,7 @@ export const SHOP_ITEMS = [
     description: 'Gélido y letal. Congela el CPS enemigo',
     rarity: 'epic',
     requiredLevel: 15,
-    effect: {
-      slowEnemyCPS: 0.5,
-      clickPower: 15
-    }
+    effect: { slowEnemyCPS: 0.5, clickPower: 15 }
   },
   {
     id: 'skin_cyborg_croc',
@@ -421,10 +409,7 @@ export const SHOP_ITEMS = [
     description: 'Tecnología de punta. +50 CPS automático',
     rarity: 'legendary',
     requiredLevel: 25,
-    effect: {
-      autoClicks: 50,
-      clickMultiplier: 1.2
-    }
+    effect: { autoClicks: 50, clickMultiplier: 1.2 }
   },
 
   // ⚡ ITEMS DE POTENCIA (5 items)
@@ -437,10 +422,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/items/auto_clicker.jpg',
     description: '20 clics automáticos por segundo',
-    effect: {
-      autoClicks: 20,
-      duration: 'permanent'
-    }
+    effect: { autoClicks: 20, duration: 'permanent' }
   },
   {
     id: 'energy_core',
@@ -451,10 +433,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/items/energy_core.jpg',
     description: '+100 energía máxima permanente',
-    effect: {
-      maxEnergy: 100,
-      energyRegen: 1.2
-    }
+    effect: { maxEnergy: 100, energyRegen: 1.2 }
   },
   {
     id: 'cps_amplifier',
@@ -465,10 +444,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/items/cps_amplifier.jpg',
     description: 'Doble CPS por 24 horas',
-    effect: {
-      cpsMultiplier: 2,
-      duration: 86400
-    }
+    effect: { cpsMultiplier: 2, duration: 86400 }
   },
 
   // 🚀 BOOSTS TEMPORALES (5 boosts)
@@ -481,10 +457,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/boosts/double_coins.jpg',
     description: 'Duplica monedas por 1 hora',
-    effect: {
-      coinMultiplier: 2,
-      duration: 3600
-    }
+    effect: { coinMultiplier: 2, duration: 3600 }
   },
   {
     id: 'triple_click_boost',
@@ -495,10 +468,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/boosts/triple_click.jpg',
     description: 'Triple poder de click por 30 min',
-    effect: {
-      clickMultiplier: 3,
-      duration: 1800
-    }
+    effect: { clickMultiplier: 3, duration: 1800 }
   },
   {
     id: 'energy_refill_boost',
@@ -509,10 +479,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/boosts/energy_refill.jpg',
     description: 'Energía al 100% inmediatamente',
-    effect: {
-      energyRefill: 'full',
-      instant: true
-    }
+    effect: { energyRefill: 'full', instant: true }
   },
 
   // 🧪 CONSUMIBLES (5 consumibles)
@@ -525,9 +492,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/consumables/energy_potion.jpg',
     description: 'Restaura 100 energía',
-    effect: {
-      energy: 100
-    }
+    effect: { energy: 100 }
   },
   {
     id: 'coin_crate',
@@ -538,22 +503,18 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/consumables/coin_crate.jpg',
     description: 'Contiene 10,000 monedas',
-    effect: {
-      coins: 10000
-    }
+    effect: { coins: 10000 }
   },
   {
     id: 'croc_token_bag',
     name: 'Bolsa CROC',
     type: 'consumable',
     price: 50000,
-    priceCroc: 0, // Solo monedas
+    priceCroc: 0,
     currency: 'coins',
     image: '/images/consumables/croc_bag.jpg',
     description: 'Contiene 100 tokens CROC',
-    effect: {
-      crocTokens: 100
-    }
+    effect: { crocTokens: 100 }
   },
   {
     id: 'xp_elixir',
@@ -564,9 +525,7 @@ export const SHOP_ITEMS = [
     currency: 'both',
     image: '/images/consumables/xp_elixir.jpg',
     description: '+500 XP inmediato',
-    effect: {
-      experience: 500
-    }
+    effect: { experience: 500 }
   }
 ];
 
