@@ -390,13 +390,13 @@ export function RankingView({
                   <div className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'
                     } rounded-full overflow-hidden bg-black/40`}>
                     <img
-                      src={player.avatar || getCrocAvatar(player.id)}
+                      src={getCrocAvatar(player.id)}
                       alt={player.name}
                       className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
                       loading="lazy"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = getCrocAvatar(player.id);
+                        e.target.src = "/avatars/1.png";
                       }}
                     />
                   </div>
