@@ -477,502 +477,505 @@ export function RankingView({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Avatar className="h-14 w-14 border-2 border-primary/50">
-                <AvatarImage
-                  src={player.avatar_url || getCrocAvatar(user.id)}
-                  alt={player.username}
-                />
-                <AvatarFallback className="bg-primary/20 text-primary">
-                  {player.username?.substring(0, 2).toUpperCase() || "TU"}
-                </AvatarFallback>
-              </Avatar>
+            <Avatar className="h-14 w-14 border-2 border-primary/50">
+              <AvatarImage
+                src={getCrocAvatar(user.id)}
+                alt={player.username}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/avatars/1.png";
+                }}
+              />
+              <AvatarFallback className="bg-primary/20 text-primary">
+                {player.username?.substring(0, 2).toUpperCase() || "TU"}
+              </AvatarFallback>
+            </Avatar>
 
-              <div className="flex-1">
-                <h4 className="font-bold text-lg">{player.username}</h4>
-                <div className="flex flex-wrap gap-2 mt-1 text-sm">
-                  <span className="flex items-center gap-1 text-yellow-400">
-                    <Coins className="w-3 h-3" />
-                    {userData.coins.toLocaleString()}
-                  </span>
-                  <span className="flex items-center gap-1 text-blue-400">
-                    <Trophy className="w-3 h-3" />
-                    Nv. {userData.level}
-                  </span>
-                  <span className="flex items-center gap-1 text-green-400">
-                    <Zap className="w-3 h-3" />
-                    {userData.tokens.toLocaleString()} CROC
-                  </span>
-                </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-lg">{player.username}</h4>
+              <div className="flex flex-wrap gap-2 mt-1 text-sm">
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <Coins className="w-3 h-3" />
+                  {userData.coins.toLocaleString()}
+                </span>
+                <span className="flex items-center gap-1 text-blue-400">
+                  <Trophy className="w-3 h-3" />
+                  Nv. {userData.level}
+                </span>
+                <span className="flex items-center gap-1 text-green-400">
+                  <Zap className="w-3 h-3" />
+                  {userData.tokens.toLocaleString()} CROC
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="p-4 bg-gradient-to-r from-gray-800/30 to-gray-900/30 rounded-xl border border-gray-700/30">
-            <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-400" />
-              Rendimiento
-            </h3>
+        <div className="p-4 bg-gradient-to-r from-gray-800/30 to-gray-900/30 rounded-xl border border-gray-700/30">
+          <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-green-400" />
+            Rendimiento
+          </h3>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">Monedas/h</div>
-                <div className="text-lg font-bold text-yellow-400">
-                  {Math.floor(userData.coins / 100).toLocaleString()}
-                </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="text-xs text-gray-400 mb-1">Monedas/h</div>
+              <div className="text-lg font-bold text-yellow-400">
+                {Math.floor(userData.coins / 100).toLocaleString()}
               </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">Valor CROC</div>
-                <div className="text-lg font-bold text-green-400">
-                  ${(userData.tokens * tokenPrice).toFixed(2)}
-                </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-400 mb-1">Valor CROC</div>
+              <div className="text-lg font-bold text-green-400">
+                ${(userData.tokens * tokenPrice).toFixed(2)}
               </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">Actividad</div>
-                <div className="text-lg font-bold text-blue-400">
-                  {formatDate(userData.lastActive)}
-                </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-400 mb-1">Actividad</div>
+              <div className="text-lg font-bold text-blue-400">
+                {formatDate(userData.lastActive)}
               </div>
             </div>
           </div>
         </div>
       </div>
+      </div >
     );
-  };
+};
 
-  // 📋 Renderizar lista de ranking
-  const renderRankingList = () => {
-    if (loading && ranking.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-          <p className="text-muted-foreground">Cargando ranking global...</p>
-          <p className="text-xs text-muted-foreground">Obteniendo datos en tiempo real</p>
+// 📋 Renderizar lista de ranking
+const renderRankingList = () => {
+  if (loading && ranking.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        <p className="text-muted-foreground">Cargando ranking global...</p>
+        <p className="text-xs text-muted-foreground">Obteniendo datos en tiempo real</p>
+      </div>
+    );
+  }
+
+  if (error && ranking.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-20 h-20 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
+          <Shield className="w-10 h-10 text-red-400" />
         </div>
-      );
-    }
+        <h3 className="text-xl font-bold text-red-400 mb-2">Error de conexión</h3>
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          No se pudo cargar el ranking. Verifica tu conexión a internet.
+        </p>
+        <Button
+          onClick={() => fetchRanking(activeTab, true)}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
 
-    if (error && ranking.length === 0) {
-      return (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
-            <Shield className="w-10 h-10 text-red-400" />
-          </div>
-          <h3 className="text-xl font-bold text-red-400 mb-2">Error de conexión</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            No se pudo cargar el ranking. Verifica tu conexión a internet.
-          </p>
-          <Button
-            onClick={() => fetchRanking(activeTab, true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Reintentar
+  if (ranking.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-20 h-20 mx-auto mb-4 bg-gray-800/30 rounded-full flex items-center justify-center">
+          <Users2 className="w-10 h-10 text-gray-500" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-400 mb-2">¡Sé el primero!</h3>
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          Aún no hay jugadores en el ranking. ¡Sé el primero en aparecer aquí!
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button variant="default" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Comenzar a Jugar
+          </Button>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Ver Tutorial
           </Button>
         </div>
-      );
-    }
-
-    if (ranking.length === 0) {
-      return (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 mx-auto mb-4 bg-gray-800/30 rounded-full flex items-center justify-center">
-            <Users2 className="w-10 h-10 text-gray-500" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-400 mb-2">¡Sé el primero!</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Aún no hay jugadores en el ranking. ¡Sé el primero en aparecer aquí!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button variant="default" className="flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              Comenzar a Jugar
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              Ver Tutorial
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    const filteredRanking = ranking.filter(player =>
-      player.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.id?.toLowerCase().includes(searchQuery.toLowerCase())
+      </div>
     );
+  }
 
-    if (filteredRanking.length === 0) {
-      return (
-        <div className="text-center py-8">
-          <Search className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-          <p className="text-gray-400">No se encontraron jugadores con "{searchQuery}"</p>
-        </div>
-      );
-    }
+  const filteredRanking = ranking.filter(player =>
+    player.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    player.id?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    const rankingToShow = filteredRanking.slice(3);
-
+  if (filteredRanking.length === 0) {
     return (
-      <div className="space-y-3">
-        {rankingToShow.map((player, index) => {
-          const rank = index + 4;
-          const isCurrentUser = player.isCurrentUser;
+      <div className="text-center py-8">
+        <Search className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+        <p className="text-gray-400">No se encontraron jugadores con "{searchQuery}"</p>
+      </div>
+    );
+  }
 
-          return (
-            <div
-              key={player.id}
-              className={`group relative flex items-center p-4 rounded-xl transition-all duration-500 ${isCurrentUser
-                ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
-                : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
-                }`}
-            >
-              <div className="flex items-center justify-center w-10 mr-3">
-                <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${rank <= 10
-                  ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20'
-                  : 'bg-gray-800/50'
+  const rankingToShow = filteredRanking.slice(3);
+
+  return (
+    <div className="space-y-3">
+      {rankingToShow.map((player, index) => {
+        const rank = index + 4;
+        const isCurrentUser = player.isCurrentUser;
+
+        return (
+          <div
+            key={player.id}
+            className={`group relative flex items-center p-4 rounded-xl transition-all duration-500 ${isCurrentUser
+              ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
+              : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
+              }`}
+          >
+            <div className="flex items-center justify-center w-10 mr-3">
+              <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${rank <= 10
+                ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20'
+                : 'bg-gray-800/50'
+                }`}>
+                <span className={`font-bold text-sm ${rank <= 10 ? 'text-blue-400' : 'text-gray-400'
                   }`}>
-                  <span className={`font-bold text-sm ${rank <= 10 ? 'text-blue-400' : 'text-gray-400'
-                    }`}>
-                    {rank}
-                  </span>
-                </div>
+                  {rank}
+                </span>
               </div>
+            </div>
 
-              <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 shadow-lg">
-                <AvatarImage
-                  src={player.avatar || getCrocAvatar(player.id)}
-                  alt={player.name}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = getCrocAvatar(player.id);
-                  }}
-                />
-                <AvatarFallback className="bg-gray-800 text-gray-300">
-                  {player.name?.substring(0, 2).toUpperCase() || "??"}
-                </AvatarFallback>
-              </Avatar>
+            <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 shadow-lg">
+              <AvatarImage
+                src={getCrocAvatar(player.id)}
+                alt={player.name}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/avatars/1.png";
+                }}
+              />
+              <AvatarFallback className="bg-gray-800 text-gray-300">
+                {player.name?.substring(0, 2).toUpperCase() || "??"}
+              </AvatarFallback>
+            </Avatar>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <p
-                      className={`font-semibold truncate ${isCurrentUser ? 'text-primary' : 'text-white'
-                        }`}
-                      title={player.name}
-                    >
-                      {player.name || "Jugador"} {isCurrentUser && "⭐"}
-                    </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <p
+                    className={`font-semibold truncate ${isCurrentUser ? 'text-primary' : 'text-white'
+                      }`}
+                    title={player.name}
+                  >
+                    {player.name || "Jugador"} {isCurrentUser && "⭐"}
+                  </p>
 
-                    {rank <= 3 && (
-                      <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
-                        TOP {rank}
-                      </span>
-                    )}
+                  {rank <= 3 && (
+                    <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                      TOP {rank}
+                    </span>
+                  )}
 
-                    {(player.level || 0) >= 50 && (
-                      <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
-                        MAESTRO
-                      </span>
-                    )}
-                  </div>
+                  {(player.level || 0) >= 50 && (
+                    <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                      MAESTRO
+                    </span>
+                  )}
+                </div>
 
-                  <div className="hidden md:flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
-                        <Coins className="w-3 h-3" />
-                        {(player.coins || 0).toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        ${((player.coins || 0) * 0.001).toFixed(2)}
-                      </div>
+                <div className="hidden md:flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
+                      <Coins className="w-3 h-3" />
+                      {(player.coins || 0).toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      ${((player.coins || 0) * 0.001).toFixed(2)}
                     </div>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap gap-3 mt-2 text-xs">
-                  <div className="flex items-center gap-1 text-gray-400">
-                    <Trophy className="w-3 h-3" />
-                    <span>Nv. {player.level || 1}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-green-400">
-                    <Zap className="w-3 h-3" />
-                    <span>{(player.tokens || 0).toLocaleString()} CROC</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-blue-400">
-                    <Target className="w-3 h-3" />
-                    <span>{(player.clicks || 0).toLocaleString()} clics</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatDate(player.lastActive)}</span>
-                  </div>
-                </div>
               </div>
 
-              <div className="md:hidden ml-3">
-                <div className="text-right">
-                  <div className="text-sm font-bold text-yellow-400">
-                    {(player.coins || 0).toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-400">monedas</div>
+              <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                <div className="flex items-center gap-1 text-gray-400">
+                  <Trophy className="w-3 h-3" />
+                  <span>Nv. {player.level || 1}</span>
+                </div>
+
+                <div className="flex items-center gap-1 text-green-400">
+                  <Zap className="w-3 h-3" />
+                  <span>{(player.tokens || 0).toLocaleString()} CROC</span>
+                </div>
+
+                <div className="flex items-center gap-1 text-blue-400">
+                  <Target className="w-3 h-3" />
+                  <span>{(player.clicks || 0).toLocaleString()} clics</span>
+                </div>
+
+                <div className="flex items-center gap-1 text-gray-500">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatDate(player.lastActive)}</span>
                 </div>
               </div>
             </div>
-          );
-        })}
+
+            <div className="md:hidden ml-3">
+              <div className="text-right">
+                <div className="text-sm font-bold text-yellow-400">
+                  {(player.coins || 0).toLocaleString()}
+                </div>
+                <div className="text-xs text-gray-400">monedas</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+return (
+  <div className="min-h-screen game-bg p-4 mobile-padding">
+    <div className="max-w-6xl mx-auto">
+      <div className="text-center mb-8">
+        <div className="flex flex-col items-center mb-4">
+          <div className="relative mb-4">
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 blur-3xl" />
+            <Award className="w-16 h-16 relative z-10 text-yellow-400 mx-auto" />
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+            Ranking Global
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Compite con jugadores de todo el mundo y demuestra tu dominio del pantano
+          </p>
+        </div>
       </div>
-    );
-  };
 
-  return (
-    <div className="min-h-screen game-bg p-4 mobile-padding">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="flex flex-col items-center mb-4">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 blur-3xl" />
-              <Award className="w-16 h-16 relative z-10 text-yellow-400 mx-auto" />
+      <CurrentUserCard />
+
+      <div className="mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="stats-card rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Users2 className="w-5 h-5 text-blue-400" />
+              <span className="text-2xl font-bold text-blue-400">{stats.totalPlayers}</span>
             </div>
-            <h1 className="text-3xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-              Ranking Global
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Compite con jugadores de todo el mundo y demuestra tu dominio del pantano
-            </p>
+            <div className="text-xs text-gray-400">Jugadores Totales</div>
+          </div>
+
+          <div className="stats-card rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Coins className="w-5 h-5 text-yellow-400" />
+              <span className="text-2xl font-bold text-yellow-400">
+                {Math.floor(stats.averageCoins / 1000)}k
+              </span>
+            </div>
+            <div className="text-xs text-gray-400">Promedio de Monedas</div>
+          </div>
+
+          <div className="stats-card rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Activity className="w-5 h-5 text-green-400" />
+              <span className="text-2xl font-bold text-green-400">{stats.recentActivity}%</span>
+            </div>
+            <div className="text-xs text-gray-400">Actividad (7 días)</div>
+          </div>
+
+          <div className="stats-card rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <TrendingUp className="w-5 h-5 text-purple-400" />
+              <span className="text-2xl font-bold text-purple-400">
+                {stats.topPlayer ? (stats.topPlayer.coins / 1000).toFixed(0) + 'k' : '0'}
+              </span>
+            </div>
+            <div className="text-xs text-gray-400">Récord Actual</div>
           </div>
         </div>
+      </div>
 
-        <CurrentUserCard />
+      <TopThreePlayers />
 
-        <div className="mb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="stats-card rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Users2 className="w-5 h-5 text-blue-400" />
-                <span className="text-2xl font-bold text-blue-400">{stats.totalPlayers}</span>
+      <div className="mb-6">
+        <div className="stats-card rounded-xl p-4 md:p-6">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Input
+                  placeholder="Buscar jugador..."
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  className="pl-10 bg-gray-800/50 border-gray-700"
+                />
               </div>
-              <div className="text-xs text-gray-400">Jugadores Totales</div>
             </div>
 
-            <div className="stats-card rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Coins className="w-5 h-5 text-yellow-400" />
-                <span className="text-2xl font-bold text-yellow-400">
-                  {Math.floor(stats.averageCoins / 1000)}k
-                </span>
-              </div>
-              <div className="text-xs text-gray-400">Promedio de Monedas</div>
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              <Button
+                variant={activeTab === "global" ? "default" : "outline"}
+                onClick={() => setActiveTab("global")}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <Globe2 className="w-4 h-4" /> Global
+              </Button>
+
+              <Button
+                variant={activeTab === "weekly" ? "default" : "outline"}
+                onClick={() => setActiveTab("weekly")}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <Calendar className="w-4 h-4" /> Semanal
+              </Button>
+
+              <Button
+                variant={activeTab === "monthly" ? "default" : "outline"}
+                onClick={() => setActiveTab("monthly")}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <BarChart3 className="w-4 h-4" /> Mensual
+              </Button>
             </div>
 
-            <div className="stats-card rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Activity className="w-5 h-5 text-green-400" />
-                <span className="text-2xl font-bold text-green-400">{stats.recentActivity}%</span>
-              </div>
-              <div className="text-xs text-gray-400">Actividad (7 días)</div>
-            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleSort("coins")}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                <span className="hidden sm:inline">Ordenar</span>
+              </Button>
 
-            <div className="stats-card rounded-xl p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-purple-400" />
-                <span className="text-2xl font-bold text-purple-400">
-                  {stats.topPlayer ? (stats.topPlayer.coins / 1000).toFixed(0) + 'k' : '0'}
-                </span>
-              </div>
-              <div className="text-xs text-gray-400">Récord Actual</div>
+              <Button
+                onClick={refreshRankingData}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="hidden sm:inline">Actualizar</span>
+              </Button>
             </div>
           </div>
-        </div>
 
-        <TopThreePlayers />
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+            <div>
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Crown className="w-5 h-5 text-yellow-400" />
+                Ranking {activeTab === "global" ? "Global" : activeTab === "weekly" ? "Semanal" : "Mensual"}
+              </h3>
+              <p className="text-sm text-gray-400">
+                {sortDirection === "desc" ? "Mayor a menor" : "Menor a mayor"} por {sortBy === "coins" ? "monedas" : sortBy}
+              </p>
+            </div>
 
-        <div className="mb-6">
-          <div className="stats-card rounded-xl p-4 md:p-6">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <Input
-                    placeholder="Buscar jugador..."
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    className="pl-10 bg-gray-800/50 border-gray-700"
-                  />
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Última actualización</div>
+                <div className="text-sm font-semibold">
+                  {lastUpdated ? formatDate(lastUpdated) : "Cargando..."}
                 </div>
               </div>
-
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                <Button
-                  variant={activeTab === "global" ? "default" : "outline"}
-                  onClick={() => setActiveTab("global")}
-                  className="flex items-center gap-2 whitespace-nowrap"
-                >
-                  <Globe2 className="w-4 h-4" /> Global
-                </Button>
-
-                <Button
-                  variant={activeTab === "weekly" ? "default" : "outline"}
-                  onClick={() => setActiveTab("weekly")}
-                  className="flex items-center gap-2 whitespace-nowrap"
-                >
-                  <Calendar className="w-4 h-4" /> Semanal
-                </Button>
-
-                <Button
-                  variant={activeTab === "monthly" ? "default" : "outline"}
-                  onClick={() => setActiveTab("monthly")}
-                  className="flex items-center gap-2 whitespace-nowrap"
-                >
-                  <BarChart3 className="w-4 h-4" /> Mensual
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleSort("coins")}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <ArrowUpDown className="w-4 h-4" />
-                  <span className="hidden sm:inline">Ordenar</span>
-                </Button>
-
-                <Button
-                  onClick={refreshRankingData}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span className="hidden sm:inline">Actualizar</span>
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-              <div>
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-yellow-400" />
-                  Ranking {activeTab === "global" ? "Global" : activeTab === "weekly" ? "Semanal" : "Mensual"}
-                </h3>
-                <p className="text-sm text-gray-400">
-                  {sortDirection === "desc" ? "Mayor a menor" : "Menor a mayor"} por {sortBy === "coins" ? "monedas" : sortBy}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-sm text-gray-400">Última actualización</div>
-                  <div className="text-sm font-semibold">
-                    {lastUpdated ? formatDate(lastUpdated) : "Cargando..."}
-                  </div>
-                </div>
-                <div className="hidden md:block text-xs text-gray-500 px-2 py-1 bg-gray-800/50 rounded">
-                  🎯 Datos centralizados
-                </div>
-              </div>
-            </div>
-
-            <div className="hidden md:grid grid-cols-12 gap-4 mb-3 px-4 text-sm text-gray-500">
-              <div className="col-span-1 text-center">#</div>
-              <div className="col-span-5">JUGADOR</div>
-              <div className="col-span-2 text-center">NIVEL</div>
-              <div className="col-span-2 text-center">MONEDAS</div>
-              <div className="col-span-2 text-center">ACTIVIDAD</div>
-            </div>
-
-            <div className="max-h-[500px] overflow-y-auto scrollbar-hide pr-2">
-              {renderRankingList()}
-            </div>
-
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-700/30">
-              <div className="text-sm text-gray-400">
-                Mostrando {Math.min(ranking.length, 20)} de {stats.totalPlayers} jugadores
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" disabled>
-                  Siguiente
-                </Button>
+              <div className="hidden md:block text-xs text-gray-500 px-2 py-1 bg-gray-800/50 rounded">
+                🎯 Datos centralizados
               </div>
             </div>
           </div>
+
+          <div className="hidden md:grid grid-cols-12 gap-4 mb-3 px-4 text-sm text-gray-500">
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-5">JUGADOR</div>
+            <div className="col-span-2 text-center">NIVEL</div>
+            <div className="col-span-2 text-center">MONEDAS</div>
+            <div className="col-span-2 text-center">ACTIVIDAD</div>
+          </div>
+
+          <div className="max-h-[500px] overflow-y-auto scrollbar-hide pr-2">
+            {renderRankingList()}
+          </div>
+
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-700/30">
+            <div className="text-sm text-gray-400">
+              Mostrando {Math.min(ranking.length, 20)} de {stats.totalPlayers} jugadores
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled>
+                Anterior
+              </Button>
+              <Button variant="outline" size="sm" disabled>
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-gradient-to-r from-blue-900/20 to-blue-800/20 rounded-xl border border-blue-700/30">
+          <h4 className="font-bold mb-3 flex items-center gap-2 text-blue-300">
+            <Sparkles className="w-4 h-4" />
+            Cómo subir en el ranking
+          </h4>
+          <ul className="text-sm text-gray-400 space-y-2">
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              <span>Compra mejoras para aumentar tus ganancias</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              <span>Completa misiones diarias y logros</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              <span>Haz staking de tus tokens CROC</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              <span>Invita amigos para obtener bonificaciones</span>
+            </li>
+          </ul>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-gradient-to-r from-blue-900/20 to-blue-800/20 rounded-xl border border-blue-700/30">
-            <h4 className="font-bold mb-3 flex items-center gap-2 text-blue-300">
-              <Sparkles className="w-4 h-4" />
-              Cómo subir en el ranking
-            </h4>
-            <ul className="text-sm text-gray-400 space-y-2">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                <span>Compra mejoras para aumentar tus ganancias</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                <span>Completa misiones diarias y logros</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                <span>Haz staking de tus tokens CROC</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                <span>Invita amigos para obtener bonificaciones</span>
-              </li>
+        <div className="p-4 bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 rounded-xl border border-yellow-700/30">
+          <h4 className="font-bold mb-3 flex items-center gap-2 text-yellow-300">
+            <Trophy className="w-4 h-4" />
+            Premios y Recompensas
+          </h4>
+          <ul className="text-sm text-gray-400 space-y-2">
+            <li className="flex items-center gap-2">
+              <Medal className="w-4 h-4 text-yellow-500" />
+              <span><strong>🥇 Oro:</strong> Insignia exclusiva + 1000 CROC</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Medal className="w-4 h-4 text-gray-400" />
+              <span><strong>🥈 Plata:</strong> 500 CROC + skin especial</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Medal className="w-4 h-4 text-amber-600" />
+              <span><strong>🥉 Bronce:</strong> 250 CROC + boost temporal</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Star className="w-4 h-4 text-purple-400" />
+              <span><strong>Top 10:</strong> Recompensas semanales</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="p-4 bg-gradient-to-r from-green-900/20 to-emerald-800/20 rounded-xl border border-green-700/30">
+          <h4 className="font-bold mb-3 flex items-center gap-2 text-green-300">
+            <RefreshCw className="w-4 h-4" />
+            Sistema de Ranking
+          </h4>
+          <div className="text-sm text-gray-400 space-y-2">
+            <p>El ranking se actualiza automáticamente cada 2 minutos.</p>
+            <p>Los puntos se calculan en base a:</p>
+            <ul className="space-y-1 ml-4">
+              <li>• Monedas totales (50%)</li>
+              <li>• Nivel del jugador (30%)</li>
+              <li>• Tokens CROC (20%)</li>
             </ul>
-          </div>
-
-          <div className="p-4 bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 rounded-xl border border-yellow-700/30">
-            <h4 className="font-bold mb-3 flex items-center gap-2 text-yellow-300">
-              <Trophy className="w-4 h-4" />
-              Premios y Recompensas
-            </h4>
-            <ul className="text-sm text-gray-400 space-y-2">
-              <li className="flex items-center gap-2">
-                <Medal className="w-4 h-4 text-yellow-500" />
-                <span><strong>🥇 Oro:</strong> Insignia exclusiva + 1000 CROC</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Medal className="w-4 h-4 text-gray-400" />
-                <span><strong>🥈 Plata:</strong> 500 CROC + skin especial</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Medal className="w-4 h-4 text-amber-600" />
-                <span><strong>🥉 Bronce:</strong> 250 CROC + boost temporal</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-purple-400" />
-                <span><strong>Top 10:</strong> Recompensas semanales</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="p-4 bg-gradient-to-r from-green-900/20 to-emerald-800/20 rounded-xl border border-green-700/30">
-            <h4 className="font-bold mb-3 flex items-center gap-2 text-green-300">
-              <RefreshCw className="w-4 h-4" />
-              Sistema de Ranking
-            </h4>
-            <div className="text-sm text-gray-400 space-y-2">
-              <p>El ranking se actualiza automáticamente cada 2 minutos.</p>
-              <p>Los puntos se calculan en base a:</p>
-              <ul className="space-y-1 ml-4">
-                <li>• Monedas totales (50%)</li>
-                <li>• Nivel del jugador (30%)</li>
-                <li>• Tokens CROC (20%)</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
