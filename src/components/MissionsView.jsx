@@ -113,9 +113,9 @@ export function MissionsView({
 
     setVerifying(missionId);
     try {
-      // [FIX] Use the dynamic 'missions' prop, not the static 'MISSIONS' constant
-      // This ensures we find virtual missions (Daily Codes) that aren't in the static file
-      const mission = missions.find(m => m.id === missionId) || MISSIONS.find(m => m.id === missionId);
+      // [FIX] Use gameConfig.missions (definitions) instead of missions (state object)
+      const activeMissions = gameConfig?.missions || MISSIONS;
+      const mission = activeMissions.find(m => m.id === missionId);
       let result;
 
       if (mission?.validation_type === 'daily_code') {
