@@ -33,9 +33,9 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
-export function RankingView({ 
-  user, 
-  player, 
+export function RankingView({
+  user,
+  player,
   tokenPrice = 0.05,
   refreshInterval = 120000,
   loadRanking,
@@ -43,7 +43,7 @@ export function RankingView({
   gameDataState
 }) {
   const { toast } = useToast();
-  
+
   const [ranking, setRanking] = useState([]);
   const [activeTab, setActiveTab] = useState("global");
   const [loading, setLoading] = useState(true);
@@ -80,12 +80,12 @@ export function RankingView({
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 60) return `Hace ${diffMins} min`;
     if (diffMins < 1440) return `Hace ${Math.floor(diffMins / 60)}h`;
-    
-    return date.toLocaleDateString('es-ES', { 
-      day: '2-digit', 
+
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
@@ -103,31 +103,31 @@ export function RankingView({
       setSortBy(column);
       setSortDirection("desc");
     }
-    
+
     if (rankingRef.current.length > 0) {
       const sortedData = [...rankingRef.current].sort((a, b) => {
         let valueA = a[column] || 0;
         let valueB = b[column] || 0;
-        
+
         if (sortDirection === "desc") {
           return valueB - valueA;
         } else {
           return valueA - valueB;
         }
       });
-      
+
       setRanking(sortedData);
     }
   };
 
   const getCurrentUserRank = useCallback(() => {
     if (!user || !player) return null;
-    
-    const userRank = ranking.findIndex(p => 
-      p.user_id === user.id || 
+
+    const userRank = ranking.findIndex(p =>
+      p.user_id === user.id ||
       p.name.toLowerCase().includes(player.username?.toLowerCase() || "")
     );
-    
+
     return userRank >= 0 ? userRank + 1 : null;
   }, [ranking, user, player]);
 
@@ -139,14 +139,14 @@ export function RankingView({
         topPlayer: null,
         recentActivity: 0
       };
-      
+
       if (JSON.stringify(newStats) !== JSON.stringify(statsRef.current)) {
         statsRef.current = newStats;
         setStats(newStats);
       }
       return;
     }
-    
+
     const totalCoins = data.reduce((sum, player) => sum + (player.coins || 0), 0);
     const recentPlayers = data.filter(p => {
       if (!p.lastActive) return false;
@@ -155,14 +155,14 @@ export function RankingView({
       weekAgo.setDate(weekAgo.getDate() - 7);
       return lastActive > weekAgo;
     }).length;
-    
+
     const newStats = {
       totalPlayers: data.length,
       averageCoins: Math.floor(totalCoins / data.length),
       topPlayer: data[0] || null,
       recentActivity: Math.floor((recentPlayers / data.length) * 100)
     };
-    
+
     if (JSON.stringify(newStats) !== JSON.stringify(statsRef.current)) {
       statsRef.current = newStats;
       setStats(newStats);
@@ -178,7 +178,7 @@ export function RankingView({
     const sortedData = [...rankingData].sort((a, b) => {
       let valueA = a[sortBy] || 0;
       let valueB = b[sortBy] || 0;
-      
+
       if (sortDirection === "desc") {
         return valueB - valueA;
       } else {
@@ -192,7 +192,7 @@ export function RankingView({
 
   const syncDataToUI = useCallback(() => {
     if (rankingRef.current.length === 0) return;
-    
+
     setTimeout(() => {
       setRanking([...rankingRef.current]);
       setLastUpdated(new Date().toISOString());
@@ -201,22 +201,22 @@ export function RankingView({
 
   const fetchRanking = useCallback(async (scope = "global", showLoading = false) => {
     if (updateInProgressRef.current) return;
-    
+
     try {
       updateInProgressRef.current = true;
-      
+
       if (showLoading && isInitialLoadRef.current) {
         setLoading(true);
       }
-      
+
       setError(null);
-      
+
       if (!loadRanking) {
         throw new Error("Función loadRanking no disponible");
       }
-      
+
       const rankingData = await loadRanking(scope);
-      
+
       if (rankingData && rankingData.length > 0) {
         updateBackgroundData(rankingData);
         syncDataToUI();
@@ -224,13 +224,13 @@ export function RankingView({
         rankingRef.current = [];
         setRanking([]);
       }
-      
+
       isInitialLoadRef.current = false;
 
     } catch (err) {
       console.error("❌ Error al cargar ranking:", err);
       setError("Error al cargar el ranking. Intenta nuevamente.");
-      
+
       if (isInitialLoadRef.current) {
         toast({
           title: "❌ Error de conexión",
@@ -248,18 +248,18 @@ export function RankingView({
 
   const refreshRankingData = useCallback(async () => {
     if (!refreshRanking || updateInProgressRef.current) return;
-    
+
     console.log("🔄 Refrescando ranking...");
-    
+
     try {
       updateInProgressRef.current = true;
-      
+
       const rankingData = await refreshRanking(activeTab);
-      
+
       if (rankingData && rankingData.length > 0) {
         updateBackgroundData(rankingData);
         syncDataToUI();
-        
+
         toast({
           title: "✅ Ranking actualizado",
           description: "Los datos han sido actualizados.",
@@ -288,9 +288,9 @@ export function RankingView({
         (async () => {
           try {
             if (!loadRanking) return;
-            
+
             const rankingData = await loadRanking(activeTab);
-            
+
             if (rankingData && rankingData.length > 0) {
               updateBackgroundData(rankingData);
             }
@@ -304,13 +304,24 @@ export function RankingView({
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval, loadRanking, updateBackgroundData]);
 
+  // 🐊 Deterministic Avatar Selection
+  const getCrocAvatar = useCallback((playerId) => {
+    if (!playerId) return "/avatars/1.png";
+    let hash = 0;
+    for (let i = 0; i < playerId.length; i++) {
+      hash = playerId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash % 4) + 1; // 1 to 4
+    return `/avatars/${index}.png`;
+  }, []);
+
   // 🥇 Top 3 Players - Versión optimizada y estable
   const TopThreePlayers = memo(() => {
-    // Calcular top 3 basado en ranking actual
+    // ... (keep topThree memo logic) ...
     const topThree = useMemo(() => {
       if (ranking.length >= 3) {
         const newTopThree = [ranking[1], ranking[0], ranking[2]];
-        
+
         // Comparar con caché anterior
         const hasChanged = topThreeCacheRef.current.length === 0 ||
           topThreeCacheRef.current[0]?.id !== newTopThree[0]?.id ||
@@ -319,7 +330,7 @@ export function RankingView({
           topThreeCacheRef.current[0]?.coins !== newTopThree[0]?.coins ||
           topThreeCacheRef.current[1]?.coins !== newTopThree[1]?.coins ||
           topThreeCacheRef.current[2]?.coins !== newTopThree[2]?.coins;
-        
+
         if (hasChanged) {
           console.log("🏆 Top 3 actualizado");
           topThreeCacheRef.current = newTopThree;
@@ -331,6 +342,7 @@ export function RankingView({
     }, [ranking]);
 
     if (topThree.length < 3) {
+      // ... (keep loading state) ...
       return (
         <div className="mb-8">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -356,47 +368,44 @@ export function RankingView({
           {topThree.map((player, idx) => {
             const position = [2, 1, 3][idx];
             const isTop = position === 1;
-            
+
             return (
               <div
                 key={`${player.id}-${position}`}
-                className={`relative rounded-xl p-4 border-2 ${
-                  isTop
-                    ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl'
-                    : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
-                }`}
+                className={`relative rounded-xl p-4 border-2 ${isTop
+                  ? 'md:col-span-1 md:row-span-2 bg-gradient-to-b from-yellow-900/20 to-yellow-800/10 border-yellow-600/30 shadow-xl'
+                  : 'bg-gradient-to-b from-gray-900/20 to-gray-800/10 border-gray-700/30'
+                  }`}
               >
                 <div className="absolute top-4 right-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'
-                  }`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-600'
+                    }`}>
                     <span className="text-2xl">
                       {position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉'}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col items-center text-center">
-                  <div className={`h-20 w-20 mb-3 border-4 ${
-                    isTop ? 'border-yellow-500' : 'border-gray-600'
-                  } rounded-full overflow-hidden`}>
+                  <div className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'
+                    } rounded-full overflow-hidden bg-black/40`}>
                     <img
-                      src={player.avatar}
+                      src={player.avatar || getCrocAvatar(player.id)}
                       alt={player.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
                       loading="lazy"
                       onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.id}`;
+                        e.target.onerror = null;
+                        e.target.src = getCrocAvatar(player.id);
                       }}
                     />
                   </div>
-                  
-                  <h4 className={`font-bold ${
-                    isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
-                  }`}>
+
+                  <h4 className={`font-bold ${isTop ? 'text-xl text-yellow-300' : 'text-lg text-white'
+                    }`}>
                     {player.name}
                   </h4>
-                  
+                  {/* ... stats ... */}
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-center gap-2 text-sm">
                       <Coins className="w-3 h-3 text-yellow-400" />
@@ -408,9 +417,9 @@ export function RankingView({
                     </div>
                   </div>
                 </div>
-                
+
                 {isTop && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border border-yellow-400/50">
                     🏆 REY DEL PANTANO
                   </div>
                 )}
@@ -424,7 +433,9 @@ export function RankingView({
 
   // 👤 Info del usuario actual
   const CurrentUserCard = () => {
+    // ...
     if (!user || !player) {
+      // ... (Guest View)
       return (
         <div className="p-4 bg-gradient-to-r from-yellow-900/30 to-amber-800/30 rounded-xl border border-yellow-700/30 mb-6">
           <div className="flex items-center justify-between">
@@ -465,15 +476,18 @@ export function RankingView({
                 {currentRank ? `#${currentRank}` : "No clasificado"}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Avatar className="h-14 w-14 border-2 border-primary/50">
-                <AvatarImage src={player.avatar_url} alt={player.username} />
+                <AvatarImage
+                  src={player.avatar_url || getCrocAvatar(user.id)}
+                  alt={player.username}
+                />
                 <AvatarFallback className="bg-primary/20 text-primary">
                   {player.username?.substring(0, 2).toUpperCase() || "TU"}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1">
                 <h4 className="font-bold text-lg">{player.username}</h4>
                 <div className="flex flex-wrap gap-2 mt-1 text-sm">
@@ -499,7 +513,7 @@ export function RankingView({
               <Activity className="w-5 h-5 text-green-400" />
               Rendimiento
             </h3>
-            
+
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <div className="text-xs text-gray-400 mb-1">Monedas/h</div>
@@ -548,7 +562,7 @@ export function RankingView({
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             No se pudo cargar el ranking. Verifica tu conexión a internet.
           </p>
-          <Button 
+          <Button
             onClick={() => fetchRanking(activeTab, true)}
             variant="outline"
             className="flex items-center gap-2"
@@ -605,32 +619,36 @@ export function RankingView({
         {rankingToShow.map((player, index) => {
           const rank = index + 4;
           const isCurrentUser = player.isCurrentUser;
-          
+
           return (
             <div
               key={player.id}
-              className={`group relative flex items-center p-4 rounded-xl transition-all duration-500 ${
-                isCurrentUser
-                  ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
-                  : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
-              }`}
+              className={`group relative flex items-center p-4 rounded-xl transition-all duration-500 ${isCurrentUser
+                ? 'bg-gradient-to-r from-primary/20 to-primary/10 border-2 border-primary shadow-lg'
+                : 'bg-gradient-to-r from-gray-800/30 to-gray-900/30 border border-gray-700/30 hover:border-gray-600/50'
+                }`}
             >
               <div className="flex items-center justify-center w-10 mr-3">
-                <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${
-                  rank <= 10 
-                    ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20' 
-                    : 'bg-gray-800/50'
-                }`}>
-                  <span className={`font-bold text-sm ${
-                    rank <= 10 ? 'text-blue-400' : 'text-gray-400'
+                <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${rank <= 10
+                  ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/20'
+                  : 'bg-gray-800/50'
                   }`}>
+                  <span className={`font-bold text-sm ${rank <= 10 ? 'text-blue-400' : 'text-gray-400'
+                    }`}>
                     {rank}
                   </span>
                 </div>
               </div>
 
               <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 shadow-lg">
-                <AvatarImage src={player.avatar} alt={player.name} />
+                <AvatarImage
+                  src={player.avatar || getCrocAvatar(player.id)}
+                  alt={player.name}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = getCrocAvatar(player.id);
+                  }}
+                />
                 <AvatarFallback className="bg-gray-800 text-gray-300">
                   {player.name?.substring(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
@@ -640,27 +658,26 @@ export function RankingView({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <p
-                      className={`font-semibold truncate ${
-                        isCurrentUser ? 'text-primary' : 'text-white'
-                      }`}
+                      className={`font-semibold truncate ${isCurrentUser ? 'text-primary' : 'text-white'
+                        }`}
                       title={player.name}
                     >
                       {player.name || "Jugador"} {isCurrentUser && "⭐"}
                     </p>
-                    
+
                     {rank <= 3 && (
                       <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
                         TOP {rank}
                       </span>
                     )}
-                    
+
                     {(player.level || 0) >= 50 && (
                       <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
                         MAESTRO
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="hidden md:flex items-center gap-4">
                     <div className="text-right">
                       <div className="text-sm font-bold text-yellow-400 flex items-center gap-1">
@@ -679,17 +696,17 @@ export function RankingView({
                     <Trophy className="w-3 h-3" />
                     <span>Nv. {player.level || 1}</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-1 text-green-400">
                     <Zap className="w-3 h-3" />
                     <span>{(player.tokens || 0).toLocaleString()} CROC</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-1 text-blue-400">
                     <Target className="w-3 h-3" />
                     <span>{(player.clicks || 0).toLocaleString()} clics</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-1 text-gray-500">
                     <Clock className="w-3 h-3" />
                     <span>{formatDate(player.lastActive)}</span>
@@ -741,7 +758,7 @@ export function RankingView({
               </div>
               <div className="text-xs text-gray-400">Jugadores Totales</div>
             </div>
-            
+
             <div className="stats-card rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Coins className="w-5 h-5 text-yellow-400" />
@@ -751,7 +768,7 @@ export function RankingView({
               </div>
               <div className="text-xs text-gray-400">Promedio de Monedas</div>
             </div>
-            
+
             <div className="stats-card rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Activity className="w-5 h-5 text-green-400" />
@@ -759,7 +776,7 @@ export function RankingView({
               </div>
               <div className="text-xs text-gray-400">Actividad (7 días)</div>
             </div>
-            
+
             <div className="stats-card rounded-xl p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-purple-400" />
@@ -824,7 +841,7 @@ export function RankingView({
                   <ArrowUpDown className="w-4 h-4" />
                   <span className="hidden sm:inline">Ordenar</span>
                 </Button>
-                
+
                 <Button
                   onClick={refreshRankingData}
                   variant="outline"
@@ -846,7 +863,7 @@ export function RankingView({
                   {sortDirection === "desc" ? "Mayor a menor" : "Menor a mayor"} por {sortBy === "coins" ? "monedas" : sortBy}
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="text-sm text-gray-400">Última actualización</div>
