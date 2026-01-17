@@ -15,7 +15,7 @@ import {
     CARDS_DATA
 } from '@/config/gameConfig';
 
-export function AdminView({ user, toast }) {
+export function AdminView({ user, toast, repairReferralSystem }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -257,6 +257,42 @@ export function AdminView({ user, toast }) {
                                 <Save className="mr-2 h-4 w-4" /> Guardar Precio
                             </Button>
                         </CardFooter>
+                    </Card>
+
+                    {/* [NEW] Repair Balances Section */}
+                    <Card className="mt-4 border-yellow-500/50">
+                        <CardHeader>
+                            <CardTitle className="text-yellow-400 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5" /> Reparación de Saldos
+                            </CardTitle>
+                            <CardDescription>
+                                Utiliza esto si los usuarios reportan que no recibieron sus bonos de referidos.
+                                Revisa y corrige retroactivamente los saldos faltantes (10k Monedas / 10 CROC).
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button
+                                onClick={async () => {
+                                    if (confirm('¿Estás seguro de ejecutar la reparación de referidos? Esto puede tomar unos segundos.')) {
+                                        // setLoading(true); // Don't block whole UI if not necessary, but maybe show feedback
+                                        try {
+                                            if (repairReferralSystem) {
+                                                await repairReferralSystem();
+                                                toast({ title: "✅ Reparación completada", description: "Revisa la consola para ver detalles." });
+                                            } else {
+                                                toast({ title: "❌ Error", description: "Función de reparación no disponible.", variant: "destructive" });
+                                            }
+                                        } catch (e) {
+                                            console.error(e);
+                                            toast({ title: "❌ Error", description: "Falló la reparación.", variant: "destructive" });
+                                        }
+                                    }
+                                }}
+                                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+                            >
+                                🛠️ Recomponer Saldos de Referidos
+                            </Button>
+                        </CardContent>
                     </Card>
                 </TabsContent>
 

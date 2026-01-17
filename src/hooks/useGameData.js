@@ -166,12 +166,13 @@ export function useGameData(user, gameConfig) {
 
     // 2. OBTENER CÓDIGO DE REFERIDO (SI EXISTE)
     let referralCodeToProcess = null;
-    const storedRefCode = localStorage.getItem('referral_code_to_process');
+    // [FIX] Usar la misma clave que en App.jsx
+    const storedRefCode = localStorage.getItem('pending_referral_code');
 
     if (storedRefCode && /^[A-Z0-9]{8}$/.test(storedRefCode)) {
       referralCodeToProcess = storedRefCode;
       console.log('🎯 Código de referencia para procesar:', referralCodeToProcess);
-      localStorage.removeItem('referral_code_to_process');
+      localStorage.removeItem('pending_referral_code');
     }
 
     // 3. GENERAR USERNAME Y CÓDIGO PROPIO (SIEMPRE MAYÚSCULAS)
@@ -880,8 +881,9 @@ export function useGameData(user, gameConfig) {
             .eq('player_id', player.id)
             .maybeSingle();
 
+          // [FIX] Match SQL v3 values: 10 CROC + 25,000 Coins per referral for referrer
           const expectedCroc = referralCount * 10;
-          const expectedCoins = referralCount * 1000;
+          const expectedCoins = referralCount * 25000;
 
           if (playerStats) {
             // Calcular bonos faltantes
@@ -932,10 +934,11 @@ export function useGameData(user, gameConfig) {
               const currentCoinsRef = Number(referralStats.coins) || 0;
               const currentTotalCoins = Number(referralStats.total_coins) || 0;
 
+              // [FIX] Match SQL v3 values: 10 CROC + 10,000 Coins for referee
               // Si tiene menos de 10 CROC, darle los que faltan
               if (currentTokens < 10) {
                 const missingTokens = 10 - currentTokens;
-                const missingCoinsRef = 1000 - currentCoinsRef;
+                const missingCoinsRef = Math.max(0, 10000 - currentCoinsRef); // Ensure they have at least 10k coins
 
                 await supabase
                   .from('player_stats')

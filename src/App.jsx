@@ -662,7 +662,11 @@ function App() {
             )}
 
             {currentView === "admin" && (
-              <AdminView user={user} toast={toast} />
+              <AdminView
+                user={user}
+                toast={toast}
+                repairReferralSystem={gameData.repairReferralSystem}
+              />
             )}
 
             {currentView === "stats" && (
