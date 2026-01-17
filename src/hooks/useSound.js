@@ -58,25 +58,8 @@ const createSystemSound = (frequency = 440, duration = 0.1, type = 'sine') => {
 // Sonidos del sistema personalizados
 const systemSounds = {
   // Mordida fuerte (tono bajo)
-  bite: () => {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-
-    oscillator.frequency.setValueAtTime(150, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(100, context.currentTime + 0.2);
-    oscillator.type = 'sawtooth';
-
-    gainNode.gain.setValueAtTime(0.3, context.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-
-    oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + 0.3);
-  },
+  // Mordida fuerte (tono bajo) - Silenciado
+  bite: () => { },
 
   // Click simple
   // Click simple - Silenciado
@@ -275,7 +258,7 @@ const systemSounds = {
 
 // Versión simplificada para móviles/fallback
 const simpleSounds = {
-  bite: () => { try { new AudioContext().createOscillator().start().stop(); } catch (e) { } },
+  bite: () => { }, // Silenciado
   click: () => { }, // Silenciado a pedido del usuario
   upgrade: () => { console.log('🔊 Sonido de upgrade'); },
   reward: () => { console.log('🔊 Sonido de reward'); },

@@ -95,7 +95,18 @@ export function MissionsView({
 
 
   // 🎬 Iniciar validación de YouTube
+  // Abrir video
   const startYoutubeValidation = (mission) => {
+    const globalYoutubeUrl = gameConfig?.daily_youtube_link?.url;
+    const url = mission.youtube_url || mission.requirement?.url || globalYoutubeUrl;
+
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    // Si ya está completada, solo abrimos el link y salimos
+    if (missions?.[mission.id]?.completed) return;
+
     const now = Date.now();
     // 10 minutos en milisegundos
     const duration = 10 * 60 * 1000;
@@ -109,19 +120,11 @@ export function MissionsView({
     setValidatingMissions(newValidations);
     localStorage.setItem('mission_validations', JSON.stringify(newValidations));
 
-    // Abrir video
-    const globalYoutubeUrl = gameConfig?.daily_youtube_link?.url;
-    const url = mission.youtube_url || mission.requirement?.url || globalYoutubeUrl;
-
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-
     toast({
       title: "⚠️ ATENCIÓN REQUERIDA",
       description: "Para ganar los puntos y tokens SI O SI debes SUSCRIBIRTE, dar LIKE y COMENTAR.",
-      duration: 8000, // Duración larga para asegurar lectura
-      variant: "default", // Usar default o un estilo llamativo si hay
+      duration: 8000,
+      variant: "default",
       className: "border-2 border-yellow-500 bg-black text-white"
     });
   };
@@ -442,7 +445,8 @@ export function MissionsView({
                       )}
 
                       {/* YOUTUBE ACTIONS */}
-                      {!missionState.completed && mission.validation_type === 'youtube_actions' && (
+                      {/* YOUTUBE ACTIONS - ALWAYS VISIBLE */}
+                      {mission.validation_type === 'youtube_actions' && (
                         <div className="flex flex-col gap-2 w-full">
                           <Button
                             onClick={() => startYoutubeValidation(mission)}
