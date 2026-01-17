@@ -81,9 +81,21 @@ export const useGameConfig = () => {
                 const ytConfig = dbGlobalConfig.find(c => c.key === 'daily_youtube_link')?.value;
                 if (ytConfig?.url) {
                     dailyYoutubeUrl = ytConfig.url;
+
+                    // 🆕 GENERAR ID BASADO EN URL (para que se resetee al cambiar el link)
+                    // Usamos btoa simple pero seguro para URLs
+                    let urlHash = 'default';
+                    try {
+                        urlHash = btoa(ytConfig.url).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+                    } catch (e) {
+                        // Fallback por si la URL tiene caracteres raros
+                        urlHash = Date.now().toString();
+                    }
+                    const dynamicId = `daily_youtube_${urlHash}`;
+
                     // Inject Virtual Mission for Daily YouTube
                     virtualMissions.push({
-                        id: 'daily_youtube_mission',
+                        id: dynamicId,
                         name: '📺 Misión Diaria YouTube',
                         description: 'Suscríbete y comenta en nuestro video diario.',
 
@@ -97,7 +109,7 @@ export const useGameConfig = () => {
 
                         reward: { coins: 1000, xp: 50 },
                         icon: LucideIcons.Youtube,
-                        category: 'social',
+                        category: 'daily', // Changed to daily to prioritize sorting
                         validation_type: 'youtube_actions',
                         youtube_url: ytConfig.url,
                         video_actions: { subscribe: true, like: true, comment: true },

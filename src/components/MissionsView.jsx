@@ -300,19 +300,7 @@ export function MissionsView({
         <div className="space-y-6">
           {(() => {
             // 🔄 SORTING LOGIC
-            // 🔄 SORTING & DYNAMIC IDS LOGIC
-            let activeMissions = gameConfig?.missions || MISSIONS;
-
-            // 🆕 Aplicar ID dinámico para la misión de YouTube si hay URL definida
-            const youtubeUrl = gameConfig?.daily_youtube_link?.url;
-            if (youtubeUrl) {
-              const urlHash = btoa(youtubeUrl).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
-              const dynamicId = `daily_youtube_${urlHash}`;
-
-              activeMissions = activeMissions.map(m =>
-                m.id === 'daily_youtube_sub' ? { ...m, id: dynamicId } : m
-              );
-            }
+            const activeMissions = gameConfig?.missions || MISSIONS;
 
             const sortedMissions = [...activeMissions].sort((a, b) => {
               // 1. Daily Code / Video Watch priority
