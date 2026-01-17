@@ -39,92 +39,6 @@ export function MissionsView({
 }) {
   const [secretCodeInput, setSecretCodeInput] = React.useState({}); // Store input per mission
   const [verifying, setVerifying] = React.useState(null);
-  const [validatingMissions, setValidatingMissions] = React.useState({}); // { missionId: { startTime: number, endTime: number } }
-
-  // 📝 Cargar estado de validación local al iniciar
-  React.useEffect(() => {
-    try {
-      const savedValidation = localStorage.getItem('mission_validations');
-      if (savedValidation) {
-        setValidatingMissions(JSON.parse(savedValidation));
-      }
-    } catch (e) {
-      console.error("Error loading mission validations", e);
-    }
-  }, []);
-
-  // ⏱️ Verificar temporizadores cada segundo
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      let updated = false;
-      const newValidations = { ...validatingMissions };
-      let completedSome = false;
-
-      Object.keys(newValidations).forEach(missionId => {
-        const validation = newValidations[missionId];
-        // Si ya pasó el tiempo y no se ha marcado completa en UI (aunque la llamada real es completeMission)
-        if (now >= validation.endTime) {
-          // Completar misión automáticamente si el usuario sigue en la pantalla
-          if (missions && missions[missionId] && !missions[missionId].completed) {
-            completeMission(missionId, true);
-            playSound('success');
-            toast({
-              title: "✅ Misión Completada",
-              description: "¡Has completado la validación exitosamente!",
-              duration: 5000
-            });
-            completedSome = true;
-          }
-          // Removemos de validación activa una vez completada
-          if (missions && missions[missionId] && missions[missionId].completed) {
-            delete newValidations[missionId];
-            updated = true;
-          }
-        }
-      });
-
-      if (updated) {
-        setValidatingMissions(newValidations);
-        localStorage.setItem('mission_validations', JSON.stringify(newValidations));
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [validatingMissions, missions, completeMission, playSound, toast]);
-
-
-  // 🎬 Iniciar validación de YouTube
-  const startYoutubeValidation = (mission) => {
-    const now = Date.now();
-    // 10 minutos en milisegundos
-    const duration = 10 * 60 * 1000;
-    const endTime = now + duration;
-
-    const newValidations = {
-      ...validatingMissions,
-      [mission.id]: { startTime: now, endTime }
-    };
-
-    setValidatingMissions(newValidations);
-    localStorage.setItem('mission_validations', JSON.stringify(newValidations));
-
-    // Abrir video
-    const globalYoutubeUrl = gameConfig?.daily_youtube_link?.url;
-    const url = mission.youtube_url || mission.requirement?.url || globalYoutubeUrl;
-
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-
-    toast({
-      title: "⚠️ ATENCIÓN REQUERIDA",
-      description: "Para ganar los puntos y tokens SI O SI debes SUSCRIBIRTE, dar LIKE y COMENTAR.",
-      duration: 8000, // Duración larga para asegurar lectura
-      variant: "default", // Usar default o un estilo llamativo si hay
-      className: "border-2 border-yellow-500 bg-black text-white"
-    });
-  };
 
   // 🎯 Obtener progreso de misión - OPTIMIZADO
   const getMissionProgress = (mission) => {
@@ -445,30 +359,24 @@ export function MissionsView({
                       {!missionState.completed && mission.validation_type === 'youtube_actions' && (
                         <div className="flex flex-col gap-2 w-full">
                           <Button
-                            onClick={() => startYoutubeValidation(mission)}
+                            onClick={() => {
+                              const globalYoutubeUrl = gameConfig?.daily_youtube_link?.url;
+                              const url = mission.youtube_url || mission.requirement?.url || globalYoutubeUrl;
+                              if (url) {
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                                toast({
+                                  title: "📺 Video Abierto",
+                                  description: "Completa las acciones requeridas y vuelve para reclamar tu recompensa",
+                                  duration: 5000
+                                });
+                              }
+                            }}
                             variant="outline"
                             className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10"
                           >
                             <Youtube className="w-4 h-4 mr-2" />
                             Abrir Video de YouTube
                           </Button>
-
-                          {/* ⏳ Estado de Validación */}
-                          {validatingMissions[mission.id] && (
-                            <div className="text-center p-2 bg-yellow-900/20 rounded border border-yellow-500/30">
-                              <motion.p
-                                className="text-yellow-400 text-xs font-bold"
-                                animate={{ opacity: [1, 0.4, 1] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                              >
-                                ⏳ Validando suscripción, like y comentarios...
-                              </motion.p>
-                              <p className="text-[10px] text-yellow-200/70 mt-1">
-                                Tiempo restante: {Math.max(0, Math.ceil((validatingMissions[mission.id].endTime - Date.now()) / 60000))} min
-                              </p>
-                            </div>
-                          )}
-
                           {mission.video_actions && (
                             <div className="text-xs text-muted-foreground space-y-1">
                               <p className="font-semibold">Acciones requeridas:</p>
@@ -480,6 +388,14 @@ export function MissionsView({
                               </div>
                             </div>
                           )}
+                          <Button
+                            onClick={() => completeMission(mission.id, true)}
+                            size="sm"
+                            className="w-full bg-green-600 hover:bg-green-700 mt-2"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Ya completé las acciones
+                          </Button>
                         </div>
                       )}
 
