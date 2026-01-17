@@ -433,7 +433,19 @@ export function useGameLogic({
 
   // 🎯 MISIONES
   const completeMission = useCallback((missionId, isSocial = false) => {
-    const activeMissions = gameConfig?.missions || MISSIONS;
+    let activeMissions = gameConfig?.missions || MISSIONS;
+
+    // 🆕 SOPORTE DINÁMICO: Si es la misión de YouTube, ajustar ID basado en URL actual
+    const youtubeUrl = gameConfig?.daily_youtube_link?.url;
+    if (youtubeUrl) {
+      const urlHash = btoa(youtubeUrl).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+      const dynamicId = `daily_youtube_${urlHash}`;
+
+      activeMissions = activeMissions.map(m =>
+        m.id === 'daily_youtube_sub' ? { ...m, id: dynamicId } : m
+      );
+    }
+
     const mission = activeMissions.find(m => m.id === missionId);
     if (!mission || missions[missionId]?.completed) return;
 
@@ -504,7 +516,19 @@ export function useGameLogic({
 
   // 🎁 RECLAMAR RECOMPENSA DE MISIÓN
   const claimMissionReward = useCallback((missionId) => {
-    const activeMissions = gameConfig?.missions || MISSIONS;
+    let activeMissions = gameConfig?.missions || MISSIONS;
+
+    // 🆕 SOPORTE DINÁMICO: Si es la misión de YouTube, ajustar ID basado en URL actual
+    const youtubeUrl = gameConfig?.daily_youtube_link?.url;
+    if (youtubeUrl) {
+      const urlHash = btoa(youtubeUrl).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+      const dynamicId = `daily_youtube_${urlHash}`;
+
+      activeMissions = activeMissions.map(m =>
+        m.id === 'daily_youtube_sub' ? { ...m, id: dynamicId } : m
+      );
+    }
+
     const mission = activeMissions.find(m => m.id === missionId);
     if (!mission || !missions[missionId]?.completed || missions[missionId]?.claimed) return;
 
