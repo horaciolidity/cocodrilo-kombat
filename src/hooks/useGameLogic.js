@@ -789,12 +789,17 @@ export function useGameLogic({
           }
 
           // Aplicar efectos inmediatos
+          // NOTA: cpsBoost y autoClicks se calculan dinámicamente en useEffect,
+          // por lo que NO debemos sumarlos al estado base 'coinsPerSecond' para evitar doble conteo.
+          /* 
           if (item.effect?.autoClicks) {
             updates.coinsPerSecond = gameState.coinsPerSecond + item.effect.autoClicks;
           }
           if (item.effect?.cpsBoost) {
             updates.coinsPerSecond = gameState.coinsPerSecond + item.effect.cpsBoost;
           }
+          */
+
           if (item.effect?.maxEnergy) {
             updates.maxEnergy = gameState.maxEnergy + item.effect.maxEnergy;
             updates.energy = updates.maxEnergy;
