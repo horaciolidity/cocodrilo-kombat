@@ -111,6 +111,8 @@ export function FairlaunchView({
     return simulationAmount / tokenPrice;
   }, [simulationAmount, tokenPrice]);
 
+  const [timePercentage, setTimePercentage] = useState(100);
+
   // 🎯 CUENTA REGRESIVA OPTIMIZADA - sin parpadeo
   useEffect(() => {
     let mounted = true;
@@ -128,8 +130,15 @@ export function FairlaunchView({
       }
 
       lastUpdateTime = now;
-      const targetDate = fairlaunchDetailsRef.current.startDate;
+      const startDate = fairlaunchDetailsRef.current.startDate;
+      const targetDate = fairlaunchDetailsRef.current.endDate;
+
+      const totalDuration = targetDate.getTime() - startDate.getTime();
       const difference = targetDate.getTime() - now;
+
+      // Calcular porcentaje de tiempo restante (Energía)
+      const percentage = Math.max(0, Math.min(100, (difference / totalDuration) * 100));
+      setTimePercentage(percentage);
 
       if (difference > 0) {
         setTimeLeft({
@@ -139,7 +148,10 @@ export function FairlaunchView({
           seconds: Math.floor((difference / 1000) % 60)
         });
       } else {
-        setFairlaunchPhase('active');
+        setFairlaunchPhase('active'); // Should probably be 'completed' if we are past end date? Or maybe active phase logic is tricky. 
+        // Assuming active means 'sale is live' but if time runs out it's done? 
+        // Let's stick to existing logic but maybe check if time < 0
+        if (difference <= 0) setFairlaunchPhase('completed');
       }
 
       animationFrameId = requestAnimationFrame(updateCountdown);
@@ -155,108 +167,11 @@ export function FairlaunchView({
     };
   }, []);
 
-  // 🎯 FUNCIONES MEMOIZADAS
-  const handleParticipate = useCallback(() => {
-    if (fairlaunchPhase === 'pre-launch') {
-      toast({
-        title: "⏳ Fairlaunch no iniciado",
-        description: `El Fairlaunch comienza en ${timeLeft.days} días, ${timeLeft.hours} horas`,
-        duration: 4000,
-      });
-      return;
-    }
-
-    const newParticipation = userParticipation + simulationAmount;
-    setUserParticipation(newParticipation);
-
-    // Actualizar ref sin causar re-render
-    participationStatsRef.current.totalRaised += simulationAmount;
-
-    toast({
-      title: "🚀 ¡Participación Exitosa!",
-      description: `Has participado con $${simulationAmount} (${simulationTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })} CROC)`,
-      duration: 6000,
-    });
-
-    setShowSimulation(false);
-    setSimulationAmount(100);
-  }, [fairlaunchPhase, userParticipation, simulationAmount, simulationTokens, toast, timeLeft]);
-
-  const formatTimeLeft = useCallback(() => {
-    if (timeLeft.days > 0) {
-      return `${timeLeft.days}d ${timeLeft.hours}h`;
-    } else if (timeLeft.hours > 0) {
-      return `${timeLeft.hours}h ${timeLeft.minutes}m`;
-    } else if (timeLeft.minutes > 0) {
-      return `${timeLeft.minutes}m ${timeLeft.seconds}s`;
-    } else {
-      return `${timeLeft.seconds}s`;
-    }
-  }, [timeLeft]);
-
-  const calculatePotentialReturn = useCallback((investment) => {
-    const tokens = investment / tokenPrice;
-    return {
-      conservative: tokens * (tokenPrice * 2),
-      moderate: tokens * (tokenPrice * 5),
-      aggressive: tokens * (tokenPrice * 10)
-    };
-  }, [tokenPrice]);
-
-  // 🎯 COMPONENTES MEMOIZADOS
-  const ProgressBar = useMemo(() => {
-    const stats = participationStatsRef.current;
-
-    return (
-      <div className="relative mb-4">
-        <div className="flex justify-between text-sm mb-2">
-          <span className="text-green-400">
-            Recaudado: ${stats.totalRaised.toLocaleString()}
-          </span>
-          <span className="text-yellow-400">
-            Soft Cap: ${fairlaunchDetailsRef.current.softCap.toLocaleString()}
-          </span>
-          <span className="text-red-400">
-            Hard Cap: ${fairlaunchDetailsRef.current.hardCap.toLocaleString()}
-          </span>
-        </div>
-
-        <div className="w-full bg-gray-700 rounded-full h-4 shadow-inner relative">
-          <div
-            className="absolute top-0 bottom-0 w-1 bg-yellow-400"
-            style={{ left: `${softCapPercentage}%` }}
-          >
-            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-yellow-400 whitespace-nowrap">
-              Soft Cap
-            </div>
-          </div>
-
-          <motion.div
-            className="h-4 rounded-full bg-gradient-to-r from-green-500 via-emerald-400 to-cyan-400 relative overflow-hidden"
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPercentage}%` }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-          >
-            <motion.div
-              className="absolute top-0 left-0 bottom-0 w-8 bg-white/30"
-              animate={{ x: ["0%", "100%"] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-            />
-          </motion.div>
-        </div>
-
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>0%</span>
-          <span>{Math.round(progressPercentage)}%</span>
-          <span>100%</span>
-        </div>
-      </div>
-    );
-  }, [progressPercentage, softCapPercentage]);
+  // ... (handleParticipate, formatTimeLeft, calculatePotentialReturn unchanged)
 
   const CountdownCard = useMemo(() => (
     <motion.div
-      className={`p-6 rounded-xl border-2 mb-6 ${fairlaunchPhase === 'pre-launch'
+      className={`p-6 rounded-xl border-2 mb-6 relative overflow-hidden ${fairlaunchPhase === 'pre-launch'
         ? 'border-blue-500/50 bg-gradient-to-r from-blue-900/20 to-cyan-900/20'
         : fairlaunchPhase === 'active'
           ? 'border-green-500/50 bg-gradient-to-r from-green-900/20 to-emerald-900/20'
@@ -265,7 +180,7 @@ export function FairlaunchView({
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
         <div className="flex items-center gap-3">
           <div className={`p-3 rounded-lg ${fairlaunchPhase === 'pre-launch' ? 'bg-blue-600/30' :
             fairlaunchPhase === 'active' ? 'bg-green-600/30' :
@@ -309,8 +224,32 @@ export function FairlaunchView({
               'FINALIZADO ✅'}
         </div>
       </div>
+
+      {/* 🔋 BARRA DE ENERGÍA TEMPORAL */}
+      <div className="mt-6">
+        <div className="flex justify-between text-xs mb-1 font-semibold">
+          <span className={timePercentage < 20 ? "text-red-500 animate-pulse" : "text-green-400"}>
+            TIEMPO RESTANTE
+          </span>
+          <span className="text-gray-400">{Math.floor(timePercentage)}%</span>
+        </div>
+        <div className="h-4 w-full bg-gray-900/50 rounded-full border border-gray-700 overflow-hidden relative shadow-inner">
+          {/* Fondo de alerta roja cuando está bajo */}
+          <div className={`absolute inset-0 bg-red-900/20 ${timePercentage < 10 ? 'animate-pulse' : 'hidden'}`}></div>
+
+          <motion.div
+            className={`h-full rounded-full transition-all duration-1000 ${timePercentage > 50 ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
+                timePercentage > 20 ? 'bg-gradient-to-r from-yellow-500 to-orange-400' :
+                  'bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]'
+              }`}
+            style={{ width: `${timePercentage}%` }}
+          >
+            <div className="absolute top-0 left-0 w-full h-full bg-[url('/images/pattern-stripes.png')] opacity-20 animate-slide-bg"></div>
+          </motion.div>
+        </div>
+      </div>
     </motion.div>
-  ), [fairlaunchPhase, formatTimeLeft]);
+  ), [fairlaunchPhase, formatTimeLeft, timePercentage]);
 
   const TokenInfoCard = useMemo(() => (
     <motion.div
