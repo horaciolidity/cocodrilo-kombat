@@ -350,6 +350,51 @@ export const MISSIONS = [
     reward: { coins: 15000, xp: 1000, cardId: "card_pack_leader" },
     icon: Users,
     category: "Social",
+  },
+
+  // ⚔️ MISIONES HARDCORE & CROC REWARDS
+  {
+    id: "mission_legendary_collector",
+    name: "Coleccionista de Mitos",
+    description: "Consigue la carta 'Instinto Apex' y 'Toque de Midas Pantanoso'.",
+    requirement: { type: "own_specific_cards", cardIds: ["card_apex_instinct", "card_midas_touch"] },
+    reward: { coins: 100000, xp: 5000, croc: 500 },
+    icon: Layers,
+    category: "Colección",
+  },
+  {
+    id: "mission_code_master",
+    name: "Maestro de Claves",
+    description: "Descifra y canjea 5 códigos secretos de vídeo diferentes.",
+    requirement: { type: "codes_redeemed_count", value: 5 },
+    reward: { coins: 50000, xp: 2500, croc: 300 },
+    icon: Lock, // Using Lock as Key might not be imported or ambiguous
+    category: "Misterio",
+  },
+  {
+    id: "mission_social_ecosystem",
+    name: "Explorador del Ecosistema",
+    description: "Visita el canal de YouTube, el grupo de Telegram y nuestra cuenta de X.",
+    requirement: {
+      type: "visit_all_socials",
+      links: [
+        "https://www.youtube.com/channel/UCj7cOHm-7nV523MXmCuZlrQ",
+        "https://t.me/cocodrilokombat",
+        "https://x.com/Cocodrilokombat"
+      ]
+    },
+    reward: { coins: 25000, xp: 1000, croc: 200 },
+    icon: Globe,
+    category: "Social",
+  },
+  {
+    id: "mission_referral_titan",
+    name: "Titán del Pantano",
+    description: "Invita a 20 amigos al juego.",
+    requirement: { type: "referrals_count", value: 20 },
+    reward: { coins: 200000, xp: 10000, croc: 1000 },
+    icon: Users,
+    category: "Social",
   }
 ];
 
