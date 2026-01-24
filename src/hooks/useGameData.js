@@ -166,12 +166,16 @@ export function useGameData(user, gameConfig) {
 
     // 2. OBTENER CÓDIGO DE REFERIDO (SI EXISTE)
     let referralCodeToProcess = null;
-    // [FIX] Usar la misma clave que en App.jsx
     const storedRefCode = localStorage.getItem('pending_referral_code');
 
-    if (storedRefCode && /^[A-Z0-9]{8}$/.test(storedRefCode)) {
+    // [FIX] Regex relajado para coincidir con App.jsx (6-12 caracteres)
+    if (storedRefCode && /^[A-Z0-9]{6,12}$/.test(storedRefCode)) {
       referralCodeToProcess = storedRefCode;
-      console.log('🎯 Código de referencia para procesar:', referralCodeToProcess);
+      console.log('🎯 Código de referencia recuperado de Storage:', referralCodeToProcess);
+      // No borramos aún por seguridad (podríamos borrarlo después de éxito)
+      // localStorage.removeItem('pending_referral_code'); 
+    } else if (storedRefCode) {
+      console.warn('⚠️ Código de referencia inválido en Storage:', storedRefCode);
       localStorage.removeItem('pending_referral_code');
     }
 
@@ -280,6 +284,9 @@ export function useGameData(user, gameConfig) {
       }
 
       console.log('✅ Referido procesado con éxito:', data);
+
+      // [FIX] Limpiar código solo tras éxito confirmado
+      localStorage.removeItem('pending_referral_code');
 
       // Si somos el REFERRER (quien invitó), actualizamos nuestro estado local
       // Si somos el NUEVO usuario, el estado se cargará en el loadGameData siguiente

@@ -121,27 +121,34 @@ function App() {
   const syncInProgressRef = useRef(false);
   const lastToastTimeRef = useRef(0);
 
-  // 🔗 Capturar referidos desde URL
+  // 🔗 Capturar referidos desde URL (Soporte extendido para Telegram)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
 
-    if (refCode && /^[A-Z0-9]{8}$/.test(refCode.toUpperCase())) {
+    // Buscar el código en varios parámetros posibles
+    const refCode =
+      urlParams.get('ref') ||
+      urlParams.get('startapp') ||
+      urlParams.get('tgWebAppStartParam') ||
+      urlParams.get('start_param');
+
+    // Regex relajado (6-12 caracteres alfanuméricos)
+    if (refCode && /^[A-Z0-9]{6,12}$/.test(refCode.toUpperCase())) {
       console.log('🔗 Código de referencia encontrado en URL:', refCode.toUpperCase());
 
-      // Guardar en MAYÚSCULAS
+      // Guardar en localStorage para procesar después del login
       localStorage.setItem('pending_referral_code', refCode.toUpperCase());
 
-      // Limpiar la URL sin recargar la página
+      // Limpiar la URL para evitar procesarlo múltiples veces
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
 
-      // Mostrar toast informativo
+      // Mostrar notificación visual
       const now = Date.now();
       if (now - lastToastTimeRef.current > 5000) {
         toast({
           title: "🎯 ¡Invitación Detectada!",
-          description: `Regístrate con el código ${refCode.toUpperCase()} para recibir bonificaciones.`,
+          description: `Código ${refCode.toUpperCase()} registrado. Crea tu cuenta para recibir el bono.`,
           duration: 5000,
         });
         lastToastTimeRef.current = now;
