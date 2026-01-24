@@ -526,6 +526,54 @@ export const SHOP_ITEMS = [
     image: '/images/consumables/xp_elixir.jpg',
     description: '+500 XP inmediato',
     effect: { experience: 500 }
+  },
+
+  // 🆕 NUEVOS ITEMS AÑADIDOS
+  {
+    id: 'skin_swamp_guardian',
+    name: 'Cocodrilo Guardián',
+    type: 'skin',
+    price: 300000,
+    priceCroc: 3000,
+    currency: 'both',
+    image: '/images/skins/camo_croc.jpg', // Reusing camo image
+    description: 'Protector ancestral. +200 energía máx',
+    rarity: 'legendary',
+    requiredLevel: 30,
+    effect: { maxEnergy: 200, energyRegen: 1.5 }
+  },
+  {
+    id: 'click_frenzy_boost',
+    name: 'Frenesí Temporal',
+    type: 'boost',
+    price: 5000,
+    priceCroc: 50,
+    currency: 'both',
+    image: '/images/boosts/triple_click.jpg',
+    description: 'Poder de clic x5 por 1 minuto',
+    effect: { clickMultiplier: 5, duration: 60 }
+  },
+  {
+    id: 'small_energy_drink',
+    name: 'Bebida Energética',
+    type: 'consumable',
+    price: 1000,
+    priceCroc: 10,
+    currency: 'both',
+    image: '/images/consumables/energy_potion.jpg',
+    description: 'Recupera 50 de energía',
+    effect: { energy: 50 }
+  },
+  {
+    id: 'beginner_kit',
+    name: 'Kit de Inicio',
+    type: 'consumable',
+    price: 2500,
+    priceCroc: 25,
+    currency: 'coins',
+    image: '/images/consumables/coin_crate.jpg',
+    description: '2000 monedas + 25 energía',
+    effect: { coins: 2000, energy: 25 }
   }
 ];
 
