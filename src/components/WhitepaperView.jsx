@@ -293,8 +293,8 @@ export function WhitepaperView() {
                       key={section.id}
                       onClick={() => setExpandedSection(section.id)}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-3 ${expandedSection === section.id
-                          ? 'bg-primary/20 text-primary border-l-4 border-primary'
-                          : 'text-muted-foreground hover:bg-gray-800/50'
+                        ? 'bg-primary/20 text-primary border-l-4 border-primary'
+                        : 'text-muted-foreground hover:bg-gray-800/50'
                         }`}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0" />
@@ -550,27 +550,28 @@ export function WhitepaperView() {
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center">
                   <Button
-                    onClick={() => window.open('https://discord.gg/cocodrilokombat', '_blank')}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    Unirse a Discord
-                  </Button>
-                  <Button
-                    onClick={() => window.open('https://twitter.com/cocodrilokombat', '_blank')}
+                    onClick={() => window.open('https://x.com/Cocodrilokombat', '_blank')}
                     variant="outline"
                     className="border-blue-700 text-blue-400 hover:bg-blue-900/30"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Seguir en Twitter
+                    Seguir en X
                   </Button>
                   <Button
-                    onClick={() => window.open('https://t.me/cocodrilokombat', '_blank')}
+                    onClick={() => window.open('https://t.me/cocodrilo_kombat', '_blank')}
                     variant="outline"
-                    className="border-green-700 text-green-400 hover:bg-green-900/30"
+                    className="border-blue-500 text-blue-400 hover:bg-blue-900/30"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Telegram
+                    Canal Telegram
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://www.youtube.com/channel/UCj7cOHm-7nV523MXmCuZlrQ', '_blank')}
+                    variant="outline"
+                    className="border-red-600 text-red-400 hover:bg-red-900/30"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    YouTube
                   </Button>
                 </div>
               </div>
