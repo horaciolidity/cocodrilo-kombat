@@ -608,12 +608,21 @@ export const FARMING_MILESTONES = [
   // 🆕 NUEVOS HITOS SOCIALES
   {
     id: "fm_social_tg_channel",
-    name: "Comunidad de Telegram",
+    name: "Canal de Telegram",
     coinsRequired: 0,
     tokenReward: 80,
     icon: Send,
-    socialTask: { type: 'telegram_join', url: 'https://t.me/yourchannel' },
-    description: "Únete al canal oficial y grupo de comunidad."
+    socialTask: { type: 'telegram_join', url: 'https://t.me/cocodrilo_kombat' },
+    description: "Únete al canal oficial de anuncios."
+  },
+  {
+    id: "fm_social_tg_group",
+    name: "Grupo de Comunidad",
+    coinsRequired: 0,
+    tokenReward: 80,
+    icon: Users, // Using Users icon for group
+    socialTask: { type: 'telegram_join', url: 'https://t.me/cocodrilokombat' },
+    description: "Únete a nuestro grupo de comunidad vibrante."
   },
   {
     id: "fm_social_youtube",
@@ -621,7 +630,7 @@ export const FARMING_MILESTONES = [
     coinsRequired: 0,
     tokenReward: 150,
     icon: Youtube,
-    socialTask: { type: 'youtube_sub', url: 'https://youtube.com/yourchannel' },
+    socialTask: { type: 'youtube_sub', url: 'https://www.youtube.com/channel/UCj7cOHm-7nV523MXmCuZlrQ' },
     description: "Suscríbete al canal oficial de YouTube."
   },
   {
@@ -630,7 +639,7 @@ export const FARMING_MILESTONES = [
     coinsRequired: 0,
     tokenReward: 120,
     icon: Twitter,
-    socialTask: { type: 'x_follow', url: 'https://x.com/yourprofile' },
+    socialTask: { type: 'x_follow', url: 'https://x.com/Cocodrilokombat' },
     description: "Síguenos en X y comparte nuestro contenido."
   },
   {
@@ -639,7 +648,7 @@ export const FARMING_MILESTONES = [
     coinsRequired: 0,
     tokenReward: 200,
     icon: Share2,
-    socialTask: { type: 'share_all', url: '#' },
+    socialTask: { type: 'share_all', url: 'https://x.com/intent/tweet?text=¡Únete%20a%20Cocodrilo%20Kombat!%20🚀%20@Cocodrilokombat' },
     description: "Comparte y menciona en todas tus redes sociales."
   }
 ];

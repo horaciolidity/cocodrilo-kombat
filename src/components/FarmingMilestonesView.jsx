@@ -209,10 +209,10 @@ export function FarmingMilestonesView({
       <motion.div
         key={milestone.id}
         className={`milestone-card rounded-xl p-4 md:p-6 shadow-lg transition-all duration-300 relative overflow-hidden ${state.claimed
-            ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50'
-            : (canClaim && !isSocial) || (isSocial && actionClicked)
-              ? 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50 animate-pulse-border'
-              : 'bg-card/80 border border-border/50 hover:border-primary/50'
+          ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50'
+          : (canClaim && !isSocial) || (isSocial && actionClicked)
+            ? 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50 animate-pulse-border'
+            : 'bg-card/80 border border-border/50 hover:border-primary/50'
           } ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -242,17 +242,17 @@ export function FarmingMilestonesView({
           {/* Información del hito */}
           <div className="flex items-start mb-2 md:mb-0 flex-1">
             <div className={`p-3 rounded-lg mr-3 ${state.claimed
-                ? 'bg-green-700/50'
-                : canClaim
-                  ? 'bg-yellow-700/50'
-                  : 'bg-gray-700/50'
+              ? 'bg-green-700/50'
+              : canClaim
+                ? 'bg-yellow-700/50'
+                : 'bg-gray-700/50'
               }`}>
               {milestone.icon ? <milestone.icon className={`w-6 h-6 ${state.claimed ? 'text-green-300' :
+                canClaim ? 'text-yellow-300 animate-pulse' :
+                  'text-primary'
+                }`} /> : <Target className={`w-6 h-6 ${state.claimed ? 'text-green-300' :
                   canClaim ? 'text-yellow-300 animate-pulse' :
                     'text-primary'
-                }`} /> : <Target className={`w-6 h-6 ${state.claimed ? 'text-green-300' :
-                    canClaim ? 'text-yellow-300 animate-pulse' :
-                      'text-primary'
                   }`} />}
             </div>
 
@@ -366,8 +366,8 @@ export function FarmingMilestonesView({
             <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
               <motion.div
                 className={`h-3 rounded-full ${canClaim
-                    ? 'bg-gradient-to-r from-yellow-400 to-amber-400'
-                    : 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                  ? 'bg-gradient-to-r from-yellow-400 to-amber-400'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-400'
                   }`}
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
@@ -635,10 +635,22 @@ export function FarmingMilestonesView({
           </Button>
         </div>
 
-        {/* 📋 Lista de hitos */}
+        {/* 📋 Lista de hitos (Refactorizado con MilestoneCard) */}
         <div className="space-y-6">
           {milestones.length > 0 ? (
-            milestones.map((milestone, index) => renderMilestoneCard(milestone, index))
+            milestones.map((milestone, index) => (
+              <MilestoneCard
+                key={milestone.id}
+                milestone={milestone}
+                index={index}
+                gameState={gameState}
+                farmingMilestonesState={farmingMilestonesState}
+                onClaim={handleClaimMilestone}
+                selectedMilestone={selectedMilestone}
+                setSelectedMilestone={setSelectedMilestone}
+                showCelebration={showCelebration}
+              />
+            ))
           ) : (
             <motion.div
               className="text-center py-12"
@@ -701,6 +713,369 @@ export function FarmingMilestonesView({
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// 🧱 Sub-componente MilestoneCard para manejar estado individual
+function MilestoneCard({
+  milestone,
+  index,
+  gameState,
+  farmingMilestonesState,
+  onClaim,
+  selectedMilestone,
+  setSelectedMilestone,
+  showCelebration
+}) {
+  const state = farmingMilestonesState[milestone.id] || {};
+  const isSocial = !!milestone.socialTask;
+
+  // 🕒 Lógica de verificación social (Wait Time)
+  const getRequiredWaitTime = () => {
+    // 10 minutos base + 1 min extra por cada 20 CROC de recompensa
+    // Ejemplo: 80 CROC = 14 mins, 200 CROC = 20 mins
+    const baseWait = 10 * 60 * 1000;
+    const bonusWait = Math.floor(milestone.tokenReward / 20) * 60 * 1000;
+    return baseWait + bonusWait;
+  };
+
+  const VERIFICATION_KEY = `verify_start_${milestone.id}`;
+  const [verificationStart, setVerificationStart] = useState(() => {
+    const saved = localStorage.getItem(VERIFICATION_KEY);
+    return saved ? parseInt(saved) : null;
+  });
+
+  const [canClaimSocial, setCanClaimSocial] = useState(false);
+
+  // Efecto para chequear tiempo de verificación periódicamente
+  useEffect(() => {
+    if (!verificationStart || state.claimed) return;
+
+    const checkTime = () => {
+      const elapsed = Date.now() - verificationStart;
+      const required = getRequiredWaitTime();
+      setCanClaimSocial(elapsed >= required);
+    };
+
+    checkTime(); // Check immediate
+    const interval = setInterval(checkTime, 5000); // Check every 5s
+    return () => clearInterval(interval);
+  }, [verificationStart, state.claimed, milestone.tokenReward]);
+
+  const handleSocialAction = (e) => {
+    e.stopPropagation();
+    if (milestone.socialTask.url && milestone.socialTask.url !== '#') {
+      window.open(milestone.socialTask.url, '_blank');
+    }
+
+    // Iniciar verificación si no ha iniciado
+    if (!verificationStart) {
+      const now = Date.now();
+      setVerificationStart(now);
+      localStorage.setItem(VERIFICATION_KEY, now.toString());
+    }
+  };
+
+  // Limpiar storage al reclamar (manejado por el padre, pero podriamos limpiar aqui si detectamos claimed change)
+  useEffect(() => {
+    if (state.claimed) {
+      localStorage.removeItem(VERIFICATION_KEY);
+      setVerificationStart(null);
+    }
+  }, [state.claimed, VERIFICATION_KEY]);
+
+  // Logic for display
+  let canClaim = false;
+  let progressPercentage = 0;
+
+  if (isSocial) {
+    canClaim = !state.claimed && canClaimSocial;
+    progressPercentage = state.claimed ? 100 : (verificationStart ? 50 : 0);
+  } else {
+    canClaim = gameState.totalCoins >= milestone.coinsRequired && !state.claimed;
+    progressPercentage = Math.min(100, (gameState.totalCoins / milestone.coinsRequired) * 100);
+  }
+
+  const isSelected = selectedMilestone === milestone.id;
+
+  // Determinar rango del hito
+  let milestoneTier = 'common';
+  let tierColor = 'text-gray-400';
+  let tierBgColor = 'bg-gray-800/50';
+
+  if (milestone.tokenReward >= 200) {
+    milestoneTier = 'legendary';
+    tierColor = 'text-yellow-400';
+    tierBgColor = 'bg-yellow-900/30';
+  } else if (milestone.tokenReward >= 150) {
+    milestoneTier = 'epic';
+    tierColor = 'text-purple-400';
+    tierBgColor = 'bg-purple-900/30';
+  } else if (milestone.tokenReward >= 100) {
+    milestoneTier = 'rare';
+    tierColor = 'text-blue-400';
+    tierBgColor = 'bg-blue-900/30';
+  } else if (milestone.tokenReward >= 50) {
+    milestoneTier = 'uncommon';
+    tierColor = 'text-green-400';
+    tierBgColor = 'bg-green-900/30';
+  }
+
+  return (
+    <motion.div
+      className={`milestone-card rounded-xl p-4 md:p-6 shadow-lg transition-all duration-300 relative overflow-hidden ${state.claimed
+          ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-2 border-green-500/50'
+          : canClaim
+            ? 'bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-2 border-yellow-500/50 animate-pulse-border'
+            : 'bg-card/80 border border-border/50 hover:border-primary/50'
+        } ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.01 }}
+      onClick={() => setSelectedMilestone(isSelected ? null : milestone.id)}
+    >
+      {/* Efecto de celebración */}
+      {showCelebration === milestone.id && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 z-10"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 3 }}
+        />
+      )}
+
+      {/* Indicador de rango */}
+      <div className={`absolute -top-3 -right-3 ${tierBgColor} ${tierColor} px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1`}>
+        {milestoneTier === 'legendary' && <Crown className="w-3 h-3" />}
+        {milestoneTier === 'epic' && <Star className="w-3 h-3" />}
+        {milestoneTier === 'rare' && <Award className="w-3 h-3" />}
+        {milestoneTier.toUpperCase()}
+      </div>
+
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3">
+        {/* Información del hito */}
+        <div className="flex items-start mb-2 md:mb-0 flex-1">
+          <div className={`p-3 rounded-lg mr-3 ${state.claimed
+              ? 'bg-green-700/50'
+              : canClaim
+                ? 'bg-yellow-700/50'
+                : 'bg-gray-700/50'
+            }`}>
+            {milestone.icon ? <milestone.icon className={`w-6 h-6 ${state.claimed ? 'text-green-300' :
+                canClaim ? 'text-yellow-300 animate-pulse' :
+                  'text-primary'
+              }`} /> : <Target className={`w-6 h-6 ${state.claimed ? 'text-green-300' :
+                  canClaim ? 'text-yellow-300 animate-pulse' :
+                    'text-primary'
+                }`} />}
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-lg md:text-xl font-semibold">{milestone.name}</h3>
+              {state.claimed && (
+                <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded-full">
+                  Reclamado
+                </span>
+              )}
+              {/* STATUS BADGES */}
+              {!state.claimed && isSocial && !verificationStart && (
+                <span className="text-xs px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded-full">
+                  Misión Social
+                </span>
+              )}
+              {!state.claimed && isSocial && verificationStart && !canClaimSocial && (
+                <span className="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded-full flex items-center gap-1 animate-pulse">
+                  <Clock className="w-3 h-3" /> Verificando...
+                </span>
+              )}
+              {!state.claimed && canClaim && (
+                <motion.span
+                  className="text-xs px-2 py-0.5 bg-yellow-900/50 text-yellow-300 rounded-full flex items-center gap-1"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  ¡Listo para Reclamar!
+                </motion.span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              {!isSocial && (
+                <span className="flex items-center gap-1">
+                  <Coins className="w-4 h-4 text-yellow-500" />
+                  {milestone.coinsRequired.toLocaleString()} monedas
+                </span>
+              )}
+
+              <span className="flex items-center gap-1">
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+                {milestone.tokenReward.toLocaleString()} CROC
+              </span>
+
+              {isSocial && (
+                <span className="text-xs text-blue-300 italic">
+                  {milestone.description}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Botones de acción */}
+        <div className="flex flex-col gap-2 min-w-[180px]">
+          {state.claimed ? (
+            <div className="flex items-center justify-center text-green-400 text-sm p-2 bg-green-900/30 rounded-lg">
+              <CheckCircle className="w-4 h-4 mr-1" />
+              {milestone.tokenReward.toLocaleString()} CROC obtenidos
+            </div>
+          ) : isSocial && !verificationStart ? (
+            // Botón de acción social
+            <Button
+              onClick={handleSocialAction}
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
+            >
+              Ir a la Misión
+            </Button>
+          ) : isSocial && verificationStart && !canClaimSocial ? (
+            // Botón de verificación (disabled)
+            <div className="text-center">
+              <Button
+                disabled
+                size="sm"
+                className="w-full bg-purple-900/50 text-purple-300 border border-purple-700/50"
+              >
+                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                Verificando...
+              </Button>
+              <div className="text-[10px] text-gray-400 mt-1 max-w-[180px] mx-auto leading-tight">
+                Revisando suscripción, likes y comentarios. Esto puede tomar unos minutos.
+              </div>
+            </div>
+          ) : canClaim ? (
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              whileHover={{ scale: 1.05 }}
+            >
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClaim(milestone.id);
+                }}
+                size="sm"
+                className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-bold shadow-lg shadow-yellow-900/30"
+              >
+                <Gift className="w-4 h-4 mr-2" />
+                Reclamar {milestone.tokenReward.toLocaleString()} CROC
+              </Button>
+            </motion.div>
+          ) : (
+            <div className="text-center p-2 bg-gray-800/30 rounded-lg">
+              <div className="text-sm font-semibold text-muted-foreground">
+                {milestone.tokenReward.toLocaleString()} CROC
+              </div>
+              <div className="text-xs text-gray-500">
+                Faltan {(milestone.coinsRequired - gameState.totalCoins).toLocaleString()} monedas
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de progreso ONLY for Coin Milestones */}
+      {!state.claimed && !isSocial && (
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span className="flex items-center gap-1">
+              <BarChart3 className="w-3 h-3" />
+              Progreso: {Math.floor(gameState.totalCoins).toLocaleString()} / {milestone.coinsRequired.toLocaleString()}
+            </span>
+            <span>{Math.floor(progressPercentage)}%</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-3 shadow-inner">
+            <motion.div
+              className={`h-3 rounded-full ${canClaim
+                  ? 'bg-gradient-to-r from-yellow-400 to-amber-400'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                }`}
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercentage}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            />
+          </div>
+
+          {/* Indicador de monedas faltantes */}
+          {progressPercentage < 100 && (
+            <div className="mt-2 text-xs text-gray-400 flex items-center justify-between">
+              <span>
+                Faltan {(milestone.coinsRequired - gameState.totalCoins).toLocaleString()} monedas
+              </span>
+              {gameState.coinsPerSecond > 0 && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  ~{Math.ceil((milestone.coinsRequired - gameState.totalCoins) / gameState.coinsPerSecond)} segundos
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Información expandida */}
+      <AnimatePresence>
+        {isSelected && (
+          <motion.div
+            className="mt-4 pt-4 border-t border-gray-700/50"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-400" />
+                  Detalles del Hito
+                </h4>
+                <p className="text-xs text-gray-400">
+                  Este hito forma parte del programa de farmeo previo al lanzamiento oficial de CROC.
+                  Los tokens obtenidos se acreditarán automáticamente a tu wallet.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Valor estimado:</span>
+                  <span className="font-bold text-green-400">
+                    ${(milestone.tokenReward * 0.05).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Dificultad:</span>
+                  <span className={`font-bold ${tierColor}`}>
+                    {milestoneTier === 'legendary' ? '🚀 Épico' :
+                      milestoneTier === 'epic' ? '🔥 Difícil' :
+                        milestoneTier === 'rare' ? '⚡ Moderado' :
+                          milestoneTier === 'uncommon' ? '✨ Fácil' : '📈 Básico'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Tasa de finalización:</span>
+                  <span className="font-bold text-blue-400">
+                    {Math.floor((claimedMilestones / FARMING_MILESTONES.length) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
