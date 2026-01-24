@@ -604,6 +604,44 @@ export const FARMING_MILESTONES = [
   { id: "fm_3", name: "Maestro del Pantano CROC", coinsRequired: 1000000, tokenReward: 120, icon: Target },
   { id: "fm_4", name: "Rey Cocodrilo CROC", coinsRequired: 5000000, tokenReward: 600, icon: Target },
   { id: "fm_5", name: "Leyenda del Nilo CROC", coinsRequired: 10000000, tokenReward: 1500, icon: Target },
+
+  // 🆕 NUEVOS HITOS SOCIALES
+  {
+    id: "fm_social_tg_channel",
+    name: "Comunidad de Telegram",
+    coinsRequired: 0,
+    tokenReward: 80,
+    icon: Send,
+    socialTask: { type: 'telegram_join', url: 'https://t.me/yourchannel' },
+    description: "Únete al canal oficial y grupo de comunidad."
+  },
+  {
+    id: "fm_social_youtube",
+    name: "Suscripción YouTube",
+    coinsRequired: 0,
+    tokenReward: 150,
+    icon: Youtube,
+    socialTask: { type: 'youtube_sub', url: 'https://youtube.com/yourchannel' },
+    description: "Suscríbete al canal oficial de YouTube."
+  },
+  {
+    id: "fm_social_x_follow",
+    name: "Seguidor de X",
+    coinsRequired: 0,
+    tokenReward: 120,
+    icon: Twitter,
+    socialTask: { type: 'x_follow', url: 'https://x.com/yourprofile' },
+    description: "Síguenos en X y comparte nuestro contenido."
+  },
+  {
+    id: "fm_social_share_master",
+    name: "Embajador Social",
+    coinsRequired: 0,
+    tokenReward: 200,
+    icon: Share2,
+    socialTask: { type: 'share_all', url: '#' },
+    description: "Comparte y menciona en todas tus redes sociales."
+  }
 ];
 
 export const INITIAL_FARMING_MILESTONES_STATE = FARMING_MILESTONES.reduce((acc, milestone) => {
