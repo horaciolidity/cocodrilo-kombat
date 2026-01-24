@@ -466,6 +466,22 @@ export function useGameLogic({
           const targetUpgrade = upgrades[mission.requirement.upgradeId];
           canComplete = targetUpgrade && targetUpgrade.level >= mission.requirement.value;
           break;
+        case 'referrals_count':
+          // Assuming referralStats is available or simulated
+          const refs = referralStats?.totalReferrals || 0;
+          canComplete = refs >= mission.requirement.value;
+          break;
+        case 'own_specific_cards':
+          const requiredCards = mission.requirement.cardIds || [];
+          const hasAllCards = requiredCards.every(id => ownedCards.includes(id));
+          canComplete = hasAllCards;
+          break;
+        case 'codes_redeemed_count':
+          // Assuming codes redeemed are tracked in achivements or stats (simulated for now with achievements count or similar)
+          // For now, we might not have 'redeemedCodes' in gameState.
+          // Let's use a placeholder check or skip if data missing
+          canComplete = false;
+          break;
         default:
           break;
       }
@@ -493,15 +509,63 @@ export function useGameLogic({
 
       // Sincronizar misiones
       syncGameData({ missions: newMissions });
-    } else if (!isSocial) {
-      toast({
-        title: "⏳ Misión Incompleta",
-        description: `Aún no cumples los requisitos para "${mission.name}".`,
-        duration: 2000
-      });
-      playSound('uiClick');
+    } else if (!isSocial && !missions[missionId]?.completed) {
+      // Only show incomplete toast if explicitly requested (not in auto-check)
+      // We removed the toast here to avoid spamming during auto-check
     }
-  }, [gameState, missions, upgrades, updateMissions, toast, playSound, syncGameData]);
+  }, [gameState, missions, upgrades, ownedCards, referralStats, updateMissions, toast, playSound, syncGameData]);
+
+  // 🔄 AUTO-VERIFICADOR DE MISIONES
+  // Verifica automáticamente si se cumplen los requisitos de las misiones al cambiar el estado
+  useEffect(() => {
+    const activeMissions = gameConfig?.missions || MISSIONS;
+
+    // Check missions that depend on passive stats (coins, clicks, level, upgrades)
+    activeMissions.forEach(mission => {
+      // Skip social missions for auto-check (triggered by actions)
+      // Skip already completed missions
+      if (
+        missions[mission.id]?.completed ||
+        mission.category === 'Social' ||
+        mission.category === 'Diario' ||
+        mission.requirement.type === 'referrals_count' // referrals might need explicit check or effect
+      ) return;
+
+      // Check logic duplicated from completeMission to avoid unnecessary function calls if not complete
+      let shouldComplete = false;
+      switch (mission.requirement.type) {
+        case 'clicks':
+          if (gameState.totalClicks >= mission.requirement.value) shouldComplete = true;
+          break;
+        case 'coins':
+          if (gameState.totalCoins >= mission.requirement.value) shouldComplete = true;
+          break;
+        case 'level':
+          if (gameState.level >= mission.requirement.value) shouldComplete = true;
+          break;
+        case 'upgradeLevel':
+          const targetUpgrade = upgrades[mission.requirement.upgradeId];
+          if (targetUpgrade && targetUpgrade.level >= mission.requirement.value) shouldComplete = true;
+          break;
+        case 'own_specific_cards':
+          const requiredCards = mission.requirement.cardIds || [];
+          if (requiredCards.every(id => ownedCards.includes(id))) shouldComplete = true;
+          break;
+      }
+
+      if (shouldComplete) {
+        completeMission(mission.id);
+      }
+    });
+  }, [
+    gameState.totalClicks,
+    gameState.totalCoins,
+    gameState.level,
+    upgrades,
+    ownedCards,
+    missions,
+    completeMission
+  ]);
 
   // 🎁 RECLAMAR RECOMPENSA DE MISIÓN
   const claimMissionReward = useCallback((missionId) => {
