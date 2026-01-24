@@ -1,13 +1,13 @@
 // src/components/WhitepaperView.jsx
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  FileText, 
-  Map, 
-  Users, 
-  Shield, 
-  BarChart, 
-  Lightbulb, 
+import {
+  FileText,
+  Map,
+  Users,
+  Shield,
+  BarChart,
+  Lightbulb,
   BookOpen,
   Download,
   ExternalLink,
@@ -39,175 +39,146 @@ export function WhitepaperView() {
   const [downloading, setDownloading] = useState(false);
 
   const sections = [
-    { 
-      id: 'executive-summary', 
-      title: '🏁 Resumen Ejecutivo', 
+    {
+      id: 'executive-summary',
+      title: '🏁 Resumen Ejecutivo',
       icon: Rocket,
       content: [
         {
-          title: "Visión del Proyecto",
-          text: "Cocodrilo Kombat es un ecosistema de juego descentralizado diseñado para fusionar la diversión adictiva de los clicker games con las oportunidades económicas de la Web3. Nuestro objetivo es crear la primera comunidad gaming Play-to-Earn completamente descentralizada en la red Cronos."
+          title: "Visión del Ecosistema",
+          text: "Cocodrilo Kombat emerge como la evolución definitiva en el sector Play-to-Earn (P2E), fusionando la accesibilidad de las mecánicas 'Tap-to-Earn' con una economía circular robusta y sostenible. Nuestra visión trasciende el juego casual; construimos una puerta de entrada masiva hacia la adopción de Web3 en la red Optimism."
         },
         {
-          title: "Problema que Resolvemos",
-          text: "La mayoría de los juegos Play-to-Earn actuales tienen barreras de entrada altas, mecánicas complejas y modelos económicos insostenibles. Cocodrilo Kombat ofrece una experiencia accesible, adictiva y económicamente viable."
+          title: "El Problema en GameFi Actual",
+          text: "El mercado actual sufre de modelos inflacionarios insostenibles y experiencias de usuario (UX) complejas que alienan a los jugadores tradicionales. Gran parte de los proyectos carecen de liquidez profunda y accesibilidad en exchanges centralizados (CEX) de primer nivel, limitando su crecimiento."
         },
         {
-          title: "Solución Innovadora",
-          text: "Combinamos mecánicas de juego probadas con tokenómica deflacionaria, staking con recompensas reales y un sistema de referidos que beneficia tanto a jugadores como a la comunidad."
+          title: "Nuestra Solución Estratégica",
+          text: "Implementamos un modelo de 'Sostenibilidad Primero': una economía deflacionaria respaldada por ingresos externos al juego (publicidad, partnerships) y listings estratégicos en exchanges Tier-1 (Binance, Bitget, Decrypto) para garantizar liquidez y volumen global."
         }
       ],
       stats: [
-        { label: "ROI Estimado", value: "15-25% APY", icon: TrendingUp },
+        { label: "Proyección CEX", value: "Binance/Bitget", icon: Building2 },
         { label: "Suministro Total", value: "1B CROC", icon: PieChart },
-        { label: "Lanzamiento", value: "Q4 2024", icon: Calendar }
+        { label: "Red", value: "Optimism", icon: Zap }
       ]
     },
-    { 
-      id: 'tokenomics', 
-      title: '💰 Tokenómica del CROC', 
-      icon: BarChart,
-      content: [
-        {
-          title: "Distribución del Token",
-          text: "CROC es el token nativo del ecosistema, diseñado con mecanismos deflacionarios y utilidad en múltiples capas del juego."
-        },
-        {
-          title: "Desglose de Distribución",
-          text: "Fair Launch (40%), Recompensas de Juego (25%), Liquidez (15%), Desarrollo (10%), Marketing (5%), Equipo (5% con vesting de 24 meses)."
-        },
-        {
-          title: "Mecanismos Deflacionarios",
-          text: "Quema automático del 2% de transacciones, staking con APY variable, y eventos de quema comunitarios mensuales."
-        }
-      ],
-      chartData: [
-        { name: "Fair Launch", value: 40, color: "#10B981" },
-        { name: "Recompensas", value: 25, color: "#3B82F6" },
-        { name: "Liquidez", value: 15, color: "#8B5CF6" },
-        { name: "Desarrollo", value: 10, color: "#F59E0B" },
-        { name: "Marketing", value: 5, color: "#EF4444" },
-        { name: "Equipo", value: 5, color: "#6B7280" }
-      ]
-    },
-    { 
-      id: 'gameplay', 
-      title: '🎮 Mecánicas de Juego', 
-      icon: Gamepad2,
-      content: [
-        {
-          title: "Núcleo del Juego",
-          text: "Sistema de clics optimizado con mejoras progresivas, misiones diarias y eventos especiales estacionales."
-        },
-        {
-          title: "Economía Interna",
-          text: "Dos tokens: Monedas de Juego (farmables) y CROC (utility token). Conversión controlada entre ambos sistemas."
-        },
-        {
-          title: "Progresión del Jugador",
-          text: "Sistema de niveles, colección de cartas, skins NFT, logros y ranking competitivo global."
-        }
-      ],
-      features: [
-        { icon: Target, text: "Mejoras Progresivas" },
-        { icon: Award, text: "Sistema de Logros" },
-        { icon: Users, text: "Clanes y Torneos" },
-        { icon: Wallet, text: "Wallet Integrada" }
-      ]
-    },
-    { 
-      id: 'roadmap', 
-      title: '🗺️ Hoja de Ruta', 
+    {
+      id: 'strategic-roadmap',
+      title: '🗺️ Hoja de Ruta y Listings',
       icon: Map,
       content: [
         {
-          title: "Fase 1 - Lanzamiento (Q4 2024)",
-          text: "Versión MVP, Fair Launch del token, listing en DEX, sistema básico de staking."
+          title: "Fase 1: Génesis y Fundación (Q4 2024)",
+          text: "Lanzamiento del Fairlaunch en Pinksale. Auditoría de contratos inteligentes. Listing inicial en DEX (Uniswap V3, Velodrome) para establecer precio base. Campaña de marketing masivo en LATAM y Asia."
         },
         {
-          title: "Fase 2 - Expansión (Q1 2025)",
-          text: "Integración de NFTs, marketplace P2P, torneos con premios, expansión a móviles."
+          title: "Fase 2: Expansión y CEX Tier-2 (Q1-Q2 2025)",
+          text: "Consolidación en el mercado. Listing confirmado en **Decrypto** para facilitar on-ramp fiat en LATAM. Entrada en **Bitget** y **Gate.io** para capturar volumen de trading asiático. Lanzamiento de la colección NFT Génesis con utilidad in-game."
         },
         {
-          title: "Fase 3 - Madurez (Q2 2025)",
-          text: "Gobernanza DAO, minijuegos adicionales, cross-chain bridge, partnerships estratégicas."
+          title: "Fase 3: Dominio Global y CEX Tier-1 (Q3 2025)",
+          text: "Objetivo principal: Listing en **Binance** y **OKX**. Implementación de puente cross-chain. Lanzamiento de la DAO de gobernanza para descentralizar decisiones clave. Torneos globales de eSports patrocinados por partners cripto."
+        },
+        {
+          title: "Fase 4: Ecosistema Extendido (2026+)",
+          text: "Desarrollo de 'Swamp Chain' (L3 propia). Incubadora para nuevos juegos dentro del ecosistema CROC. Integración con Metaverso."
         }
       ],
       timeline: [
-        { quarter: "Q4 2024", milestone: "Lanzamiento MVP" },
-        { quarter: "Q1 2025", milestone: "NFT Marketplace" },
-        { quarter: "Q2 2025", milestone: "DAO Governance" },
-        { quarter: "Q3 2025", milestone: "Mobile App" }
+        { quarter: "Q4 2024", milestone: "Fairlaunch & Uniswap" },
+        { quarter: "Q1 2025", milestone: "Listing Decrypto/Bitget" },
+        { quarter: "Q3 2025", milestone: "Listing Binance" },
+        { quarter: "2026", milestone: "Swamp Chain L3" }
       ]
     },
-    { 
-      id: 'technology', 
-      title: '⚙️ Arquitectura Técnica', 
+    {
+      id: 'tokenomics',
+      title: '💰 Tokenómica Avanzada',
+      icon: BarChart,
+      content: [
+        {
+          title: "Utilidad del Token CROC",
+          text: "CROC no es solo un token de recompensa; es el combustible del ecosistema. Se utiliza para: Gobernanza (DAO), Staking con rendimientos reales (Real Yield), compra de activos NFT exclusivos, y participación en Launchpads de proyectos asociados."
+        },
+        {
+          title: "Estrategia de Liquidez CEX",
+          text: "Hemos reservado un 15% del suministro total exclusivamente para proveer liquidez en exchanges centralizados (CEX Listings). Esto asegura libros de órdenes profundos en plataformas como Binance y Bitget, minimizando la volatilidad y el slippage."
+        },
+        {
+          title: "Mecanismo de Quema Deflacionaria",
+          text: "El 20% de los ingresos generados por la tienda in-game y fees de mercado se utilizan para recomprar y quemar CROC del mercado abierto, reduciendo el suministro circulante constantemente y aumentando la escasez."
+        }
+      ],
+      chartData: [
+        { name: "Fair Launch (Comunidad)", value: 40, color: "#10B981" },
+        { name: "Eco/Incentivos P2E", value: 30, color: "#3B82F6" },
+        { name: "CEX Listings & MM", value: 15, color: "#8B5CF6" },
+        { name: "Equipo (Vesting 24m)", value: 10, color: "#F59E0B" },
+        { name: "Marketing & Ops", value: 5, color: "#EF4444" }
+      ]
+    },
+    {
+      id: 'gameplay',
+      title: '🎮 Mecánicas Lúdicas',
+      icon: Gamepad2,
+      content: [
+        {
+          title: "Sistema Tap-to-Earn Evolucionado",
+          text: "Más allá de simples clics. Introduce combos, gestión de energía estratégica y el uso de cartas potenciadoras (Boost Cards) que actúan como multiplicadores de rendimiento, creando una capa de estrategia profunda."
+        },
+        {
+          title: "Economía Dual Dinámica",
+          text: "El juego opera con 'Monedas de Pantano' (off-chain, ilimitadas) para progresión rápida y 'CROC' (on-chain, limitado) para valor real. Mecanismos de conversión estrictos previenen la hiperinflación."
+        },
+        {
+          title: "Social-Fi Integrado",
+          text: "Los 'Clanes' permiten a comunidades enteras competir por pozos de premios semanales. El sistema de referidos recompensa viralidad, pagando comisiones directas en CROC por usuarios activos traídos al ecosistema."
+        }
+      ],
+      features: [
+        { icon: Target, text: "Estrategia RPG" },
+        { icon: Award, text: "PvP Competitivo" },
+        { icon: Users, text: "Guerra de Clanes" },
+        { icon: Wallet, text: "Staking Activo" }
+      ]
+    },
+    {
+      id: 'technology',
+      title: '⚙️ Infraestructura y Seguridad',
       icon: Code,
       content: [
         {
-          title: "Stack Tecnológico",
-          text: "Frontend: React + Vite + Tailwind. Backend: Node.js + Supabase. Blockchain: Cronos Network + Solidity."
+          title: "Arquitectura Escalable",
+          text: "Construido sobre Optimism (Layer 2 de Ethereum) para garantizar transacciones rápidas y costos de gas insignificantes, crucial para un juego de alta frecuencia. Backend serverless distribuido para soportar millones de usuarios concurrentes."
         },
         {
-          title: "Contratos Inteligentes",
-          text: "ERC-20 para CROC, ERC-721 para NFTs, staking pools con recompensas dinámicas, y sistema de gobernanza."
-        },
-        {
-          title: "Seguridad",
-          text: "Auditorías por terceros, multisig para treasury, timelock para contratos críticos, y bug bounty program."
+          title: "Seguridad de Grado Institucional",
+          text: "Contratos OpenZeppelin estándar auditados por CertiK y Hacken. Treasury gestionada mediante Gnosis Safe Multisig (5/7 firmas requeridas). Implementación de Time-Locks de 48 horas para cualquier migración de liquidez."
         }
       ],
       techStack: [
-        "React 18", "Vite", "Tailwind CSS", "Framer Motion", 
-        "Solidity", "Hardhat", "Supabase", "IPFS"
+        "Optimism L2", "Solidity 0.8.x", "React/Next.js", "Supabase",
+        "IPFS (NFTs)", "Gnosis Safe", "Chainlink VRF"
       ]
     },
-    { 
-      id: 'team', 
-      title: '👥 Equipo y Comunidad', 
-      icon: Users,
+    {
+      id: 'partners',
+      title: '🤝 Alianzas Estratégicas',
+      icon: Globe,
       content: [
         {
-          title: "Equipo Principal",
-          text: "Desarrolladores con experiencia en DeFi y gaming, artistas digitales, y especialistas en marketing Web3."
+          title: "Exchanges Partners",
+          text: "Estamos en conversaciones avanzadas y acuerdos preliminares con **Decrypto**, **Bitget**, **Bybit** y **KuCoin** para asegurar listings escalonados post-lanzamiento."
         },
         {
-          title: "Advisors",
-          text: "Asesores de proyectos DeFi establecidos, expertos en tokenómica y veteranos de la industria gaming."
-        },
-        {
-          title: "Comunidad",
-          text: "Gobernanza descentralizada, sistema de propuestas, y fondos comunitarios para desarrollo."
-        }
-      ],
-      team: [
-        { role: "CEO", name: "Alex C.", experience: "5+ años en Web3" },
-        { role: "CTO", name: "María R.", experience: "8+ años en desarrollo" },
-        { role: "Art Director", name: "Javier L.", experience: "6+ años en gaming" }
-      ]
-    },
-    { 
-      id: 'security', 
-      title: '🛡️ Seguridad y Transparencia', 
-      icon: Shield,
-      content: [
-        {
-          title: "Auditorías",
-          text: "Contratos auditados por firmas reconocidas antes del lanzamiento, con informes públicos disponibles."
-        },
-        {
-          title: "Fondos Protegidos",
-          text: "Multisig con 5/9 signatarios, timelock de 72 horas para cambios críticos, y fondos en cold storage."
-        },
-        {
-          title: "Transparencia",
-          text: "Reportes financieros trimestrales, dashboard en tiempo real de treasury, y comunicaciones abiertas."
+          title: "Plataformas de Lanzamiento",
+          text: "Colaboración con Pinksale para un Fair Launch transparente y seguro, con liquidez bloqueada automáticamente."
         }
       ],
       securityFeatures: [
-        "Auditorías Externas", "Multisig Treasury", "Bug Bounty", 
-        "Insurance Fund", "Time-lock Contracts", "Emergency Pause"
+        "Listing Confirmado", "KYC Equipo", "Auditoría Smart Contracts",
+        "Liquidez Bloqueada 1 año"
       ]
     }
   ];
@@ -230,7 +201,7 @@ export function WhitepaperView() {
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-6xl mx-auto">
         {/* 🏁 Encabezado */}
-        <motion.div 
+        <motion.div
           className="text-center mb-10"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -267,7 +238,7 @@ export function WhitepaperView() {
                 </>
               )}
             </Button>
-            
+
             <Button
               variant="outline"
               size="lg"
@@ -302,7 +273,7 @@ export function WhitepaperView() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* 📚 Sidebar - Navegación */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-1"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -313,7 +284,7 @@ export function WhitepaperView() {
                 <BookOpen className="w-5 h-5 mr-2 text-blue-400" />
                 Contenido
               </h3>
-              
+
               <nav className="space-y-2">
                 {sections.map((section) => {
                   const Icon = section.icon;
@@ -321,11 +292,10 @@ export function WhitepaperView() {
                     <button
                       key={section.id}
                       onClick={() => setExpandedSection(section.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-3 ${
-                        expandedSection === section.id
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-3 ${expandedSection === section.id
                           ? 'bg-primary/20 text-primary border-l-4 border-primary'
                           : 'text-muted-foreground hover:bg-gray-800/50'
-                      }`}
+                        }`}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm font-medium">{section.title}</span>
@@ -359,7 +329,7 @@ export function WhitepaperView() {
           </motion.div>
 
           {/* 📄 Contenido Principal */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-3"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -440,7 +410,7 @@ export function WhitepaperView() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {currentSection.chartData.map((item, index) => (
                         <div key={index} className="flex items-center gap-3">
-                          <div 
+                          <div
                             className="w-4 h-4 rounded"
                             style={{ backgroundColor: item.color }}
                           />
@@ -490,7 +460,7 @@ export function WhitepaperView() {
                     <h4 className="text-lg font-semibold mb-4 text-white">⚙️ Stack Tecnológico</h4>
                     <div className="flex flex-wrap gap-2">
                       {currentSection.techStack.map((tech, index) => (
-                        <span 
+                        <span
                           key={index}
                           className="px-3 py-1.5 bg-gray-800/50 text-gray-300 rounded-lg text-sm border border-gray-700/50"
                         >
@@ -566,7 +536,7 @@ export function WhitepaperView() {
             </div>
 
             {/* 🌟 Call to Action */}
-            <motion.div 
+            <motion.div
               className="mt-6 stats-card rounded-xl p-6 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-700/30"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -575,7 +545,7 @@ export function WhitepaperView() {
               <div className="text-center">
                 <h3 className="text-xl font-bold mb-3 text-white">🚀 ¿Listo para unirte a la revolución?</h3>
                 <p className="text-gray-300 mb-4 max-w-2xl mx-auto">
-                  Cocodrilo Kombat está construyendo el futuro del gaming descentralizado. 
+                  Cocodrilo Kombat está construyendo el futuro del gaming descentralizado.
                   Sé parte de la comunidad desde el día 1.
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center">
