@@ -46,97 +46,43 @@ export function WhitepaperView() {
       content: [
         {
           title: "Visión del Ecosistema",
-          text: "Cocodrilo Kombat emerge como la evolución definitiva en el sector Play-to-Earn (P2E), fusionando la accesibilidad de las mecánicas 'Tap-to-Earn' con una economía circular robusta y sostenible. Nuestra visión trasciende el juego casual; construimos una puerta de entrada masiva hacia la adopción de Web3 en la red Optimism."
+          text: "Cocodrilo Kombat emerge como la vanguardia en la evolución del sector Play-to-Earn (P2E), trascendiendo las limitaciones de los modelos 'ponzionomics' de primera generación. Nuestra plataforma fusiona la accesibilidad viral de las mecánicas 'Tap-to-Earn' con una infraestructura financiera descentralizada (DeFi) robusta y sostenible. Nuestra visión es construir no solo un juego, sino una puerta de entrada masiva hacia la adopción Web3, aprovechando la escalabilidad y los bajos costos de la red Optimism (Layer 2 de Ethereum) para democratizar el acceso a activos digitales."
         },
         {
-          title: "El Problema en GameFi Actual",
-          text: "El mercado actual sufre de modelos inflacionarios insostenibles y experiencias de usuario (UX) complejas que alienan a los jugadores tradicionales. Gran parte de los proyectos carecen de liquidez profunda y accesibilidad en exchanges centralizados (CEX) de primer nivel, limitando su crecimiento."
+          title: "El Problema en el GameFi Actual",
+          text: "El panorama actual de GameFi se encuentra fracturado. Por un lado, existen barreras de entrada técnicas insuperables para el usuario promedio (gestión compleja de wallets, altos costos de gas en L1). Por otro lado, la mayoría de los proyectos sufren de modelos económicos inflacionarios que colapsan inevitablemente bajo la presión de venta, careciendo de flujos de ingresos externos o utilidad real del token. Además, la falta de liquidez profunda en exchanges centralizados (CEX) de primer nivel limita la exposición y el crecimiento del ecosistema."
         },
         {
-          title: "Nuestra Solución Estratégica",
-          text: "Implementamos un modelo de 'Sostenibilidad Primero': una economía deflacionaria respaldada por ingresos externos al juego (publicidad, partnerships) y listings estratégicos en exchanges Tier-1 (Binance, Bitget, Decrypto) para garantizar liquidez y volumen global."
+          title: "Nuestra Solución Estratégica: Modelo 'Sostenibilidad Primero'",
+          text: "Cocodrilo Kombat implementa una economía circular diseñada meticulosamente. Integramos flujos de ingresos externos (publicidad programática, partnerships estratégicos, venta de activos in-game) que se inyectan directamente en la liquidez del token. Técnicamente, eliminamos la fricción utilizando Optimism para transacciones casi instantáneas y gas-less para el usuario final mediante Account Abstraction. Estratégicamente, aseguramos la viabilidad a largo plazo mediante listings escalonados en CEX Tier-1 (Binance, Bitget, Decrypto), garantizando profundidad de mercado y arbitraje eficiente."
         }
       ],
       stats: [
-        { label: "Proyección CEX", value: "Binance/Bitget", icon: Building2 },
-        { label: "Suministro Total", value: "1B CROC", icon: PieChart },
-        { label: "Red", value: "Optimism", icon: Zap }
-      ]
-    },
-    {
-      id: 'strategic-roadmap',
-      title: '🗺️ Hoja de Ruta y Listings',
-      icon: Map,
-      content: [
-        {
-          title: "Fase 1: Génesis y Fundación (Q4 2024)",
-          text: "Lanzamiento del Fairlaunch en Pinksale. Auditoría de contratos inteligentes. Listing inicial en DEX (Uniswap V3, Velodrome) para establecer precio base. Campaña de marketing masivo en LATAM y Asia."
-        },
-        {
-          title: "Fase 2: Expansión y CEX Tier-2 (Q1-Q2 2025)",
-          text: "Consolidación en el mercado. Listing confirmado en **Decrypto** para facilitar on-ramp fiat en LATAM. Entrada en **Bitget** y **Gate.io** para capturar volumen de trading asiático. Lanzamiento de la colección NFT Génesis con utilidad in-game."
-        },
-        {
-          title: "Fase 3: Dominio Global y CEX Tier-1 (Q3 2025)",
-          text: "Objetivo principal: Listing en **Binance** y **OKX**. Implementación de puente cross-chain. Lanzamiento de la DAO de gobernanza para descentralizar decisiones clave. Torneos globales de eSports patrocinados por partners cripto."
-        },
-        {
-          title: "Fase 4: Ecosistema Extendido (2026+)",
-          text: "Desarrollo de 'Swamp Chain' (L3 propia). Incubadora para nuevos juegos dentro del ecosistema CROC. Integración con Metaverso."
-        }
-      ],
-      timeline: [
-        { quarter: "Q4 2024", milestone: "Fairlaunch & Uniswap" },
-        { quarter: "Q1 2025", milestone: "Listing Decrypto/Bitget" },
-        { quarter: "Q3 2025", milestone: "Listing Binance" },
-        { quarter: "2026", milestone: "Swamp Chain L3" }
+        { label: "Red Principal", value: "Optimism (OP Mainnet)", icon: Zap },
+        { label: "Suministro Total", value: "1,000,000,000 CROC", icon: PieChart },
+        { label: "Proyección CEX", value: "Binance / Bitget / Decrypto", icon: Building2 }
       ]
     },
     {
       id: 'tokenomics',
-      title: '💰 Tokenómica Avanzada',
+      title: '💰 Ingeniería Económica y Tokenómica',
       icon: BarChart,
       content: [
         {
-          title: "Utilidad del Token CROC",
-          text: "CROC no es solo un token de recompensa; es el combustible del ecosistema. Se utiliza para: Gobernanza (DAO), Staking con rendimientos reales (Real Yield), compra de activos NFT exclusivos, y participación en Launchpads de proyectos asociados."
+          title: "Utilidad Polifacética del Token CROC",
+          text: "El token CROC (ERC-20 en Optimism) actúa como el eje central de valor. Su utilidad se extiende a: 1) Gobernanza DAO, permitiendo a los holders votar sobre parámetros del protocolo y asignación de tesorería. 2) Staking de Rendimiento Real (Real Yield), donde los stakers reciben una parte de los ingresos del protocolo en ETH/USDC, no solo tokens inflacionarios. 3) Moneda de cambio exclusiva para activos NFT de edición limitada y pases de batalla premium. 4) Acceso prioritario a Launchpads de proyectos incubados en el 'Swamp Ecosystem'."
         },
         {
-          title: "Estrategia de Liquidez CEX",
-          text: "Hemos reservado un 15% del suministro total exclusivamente para proveer liquidez en exchanges centralizados (CEX Listings). Esto asegura libros de órdenes profundos en plataformas como Binance y Bitget, minimizando la volatilidad y el slippage."
+          title: "Estrategia de Liquidez Institucional (MM & CEX)",
+          text: "Para mitigar la volatilidad y asegurar un trading fluido, hemos reservado un 15% del suministro total (150M CROC) estrictamente para provisión de liquidez en exchanges centralizados (Market Making). Estos fondos se despliegan algorítmicamente para mantener libros de órdenes profundos en pares clave (CROC/USDT) en plataformas como Binance, Bitget y Decrypto, minimizando el slippage para grandes inversores y estabilizando la acción del precio."
         },
         {
-          title: "Mecanismo de Quema Deflacionaria",
-          text: "El 20% de los ingresos generados por la tienda in-game y fees de mercado se utilizan para recomprar y quemar CROC del mercado abierto, reduciendo el suministro circulante constantemente y aumentando la escasez."
+          title: "Mecanismo de Quema Deflacionaria Algorítmica",
+          text: "Implementamos un protocolo de 'Buyback & Burn' automatizado. El 20% de todos los ingresos generados por el Marketplace NFT y las tasas de transacción in-game se dirigen a un contrato inteligente que compra CROC del mercado abierto y lo envía a una dirección nula (0x0...dead). Esto crea una presión deflacionaria constante, reduciendo el suministro circulante a lo largo del tiempo y aumentando teóricamente el valor por token restante, alineando los incentivos entre el protocolo y los holders a largo plazo."
         }
       ],
       chartData: [
         { name: "Fair Launch (Comunidad)", value: 40, color: "#10B981" },
-        { name: "Eco/Incentivos P2E", value: 30, color: "#3B82F6" },
-        { name: "CEX Listings & MM", value: 15, color: "#8B5CF6" },
-        { name: "Equipo (Vesting 24m)", value: 10, color: "#F59E0B" },
-        { name: "Marketing & Ops", value: 5, color: "#EF4444" }
-      ]
-    },
-    {
-      id: 'gameplay',
-      title: '🎮 Mecánicas Lúdicas',
-      icon: Gamepad2,
-      content: [
-        {
-          title: "Sistema Tap-to-Earn Evolucionado",
-          text: "Más allá de simples clics. Introduce combos, gestión de energía estratégica y el uso de cartas potenciadoras (Boost Cards) que actúan como multiplicadores de rendimiento, creando una capa de estrategia profunda."
-        },
-        {
-          title: "Economía Dual Dinámica",
-          text: "El juego opera con 'Monedas de Pantano' (off-chain, ilimitadas) para progresión rápida y 'CROC' (on-chain, limitado) para valor real. Mecanismos de conversión estrictos previenen la hiperinflación."
-        },
-        {
-          title: "Social-Fi Integrado",
-          text: "Los 'Clanes' permiten a comunidades enteras competir por pozos de premios semanales. El sistema de referidos recompensa viralidad, pagando comisiones directas en CROC por usuarios activos traídos al ecosistema."
-        }
-      ],
-      features: [
         { icon: Target, text: "Estrategia RPG" },
         { icon: Award, text: "PvP Competitivo" },
         { icon: Users, text: "Guerra de Clanes" },
@@ -144,41 +90,99 @@ export function WhitepaperView() {
       ]
     },
     {
+      id: 'strategic-roadmap',
+      title: '🗺️ Hoja de Ruta Técnica y Listings',
+      icon: Map,
+      content: [
+        {
+          title: "Fase 1: Génesis, Auditoría y TGE (Q4 2024)",
+          text: "Despliegue de contratos inteligentes en Optimism Sepolia para pruebas de estrés. Auditoría de seguridad completa con firmas líderes (CertiK/Hacken). Evento de Generación de Token (TGE) y Fair Launch público en Pinksale. Establecimiento de Liquidez Inicial en Uniswap V3 (Optimism) y Velodrome Finance para garantizar un precio base descentralizado. Lanzamiento de la campaña de marketing global enfocada en LATAM y el sudeste asiático."
+        },
+        {
+          title: "Fase 2: Expansión CEX y Utilidad Alpha (Q1-Q2 2025)",
+          text: "Listings confirmados en exchanges Tier-2 y regionales estratégicos: Decrypto (foco LATAM/Fiat On-ramp) y Bitget (foco Asia/Trading Volume). Integración de API de oráculos Chainlink para feeds de precios seguros. Lanzamiento de la Beta Pública del juego completo con mecánicas 'Play-to-Airdrop'. Activación del módulo de Staking V1 con recompensas compuestas."
+        },
+        {
+          title: "Fase 3: Dominio Global y Adopción Masiva (Q3 2025)",
+          text: "Objetivo primario: Listing en exchanges Tier-1 globales: Binance y OKX. Esto habilitará una entrada masiva de capital institucional y retail. Implementación de puentes cross-chain (LayerZero) para permitir la interoperabilidad con Arbitrum y Base. Lanzamiento de la Gobernanza DAO on-chain, transfiriendo el control de parámetros clave a la comunidad. Torneos de eSports globales con premios en stablecoins."
+        },
+        {
+          title: "Fase 4: Consolidación del Metaverso (2026+)",
+          text: "Desarrollo de la 'Swamp Chain', una Layer 3 (Appchain) dedicada sobre Optimism para microtransacciones de costo cero. Lanzamiento del SDK para desarrolladores externos que quieran construir minijuegos dentro del ecosistema Cocodrilo. Integración plena con identidades digitales descentralizadas (DID)."
+        }
+      ],
+      timeline: [
+        { quarter: "Q4 2024", milestone: "Fairlaunch & Uniswap V3" },
+        { quarter: "Q1 2025", milestone: "Listing Decrypto & Bitget" },
+        { quarter: "Q3 2025", milestone: "Listing Binance & OKX" },
+        { quarter: "2026", milestone: "Swamp Chain Layer 3" }
+      ]
+    },
+    {
       id: 'technology',
-      title: '⚙️ Infraestructura y Seguridad',
+      title: '⚙️ Arquitectura Técnica y Seguridad',
       icon: Code,
       content: [
         {
-          title: "Arquitectura Escalable",
-          text: "Construido sobre Optimism (Layer 2 de Ethereum) para garantizar transacciones rápidas y costos de gas insignificantes, crucial para un juego de alta frecuencia. Backend serverless distribuido para soportar millones de usuarios concurrentes."
+          title: "Infraestructura sobre Optimism (OP Stack)",
+          text: "Cocodrilo Kombat está construido nativamente sobre la red Optimism para aprovechar la tecnología de Optimistic Rollups. Esto nos permite heredar la seguridad de la Layer 1 de Ethereum mientras reducimos los costos de gas en un 99% y aumentamos el throughput a más de 2000 TPS. Esta escalabilidad es crítica para procesar millones de interacciones de juego diarias sin congestionar la red ni incurrir en costos prohibitivos para el usuario."
+        },
+        {
+          title: "Contratos Inteligentes y Estándares",
+          text: "Utilizamos una arquitectura de contratos modular y actualizable (UUPS Proxies). El token CROC sigue el estándar ERC-20 con extensiones de seguridad (Pausable, Burnable, Snapshot). Los activos del juego (NFTs) utilizan el estándar ERC-721A optimizado para minting por lotes con bajo consumo de gas. Todos los contratos críticos están protegidos por Time-Locks de 48 horas, asegurando que cualquier cambio administrativo sea visible para la comunidad antes de su ejecución."
         },
         {
           title: "Seguridad de Grado Institucional",
-          text: "Contratos OpenZeppelin estándar auditados por CertiK y Hacken. Treasury gestionada mediante Gnosis Safe Multisig (5/7 firmas requeridas). Implementación de Time-Locks de 48 horas para cualquier migración de liquidez."
+          text: "La seguridad es nuestra prioridad cero. La Tesorería del proyecto está gestionada mediante una Gnosis Safe Multisig que requiere 5 de 7 firmas de custodios distribuidos geográficamente para cualquier movimiento de fondos. Realizamos análisis estáticos continuos con Slither y Mythril, complementados por programas de Bug Bounty activos en plataformas como Immunefi para incentivar a investigadores de seguridad a auditar nuestro código constantemente."
         }
       ],
       techStack: [
-        "Optimism L2", "Solidity 0.8.x", "React/Next.js", "Supabase",
-        "IPFS (NFTs)", "Gnosis Safe", "Chainlink VRF"
+        "Optimism (OP Mainnet)", "Solidity 0.8.20", "ERC-4337 (AA)", "Graph Protocol",
+        "IPFS/Arweave", "Gnosis Safe", "Chainlink VRF/Keepers"
+      ]
+    },
+    {
+      id: 'gameplay',
+      title: '🎮 Profundidad de Mecánicas de Juego',
+      icon: Gamepad2,
+      content: [
+        {
+          title: "Evolución del 'Tap-to-Earn' a RPG Estratégico",
+          text: "Si bien el núcleo inicial es accesible (clicker), el metajuego evoluciona rápidamente hacia un RPG de gestión de recursos. Los jugadores deben optimizar su 'Energy Per Second' (EPS) y 'Coins Per Second' (CPS) mediante una matriz compleja de mejoras, cartas potenciadoras sinérgicas y skins con atributos pasivos únicos. Esta profundidad asegura la retención de usuarios a largo plazo más allá de la especulación inicial del token."
+        },
+        {
+          title: "Economía Dual: Off-Chain vs On-Chain",
+          text: "Para garantizar una experiencia de usuario fluida (sin firma de transacciones por cada acción), utilizamos un modelo híbrido. Las 'Monedas de Pantano' y la experiencia se procesan en un backend de alto rendimiento (Off-Chain), permitiendo velocidad instantánea. El token CROC y los NFTs residen On-Chain. Un 'Bridge In-Game' permite la sincronización periódica y segura entre ambos estados, validada por oráculos y pruebas de consistencia criptográfica."
+        },
+        {
+          title: "Social-Fi y Viralidad Incentivada",
+          text: "El motor de crecimiento del juego es intrínsecamente social. Los 'Clanes' permiten la formación de gremios que compiten por territorio y tesoros semanales. El sistema de referidos multinivel utiliza contratos inteligentes para distribuir recompensas en tiempo real, incentivando la viralidad orgánica. Las misiones sociales integran APIs de redes sociales para verificar interacciones genuinas, creando un flywheel de marketing perpetuo."
+        }
+      ],
+      features: [
+        { icon: Target, text: "Estrategia Profunda" },
+        { icon: Award, text: "Rankings PvP/GvG" },
+        { icon: Users, text: "Gremio & Clanes" },
+        { icon: Wallet, text: "Economía Híbrida" }
       ]
     },
     {
       id: 'partners',
-      title: '🤝 Alianzas Estratégicas',
+      title: '🤝 Ecosistema de Alianzas',
       icon: Globe,
       content: [
         {
-          title: "Exchanges Partners",
-          text: "Estamos en conversaciones avanzadas y acuerdos preliminares con **Decrypto**, **Bitget**, **Bybit** y **KuCoin** para asegurar listings escalonados post-lanzamiento."
+          title: "Exchanges Partners y Market Makers",
+          text: "Mantener una liquidez saludable es vital. Estamos en fases avanzadas de negociación y acuerdos de listado técnico con **Decrypto** para dominar el mercado fiat en América Latina, y con **Bitget**, **Bybit** y **KuCoin** para asegurar volumen global. Además, colaboramos con Market Makers institucionales (GSR/Wintermute - pendientes de confirmación pública) para asegurar spreads ajustados desde el día uno."
         },
         {
-          title: "Plataformas de Lanzamiento",
-          text: "Colaboración con Pinksale para un Fair Launch transparente y seguro, con liquidez bloqueada automáticamente."
+          title: "Infraestructura y Launchpads",
+          text: "Para el lanzamiento inicial, nos hemos asociado con **Pinksale**, la plataforma líder en lanzamientos descentralizados, para garantizar un Fair Launch transparente donde la liquidez inicial se bloquea automáticamente por contrato. También colaboramos con **Alchemy** y **Moralis** para infraestructura de nodos RPC de alta disponibilidad."
         }
       ],
       securityFeatures: [
-        "Listing Confirmado", "KYC Equipo", "Auditoría Smart Contracts",
-        "Liquidez Bloqueada 1 año"
+        "Listing CEX Confirmados", "Liquidez Bloqueada (12-24 meses)",
+        "Auditoría Full-Stack", "KYC de Fundadores"
       ]
     }
   ];
