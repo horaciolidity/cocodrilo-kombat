@@ -66,8 +66,8 @@ export function FairlaunchView({
   });
 
   const fairlaunchDetailsRef = useRef({
-    startDate: gameConfig?.fair_launch?.start_date ? new Date(gameConfig.fair_launch.start_date) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Default 3 days
-    endDate: gameConfig?.fair_launch?.end_date ? new Date(gameConfig.fair_launch.end_date) : new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Default 10 days
+    startDate: gameConfig?.fair_launch?.start_date ? new Date(gameConfig.fair_launch.start_date) : new Date(), // Starts NOW if no config
+    endDate: gameConfig?.fair_launch?.end_date ? new Date(gameConfig.fair_launch.end_date) : new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), // Ends in 4 months (120 days)
     totalTokens: 100000000,
     tokensForSale: 40000000,
     hardCap: 2000000,
