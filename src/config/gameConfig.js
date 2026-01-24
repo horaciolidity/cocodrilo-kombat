@@ -221,6 +221,7 @@ export const ACHIEVEMENTS = [
  🎯 MISSIONS
 ===================================================== */
 
+
 export const MISSIONS = [
   {
     id: "click_starter",
@@ -299,11 +300,57 @@ export const MISSIONS = [
     id: "daily_secret_code",
     name: "Código Secreto del Vídeo",
     description: "Busca el código de 6 dígitos en el vídeo de hoy y multiplícalo.",
-    reward: { coins: 0, xp: 150 }, // Reward is dynamic from DB but we show 0 or description
+    reward: { coins: 0, xp: 150 },
     icon: CalendarCheck,
     category: "Diario",
     validation_type: "daily_code"
   },
+  // 🆕 NUEVAS MISIONES DIFÍCILES PARA CARTAS PODEROSAS
+  {
+    id: "mission_expert_clicker",
+    name: "Dedos de Fuego",
+    description: "Realiza 5,000 clics manuales.",
+    requirement: { type: "clicks", value: 5000 },
+    reward: { coins: 5000, xp: 500, cardId: "card_rapid_fire" },
+    icon: ZapIcon,
+    category: "Clics",
+  },
+  {
+    id: "mission_swamp_tycoon",
+    name: "Magnate del Pantano",
+    description: "Acumula 1,000,000 de monedas.",
+    requirement: { type: "coins", value: 1000000 },
+    reward: { coins: 20000, xp: 2000, cardId: "card_midas_touch" },
+    icon: Crown,
+    category: "Monedas",
+  },
+  {
+    id: "mission_apex_predator",
+    name: "Depredador Apex",
+    description: "Alcanza el nivel 20.",
+    requirement: { type: "level", value: 20 },
+    reward: { coins: 50000, xp: 5000, cardId: "card_apex_instinct" },
+    icon: Trophy,
+    category: "Nivel",
+  },
+  {
+    id: "mission_evolution_master",
+    name: "Maestro de la Evolución",
+    description: "Mejora 'Rey del Pantano' al nivel 5.",
+    requirement: { type: "upgradeLevel", upgradeId: "rey_del_pantano", value: 5 },
+    reward: { coins: 100000, xp: 8000, cardId: "card_evolution_mastery" },
+    icon: Activity,
+    category: "Mejoras",
+  },
+  {
+    id: "mission_community_leader",
+    name: "Líder de la Manada",
+    description: "Completa todas las tareas sociales básicas.",
+    requirement: { type: "social_all_basic", value: 1 },
+    reward: { coins: 15000, xp: 1000, cardId: "card_pack_leader" },
+    icon: Users,
+    category: "Social",
+  }
 ];
 
 export const INITIAL_MISSIONS_STATE = MISSIONS.reduce((acc, mission) => {
@@ -335,12 +382,99 @@ export const SOCIAL_LINKS_DATA = [
 ];
 
 export const CARDS_DATA = [
-  { id: "card_agility_1", name: "Carta de Agilidad Menor", description: "Aumenta la regeneración de energía en un 5%.", effect: { type: "energy_regen_boost_percent", value: 5 }, rarity: "Común", icon: FeatherIcon, color: "text-gray-400" },
-  { id: "card_fortune_1", name: "Carta de Fortuna Menor", description: "Aumenta las monedas por clic en +2.", effect: { type: "click_power_flat", value: 2 }, rarity: "Común", icon: StarIcon, color: "text-green-400" },
-  { id: "card_power_1", name: "Carta de Poder Bruto Menor", description: "Aumenta el poder de clic base en +5.", effect: { type: "click_power_flat", value: 5 }, rarity: "Poco Común", icon: ZapIcon, color: "text-blue-400" },
-  { id: "card_luck_1", name: "Carta de Suerte del Pantano", description: "Pequeña probabilidad de obtener doble moneda por clic (simulado).", effect: { type: "double_coin_chance", value: 5 }, rarity: "Rara", icon: Diamond, color: "text-purple-400" },
-  { id: "card_wisdom_1", name: "Carta de Sabiduría Ancestral", description: "Aumenta la experiencia ganada un 10%.", effect: { type: "xp_boost_percent", value: 10 }, rarity: "Épica", icon: Eye, color: "text-yellow-400" },
-  { id: "card_swamp_mastery", name: "Maestría del Pantano", description: "Aumenta monedas por segundo un 10%.", effect: { type: "cps_boost_percent", value: 10 }, rarity: "Legendaria", icon: Crown, color: "text-orange-400" },
+  // CARTAS BÁSICAS (Actualizadas con requisitos)
+  {
+    id: "card_agility_1",
+    name: "Carta de Agilidad Menor",
+    description: "Aumenta la regeneración de energía en un 5%.",
+    effect: { type: "energy_regen_boost_percent", value: 5 },
+    rarity: "Común",
+    icon: FeatherIcon,
+    color: "text-gray-400",
+    unlockRequirement: { type: "mission", missionId: "click_starter", description: "Completa: Cazador Novato" }
+  },
+  {
+    id: "card_fortune_1",
+    name: "Carta de Fortuna Menor",
+    description: "Aumenta las monedas por clic en +2.",
+    effect: { type: "click_power_flat", value: 2 },
+    rarity: "Común",
+    icon: StarIcon,
+    color: "text-green-400",
+    unlockRequirement: { type: "mission", missionId: "coin_collector", description: "Completa: Recolector de Tesoros" }
+  },
+  {
+    id: "card_power_1",
+    name: "Carta de Poder Bruto Menor",
+    description: "Aumenta el poder de clic base en +5.",
+    effect: { type: "click_power_flat", value: 5 },
+    rarity: "Poco Común",
+    icon: ZapIcon,
+    color: "text-blue-400",
+    unlockRequirement: { type: "mission", missionId: "upgrade_enthusiast", description: "Completa: Entusiasta de la Evolución" }
+  },
+  {
+    id: "card_wisdom_1",
+    name: "Carta de Sabiduría Ancestral",
+    description: "Aumenta la experiencia ganada un 10%.",
+    effect: { type: "xp_boost_percent", value: 10 },
+    rarity: "Épica",
+    icon: Eye,
+    color: "text-yellow-400",
+    unlockRequirement: { type: "mission", missionId: "level_up_rookie", description: "Completa: Aprendiz de Depredador" }
+  },
+
+  // 🆕 CARTAS AVANZADAS & HARDCORE (x10 Dificultad)
+  {
+    id: "card_rapid_fire",
+    name: "Garras de Velocidad Luz",
+    description: "Aumenta la velocidad de ataque manual enormemente (+20% monedas/clic).",
+    effect: { type: "click_power_percent", value: 20 },
+    rarity: "Rara",
+    icon: ZapIcon,
+    color: "text-cyan-400",
+    unlockRequirement: { type: "mission", missionId: "mission_expert_clicker", description: "Completa: Dedos de Fuego" }
+  },
+  {
+    id: "card_midas_touch",
+    name: "Toque de Midas Pantanoso",
+    description: "Tus clics tienen chance de generar monedas x10.",
+    effect: { type: "crit_chance_boost", value: 10, multiplier: 10 },
+    rarity: "Legendaria",
+    icon: Crown,
+    color: "text-yellow-500",
+    unlockRequirement: { type: "mission", missionId: "mission_swamp_tycoon", description: "Completa: Magnate del Pantano" }
+  },
+  {
+    id: "card_apex_instinct",
+    name: "Instinto Apex",
+    description: "Multiplica TODO tu CPS (Monedas/Seg) por 1.5x permanentemente.",
+    effect: { type: "cps_multiplier_global", value: 1.5 },
+    rarity: "Mítica",
+    icon: Trophy,
+    color: "text-red-500",
+    unlockRequirement: { type: "mission", missionId: "mission_apex_predator", description: "Completa: Depredador Apex" }
+  },
+  {
+    id: "card_evolution_mastery",
+    name: "Maestría Evolutiva",
+    description: "Reduce el costo de todas las futuras mejoras en un 20%.",
+    effect: { type: "upgrade_cost_discount", value: 20 },
+    rarity: "Mítica",
+    icon: Activity,
+    color: "text-purple-500",
+    unlockRequirement: { type: "mission", missionId: "mission_evolution_master", description: "Completa: Maestro de la Evolución" }
+  },
+  {
+    id: "card_pack_leader",
+    name: "Líder de la Manada",
+    description: "Aumenta las recompensas por referidos un 50%.",
+    effect: { type: "referral_bonus_percent", value: 50 },
+    rarity: "Legendaria",
+    icon: Users,
+    color: "text-orange-500",
+    unlockRequirement: { type: "mission", missionId: "mission_community_leader", description: "Completa: Líder de la Manada" }
+  }
 ];
 
 // En gameConfig.js - dentro de SHOP_ITEMS, reemplazar con esto:

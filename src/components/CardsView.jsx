@@ -6,26 +6,28 @@ import { motion } from 'framer-motion';
 export function CardsView({ ownedCards }) {
   const getRarityColor = (rarity) => {
     switch (rarity) {
-      case 'Común': return 'border-gray-500 text-gray-400';
-      case 'Poco Común': return 'border-green-500 text-green-400';
-      case 'Rara': return 'border-blue-500 text-blue-400';
-      case 'Épica': return 'border-purple-500 text-purple-400';
-      case 'Legendaria': return 'border-yellow-500 text-yellow-400';
-      default: return 'border-gray-700';
+      case 'Común': return 'border-slate-600 text-slate-400 shadow-slate-900/50';
+      case 'Poco Común': return 'border-emerald-500/50 text-emerald-400 shadow-emerald-900/50';
+      case 'Rara': return 'border-cyan-500/50 text-cyan-400 shadow-cyan-900/50';
+      case 'Épica': return 'border-violet-500/50 text-violet-400 shadow-violet-900/50';
+      case 'Legendaria': return 'border-amber-500/50 text-amber-400 shadow-amber-900/50';
+      case 'Mítica': return 'border-rose-500/50 text-rose-400 shadow-rose-900/50';
+      default: return 'border-slate-700 text-slate-500';
     }
   };
 
-  const getRarityBgColor = (rarity) => {
+  const getRarityBg = (rarity) => {
     switch (rarity) {
-      case 'Común': return 'bg-gray-900/30';
-      case 'Poco Común': return 'bg-green-900/20';
-      case 'Rara': return 'bg-blue-900/20';
-      case 'Épica': return 'bg-purple-900/20';
-      case 'Legendaria': return 'bg-yellow-900/20';
-      default: return 'bg-gray-900/30';
+      case 'Común': return 'bg-slate-900/40';
+      case 'Poco Común': return 'bg-emerald-950/30';
+      case 'Rara': return 'bg-cyan-950/30';
+      case 'Épica': return 'bg-violet-950/30';
+      case 'Legendaria': return 'bg-amber-950/30';
+      case 'Mítica': return 'bg-rose-950/30';
+      default: return 'bg-slate-950/30';
     }
   };
-  
+
   const allCardsWithOwnership = CARDS_DATA.map(card => ({
     ...card,
     isOwned: ownedCards.includes(card.id)
@@ -35,163 +37,149 @@ export function CardsView({ ownedCards }) {
   const totalCount = allCardsWithOwnership.length;
 
   return (
-    <div className="min-h-screen game-bg p-4 mobile-padding">
-      <div className="max-w-6xl mx-auto">
-        {/* Encabezado con estadísticas */}
-        <motion.div 
-          className="text-center mb-8"
+    <div className="min-h-screen game-bg p-4 mobile-padding bg-[url('/images/tech-grid.png')] bg-fixed bg-cover">
+      <div className="max-w-7xl mx-auto">
+        {/* Encabezado Tech */}
+        <motion.div
+          className="text-center mb-10 relative"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
         >
-          <h1 className="text-3xl md:text-4xl font-bold mb-3 gradient-text flex items-center justify-center">
-            <Layers className="w-8 h-8 mr-3 text-indigo-400" /> Colección de Cartas
-          </h1>
-          <p className="text-muted-foreground mb-4">
-            Cartas potenciadoras que mejoran a tu cocodrilo
-          </p>
-          
-          <div className="inline-flex items-center justify-center gap-6 p-4 bg-gradient-to-r from-indigo-900/20 to-purple-900/20 rounded-xl border border-indigo-700/30">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-400">{ownedCount}</div>
-              <div className="text-xs text-indigo-300">Cartas Obtenidas</div>
-            </div>
-            <div className="h-8 w-px bg-indigo-700/50"></div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">{totalCount}</div>
-              <div className="text-xs text-purple-300">Total de Cartas</div>
-            </div>
-            <div className="h-8 w-px bg-indigo-700/50"></div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400">{Math.round((ownedCount / totalCount) * 100)}%</div>
-              <div className="text-xs text-yellow-300">Completado</div>
-            </div>
+          <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent -z-10"></div>
+          <div className="inline-block bg-black/80 backdrop-blur-md px-8 py-2 rounded-full border border-cyan-500/30">
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center justify-center tracking-wider">
+              <Layers className="w-8 h-8 mr-3 text-cyan-400" />
+              SISTEMA DE CARTAS
+            </h1>
           </div>
+          <p className="text-cyan-200/60 mt-4 font-mono text-sm tracking-widest">
+            MÓDULOS DE MEJORA // NIVEL DE ACCESO: {ownedCount}/{totalCount}
+          </p>
         </motion.div>
 
-        {/* Barra de progreso */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Progreso de la colección</span>
-            <span className="font-bold text-primary">{ownedCount}/{totalCount}</span>
-          </div>
-          <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-            <motion.div 
-              className="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+        {/* Barra de progreso Hexagonal */}
+        <div className="max-w-3xl mx-auto mb-12 p-1 bg-cyan-900/20 rounded-full border border-cyan-500/20">
+          <div className="relative w-full h-4 bg-black/50 rounded-full overflow-hidden">
+            <motion.div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400"
               initial={{ width: 0 }}
               animate={{ width: `${(ownedCount / totalCount) * 100}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            />
+              transition={{ duration: 1.5, ease: "circOut" }}
+            >
+              <div className="absolute top-0 right-0 w-full h-full bg-[url('/images/pattern-stripes.png')] opacity-30 animate-slide-bg"></div>
+            </motion.div>
+          </div>
+          <div className="flex justify-between px-2 mt-1 text-[10px] font-mono text-cyan-500/70 uppercase">
+            <span>Iniciando...</span>
+            <span>Sincronización: {Math.round((ownedCount / totalCount) * 100)}%</span>
+            <span>Completo</span>
           </div>
         </div>
 
         {allCardsWithOwnership.length === 0 ? (
-          <div className="text-center py-16 stats-card rounded-xl">
-            <Layers className="w-20 h-20 mx-auto mb-6 text-muted-foreground opacity-30" />
-            <p className="text-2xl text-muted-foreground mb-3">¡Tu colección está vacía!</p>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-              Completa misiones y alcanza hitos para obtener cartas potenciadoras que mejorarán a tu cocodrilo.
-            </p>
-            <div className="inline-flex items-center gap-2 text-xs text-primary bg-primary/10 px-4 py-2 rounded-full">
-              <Sparkles className="w-3 h-3" />
-              <span>Las cartas se obtienen completando misiones</span>
-            </div>
+          <div className="text-center py-20 border border-dashed border-cyan-900/50 rounded-3xl bg-black/20">
+            <Layers className="w-24 h-24 mx-auto mb-6 text-cyan-900/50" />
+            <p className="text-2xl text-cyan-700/50 font-mono">SIN DATOS DE CARTAS</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {allCardsWithOwnership.map((card, index) => (
-              <motion.div
-                key={card.id}
-                className={`relative rounded-xl p-5 border-2 ${getRarityBgColor(card.rarity)} ${getRarityColor(card.rarity)} transition-all duration-300 ${!card.isOwned ? 'opacity-60 grayscale' : 'hover:scale-[1.02] hover:shadow-xl'}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -5 }}
-              >
-                {/* Indicador de obtenida */}
-                {card.isOwned && (
-                  <div className="absolute -top-2 -right-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    <span>OBTENIDA</span>
-                  </div>
-                )}
+            {allCardsWithOwnership.map((card, index) => {
+              const themeColor = getRarityColor(card.rarity);
+              const themeBg = getRarityBg(card.rarity);
 
-                {/* Encabezado de la carta */}
-                <div className="flex items-center mb-4">
-                  <div className={`p-2 rounded-lg ${getRarityBgColor(card.rarity)} mr-3`}>
-                    <card.icon className={`w-6 h-6 ${card.color || getRarityColor(card.rarity).split(' ')[1]}`} />
+              return (
+                <motion.div
+                  key={card.id}
+                  className={`group relative rounded-t-2xl rounded-br-2xl border-l-2 border-t-2 border-b border-r max-w-sm mx-auto w-full flex flex-col overflow-hidden backdrop-blur-sm transition-all duration-300 ${themeBg} ${themeColor.split(' ')[0]} ${!card.isOwned ? 'opacity-80' : 'hover:-translate-y-2 hover:shadow-2xl ' + themeColor.split(' ')[2]}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  {/* Decorative Tech Corners */}
+                  <div className="absolute top-0 right-0 p-3 opacity-30">
+                    <Zap className="w-12 h-12" />
                   </div>
-                  <div className="flex-grow">
-                    <h3 className="font-bold text-lg truncate">{card.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${getRarityColor(card.rarity).split(' ')[0].replace('border-', 'bg-')}/20`}>
-                        {card.rarity}
-                      </span>
-                      {!card.isOwned && (
-                        <span className="text-xs text-muted-foreground">No obtenida</span>
+
+                  {/* HEADER */}
+                  <div className="p-5 relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className={`p-2 rounded-lg bg-black/40 border border-white/5`}>
+                        <card.icon className={`w-8 h-8 ${themeColor.split(' ')[1]}`} />
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded bg-black/40 border ${themeColor.split(' ')[0]}`}>
+                          {card.rarity}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className={`text-lg font-bold font-mono leading-tight mb-1 ${card.isOwned ? 'text-white' : 'text-gray-400'}`}>
+                      {card.name}
+                    </h3>
+
+                    {/* Status Badge */}
+                    <div className="mb-4">
+                      {card.isOwned ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-rose-400 font-bold uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                          Bloqueado
+                        </span>
                       )}
                     </div>
-                  </div>
-                </div>
 
-                {/* Descripción */}
-                <p className="text-sm text-muted-foreground mb-4 min-h-[3.5rem]">{card.description}</p>
+                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4"></div>
 
-                {/* Efecto */}
-                <div className="border-t border-border/30 pt-4">
-                  <p className="text-xs font-semibold text-primary mb-1">EFECTO DE CARTA</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {card.effect.type.replace(/_/g, ' ')}
-                    </span>
-                    <span className={`text-lg font-bold ${getRarityColor(card.rarity).split(' ')[1]}`}>
-                      +{card.effect.value}{card.effect.type.includes('percent') ? '%' : ''}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Pie de carta */}
-                <div className="mt-4 pt-3 border-t border-border/20">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Potenciador</span>
-                    <span>#{index + 1}</span>
-                  </div>
-                </div>
-
-                {/* Overlay para cartas no obtenidas */}
-                {!card.isOwned && (
-                  <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
-                    <div className="text-center p-4">
-                      <Layers className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm font-medium text-gray-300">No obtenida</p>
-                      <p className="text-xs text-gray-400 mt-1">Completa misiones para desbloquear</p>
+                    {/* Effect Section */}
+                    <div className={`p-3 rounded bg-black/20 border border-white/5 mb-4 ${!card.isOwned ? 'blur-[2px] select-none opacity-50' : ''}`}>
+                      <div className="flex justify-between items-center text-xs text-gray-400 mb-1 font-mono">
+                        <span>EFECTO</span>
+                        <Zap className="w-3 h-3" />
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-bold ${themeColor.split(' ')[1]}`}>
+                          +{card.effect.value}{card.effect.type.includes('percent') ? '%' : ''}
+                        </span>
+                        <span className="text-[10px] text-gray-500 uppercase truncate max-w-[120px]">
+                          {card.effect.type.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                        {card.description}
+                      </p>
                     </div>
+
+                    {/* Unlock Requirement (Only if locked) */}
+                    {!card.isOwned && card.unlockRequirement && (
+                      <div className="bg-rose-950/40 border border-rose-500/30 rounded p-3 relative overflow-hidden group-hover:bg-rose-900/50 transition-colors">
+                        <div className="absolute inset-0 bg-[url('/images/diagonal-lines.png')] opacity-10"></div>
+                        <div className="relative z-10 flex items-start gap-2">
+                          <Shield className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-[10px] font-bold text-rose-300 uppercase mb-0.5">Requisito de Desbloqueo</p>
+                            <p className="text-xs text-rose-100 font-medium">
+                              {card.unlockRequirement.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {/* Footer Tech ID */}
+                  <div className="mt-auto bg-black/40 border-t border-white/5 p-2 flex justify-between items-center text-[10px] font-mono text-gray-600">
+                    <span>ID: {card.id.substring(5, 12).toUpperCase()}</span>
+                    <span>VER. 2.0</span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
-
-        {/* Leyenda de rarezas */}
-        <div className="mt-10 p-4 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded-xl border border-gray-700/50">
-          <h3 className="text-sm font-bold mb-3 text-center">🎴 Leyenda de Rarezas</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {['Común', 'Poco Común', 'Rara', 'Épica', 'Legendaria'].map((rarity) => (
-              <div key={rarity} className="flex items-center justify-center gap-2 text-xs">
-                <div className={`w-3 h-3 rounded-full ${getRarityColor(rarity).split(' ')[0].replace('border-', 'bg-')}`} />
-                <span className={getRarityColor(rarity).split(' ')[1]}>{rarity}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Consejos */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            💡 Las cartas se obtienen automáticamente al completar misiones. ¡Revisa la sección de Misiones!
-          </p>
-        </div>
       </div>
     </div>
   );
