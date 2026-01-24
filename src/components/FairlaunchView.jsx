@@ -167,7 +167,104 @@ export function FairlaunchView({
     };
   }, []);
 
-  // ... (handleParticipate, formatTimeLeft, calculatePotentialReturn unchanged)
+  // 🎯 FUNCIONES MEMOIZADAS
+  const handleParticipate = useCallback(() => {
+    if (fairlaunchPhase === 'pre-launch') {
+      toast({
+        title: "⏳ Fairlaunch no iniciado",
+        description: `El Fairlaunch comienza en ${timeLeft.days} días, ${timeLeft.hours} horas`,
+        duration: 4000,
+      });
+      return;
+    }
+
+    const newParticipation = userParticipation + simulationAmount;
+    setUserParticipation(newParticipation);
+
+    // Actualizar ref sin causar re-render
+    participationStatsRef.current.totalRaised += simulationAmount;
+
+    toast({
+      title: "🚀 ¡Participación Exitosa!",
+      description: `Has participado con $${simulationAmount} (${simulationTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })} CROC)`,
+      duration: 6000,
+    });
+
+    setShowSimulation(false);
+    setSimulationAmount(100);
+  }, [fairlaunchPhase, userParticipation, simulationAmount, simulationTokens, toast, timeLeft]);
+
+  const formatTimeLeft = useCallback(() => {
+    if (timeLeft.days > 0) {
+      return `${timeLeft.days}d ${timeLeft.hours}h`;
+    } else if (timeLeft.hours > 0) {
+      return `${timeLeft.hours}h ${timeLeft.minutes}m`;
+    } else if (timeLeft.minutes > 0) {
+      return `${timeLeft.minutes}m ${timeLeft.seconds}s`;
+    } else {
+      return `${timeLeft.seconds}s`;
+    }
+  }, [timeLeft]);
+
+  const calculatePotentialReturn = useCallback((investment) => {
+    const tokens = investment / tokenPrice;
+    return {
+      conservative: tokens * (tokenPrice * 2),
+      moderate: tokens * (tokenPrice * 5),
+      aggressive: tokens * (tokenPrice * 10)
+    };
+  }, [tokenPrice]);
+
+  // 🎯 COMPONENTES MEMOIZADOS
+  const ProgressBar = useMemo(() => {
+    const stats = participationStatsRef.current;
+
+    return (
+      <div className="relative mb-4">
+        <div className="flex justify-between text-sm mb-2">
+          <span className="text-green-400">
+            Recaudado: ${stats.totalRaised.toLocaleString()}
+          </span>
+          <span className="text-yellow-400">
+            Soft Cap: ${fairlaunchDetailsRef.current.softCap.toLocaleString()}
+          </span>
+          <span className="text-red-400">
+            Hard Cap: ${fairlaunchDetailsRef.current.hardCap.toLocaleString()}
+          </span>
+        </div>
+
+        <div className="w-full bg-gray-700 rounded-full h-4 shadow-inner relative">
+          <div
+            className="absolute top-0 bottom-0 w-1 bg-yellow-400"
+            style={{ left: `${softCapPercentage}%` }}
+          >
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-yellow-400 whitespace-nowrap">
+              Soft Cap
+            </div>
+          </div>
+
+          <motion.div
+            className="h-4 rounded-full bg-gradient-to-r from-green-500 via-emerald-400 to-cyan-400 relative overflow-hidden"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercentage}%` }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+          >
+            <motion.div
+              className="absolute top-0 left-0 bottom-0 w-8 bg-white/30"
+              animate={{ x: ["0%", "100%"] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            />
+          </motion.div>
+        </div>
+
+        <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <span>0%</span>
+          <span>{Math.round(progressPercentage)}%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    );
+  }, [progressPercentage, softCapPercentage]);
 
   const CountdownCard = useMemo(() => (
     <motion.div
@@ -239,8 +336,8 @@ export function FairlaunchView({
 
           <motion.div
             className={`h-full rounded-full transition-all duration-1000 ${timePercentage > 50 ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
-                timePercentage > 20 ? 'bg-gradient-to-r from-yellow-500 to-orange-400' :
-                  'bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]'
+              timePercentage > 20 ? 'bg-gradient-to-r from-yellow-500 to-orange-400' :
+                'bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]'
               }`}
             style={{ width: `${timePercentage}%` }}
           >
