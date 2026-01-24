@@ -63,21 +63,24 @@ export function MissionsView({
 
       Object.keys(newValidations).forEach(missionId => {
         const validation = newValidations[missionId];
-        // Si ya pasó el tiempo y no se ha marcado completa en UI (aunque la llamada real es completeMission)
+        // Si ya pasó el tiempo
         if (now >= validation.endTime) {
-          // Completar misión automáticamente si el usuario sigue en la pantalla
-          if (missions && missions[missionId] && !missions[missionId].completed) {
+          const missionState = missions?.[missionId];
+
+          // 1. Completar misión si no está completa
+          if (missionState && !missionState.completed) {
             completeMission(missionId, true);
             playSound('success');
-            toast({
-              title: "✅ Misión Completada",
-              description: "¡Has completado la validación exitosamente!",
-              duration: 5000
-            });
             completedSome = true;
           }
-          // Removemos de validación activa una vez completada
-          if (missions && missions[missionId] && missions[missionId].completed) {
+
+          // 2. Auto-reclamar recompensa si está completa pero no reclamada
+          else if (missionState && missionState.completed && !missionState.claimed) {
+            claimMissionReward(missionId);
+          }
+
+          // 3. Remover validación SOLO cuando esté reclamada
+          if (missionState && missionState.claimed) {
             delete newValidations[missionId];
             updated = true;
           }
