@@ -358,8 +358,8 @@ const ItemCard = memo(function ItemCardComponent({
                 onClick={() => onBuyItem(item, false, discount)}
                 disabled={!canAffordCoins || (status.disabled && item.type !== "consumable")}
                 className={`w-full font-semibold ${!canAffordCoins || (status.disabled && item.type !== "consumable")
-                    ? "bg-gray-700 cursor-not-allowed"
-                    : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
+                  ? "bg-gray-700 cursor-not-allowed"
+                  : "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700"
                   }`}
               >
                 <Coins className="w-4 h-4 mr-2" />
@@ -370,8 +370,8 @@ const ItemCard = memo(function ItemCardComponent({
                 onClick={() => onBuyItem(item, true, discount)}
                 disabled={!canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'}
                 className={`w-full font-semibold ${!canAffordCroc || (status.disabled && item.type !== "consumable") || item.currency === 'coins'
-                    ? "bg-gray-700 cursor-not-allowed"
-                    : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+                  ? "bg-gray-700 cursor-not-allowed"
+                  : "bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
                   }`}
               >
                 <DollarSign className="w-4 h-4 mr-2" />
@@ -512,9 +512,13 @@ export function ShopView({
 
   const filteredItems = useMemo(() => {
     if (selectedTab === "all") return safeItems;
-    if (selectedTab === "items") {
-      return safeItems.filter(item => item.type === 'item' || item.type === 'boost');
-    }
+
+    // 🔧 MAPEO DE PLURAL (TABS) A SINGULAR (DATA)
+    if (selectedTab === "skins") return safeItems.filter(i => i.type === "skin");
+    if (selectedTab === "boosts") return safeItems.filter(i => i.type === "boost");
+    if (selectedTab === "consumables") return safeItems.filter(i => i.type === "consumable");
+    if (selectedTab === "items") return safeItems.filter(i => i.type === "item");
+
     return safeItems.filter((item) => item.type === selectedTab);
   }, [selectedTab, safeItems]);
 
@@ -1012,8 +1016,8 @@ export function ShopView({
                       }}
                       variant={isActive ? "default" : "outline"}
                       className={`flex items-center gap-3 px-6 py-3 text-lg font-semibold rounded-xl ${isActive
-                          ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600`
-                          : `border-gray-700 hover:border-${tab.color}-500 hover:bg-${tab.color}-900/20`
+                        ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 border-${tab.color}-600`
+                        : `border-gray-700 hover:border-${tab.color}-500 hover:bg-${tab.color}-900/20`
                         }`}
                     >
                       <Icon className="w-5 h-5" />
