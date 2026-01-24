@@ -680,11 +680,11 @@ export function FairlaunchView({
                 <strong> seguirnos y compartir</strong> nuestro contenido en todas las redes.
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Button
                   variant="outline"
                   className="border-blue-500/50 hover:bg-blue-500/20"
-                  onClick={() => window.open('https://twitter.com/cocodrilokombat', '_blank')}
+                  onClick={() => window.open('https://x.com/Cocodrilokombat', '_blank')}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Twitter / X
@@ -692,7 +692,7 @@ export function FairlaunchView({
                 <Button
                   variant="outline"
                   className="border-red-500/50 hover:bg-red-500/20"
-                  onClick={() => window.open('https://youtube.com/@cocodrilokombat', '_blank')}
+                  onClick={() => window.open('https://www.youtube.com/channel/UCj7cOHm-7nV523MXmCuZlrQ', '_blank')}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   YouTube
@@ -700,18 +700,10 @@ export function FairlaunchView({
                 <Button
                   variant="outline"
                   className="border-blue-400/50 hover:bg-blue-400/20"
-                  onClick={() => window.open('https://t.me/cocodrilokombat', '_blank')}
+                  onClick={() => window.open('https://t.me/cocodrilo_kombat', '_blank')}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Telegram
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-pink-500/50 hover:bg-pink-500/20"
-                  onClick={() => window.open('https://instagram.com/cocodrilokombat', '_blank')}
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Instagram
                 </Button>
               </div>
             </motion.div>
