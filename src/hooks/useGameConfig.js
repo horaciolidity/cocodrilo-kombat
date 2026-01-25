@@ -210,20 +210,28 @@ export const useGameConfig = () => {
 
             // 5. Shop & Cards (Keep existing logic)
             if (dbShopItems?.length > 0) {
-                const mappedItems = dbShopItems.map(i => ({
-                    id: i.id,
-                    name: i.name,
-                    type: i.type,
-                    price: Number(i.price_coins),
-                    priceCroc: Number(i.price_croc),
-                    currency: i.currency,
-                    image: i.image_url,
-                    rarity: i.rarity,
-                    requiredLevel: i.required_level,
-                    description: i.description,
-                    effect: i.effect_data || {}
-                }));
-                setShopItems(mappedItems);
+                const mappedItems = dbShopItems.map(i => {
+                    // [FIX] Force usage of local image path if ID matches, to fix broken/stale DB paths
+                    const localFallback = FALLBACK_SHOP_ITEMS.find(f => f.id === i.id);
+                    const imagePath = localFallback ? localFallback.image : i.image_url;
+
+                    return {
+                        id: i.id,
+                        name: i.name,
+                        type: i.type,
+                        price: Number(i.price_coins),
+                        priceCroc: Number(i.price_croc),
+                        currency: i.currency,
+                        image: imagePath, // Use local path if available
+                        rarity: i.rarity,
+                        requiredLevel: i.required_level,
+                        description: i.description,
+                        effect: i.effect_data || {}
+                    };
+                });
+                // Merge fallback items that might be missing in DB
+                const missingItems = FALLBACK_SHOP_ITEMS.filter(f => !dbShopItems.some(db => db.id === f.id));
+                setShopItems([...mappedItems, ...missingItems]);
             } else {
                 setShopItems(FALLBACK_SHOP_ITEMS); // [FIX] Use fallback if DB empty
             }
