@@ -23,6 +23,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { TutorialModal } from "@/components/TutorialModal";
 import { SocialLinks } from "@/components/SocialLinks";
 import { MilestoneReachedModal } from "@/components/MilestoneReachedModal";
+import { LoginPromptModal } from "@/components/LoginPromptModal"; // [NEW]
 
 import { useGameLogic } from "@/hooks/useGameLogic";
 import { useSound } from "@/hooks/useSound";
@@ -115,7 +116,9 @@ function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+
   const [lastReachedMilestone, setLastReachedMilestone] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false); // [NEW]
 
   // 🎯 Referencias para evitar re-renders
   const syncInProgressRef = useRef(false);
@@ -435,22 +438,32 @@ function App() {
   }, [syncAllData, toast, playSound]);
 
   /* 🎓 Tutorial */
-  const nextTutorialStep = useCallback(() => {
-    const nextStep = tutorialStep < TUTORIAL_STEPS_CONTENT.length - 1 ? tutorialStep + 1 : 0;
-    setTutorialStep(nextStep);
-
-    if (nextStep >= TUTORIAL_STEPS_CONTENT.length - 1) {
-      setTimeout(() => setShowTutorial(false), 300);
-    }
-
-    playSound("uiClick");
-  }, [tutorialStep, playSound]);
-
-  const skipTutorial = useCallback(() => {
+  /* 🎓 Tutorial */
+  const handleTutorialComplete = useCallback(() => {
     setShowTutorial(false);
     setTutorialStep(0);
     playSound("uiClick");
-  }, [playSound]);
+
+    // Si el usuario no está logueado, mostrar login prompt
+    if (!user) {
+      setTimeout(() => setShowLoginPrompt(true), 500);
+    }
+  }, [user, playSound]);
+
+  const nextTutorialStep = useCallback(() => {
+    // Si es el último paso, terminar
+    if (tutorialStep >= TUTORIAL_STEPS_CONTENT.length - 1) {
+      handleTutorialComplete();
+      return;
+    }
+
+    setTutorialStep(prev => prev + 1);
+    playSound("uiClick");
+  }, [tutorialStep, playSound, handleTutorialComplete]);
+
+  const skipTutorial = useCallback(() => {
+    handleTutorialComplete();
+  }, [handleTutorialComplete]);
 
   /* 🔀 Navegación */
   const handleNavigation = useCallback((view) => {
@@ -732,6 +745,17 @@ function App() {
         isOpen={showMilestoneModal}
         onClose={() => setShowMilestoneModal(false)}
         milestone={lastReachedMilestone}
+      />
+
+      {/* 🛡️ Login Prompt para invitados */}
+      <LoginPromptModal
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        onLogin={() => {
+          setShowLoginPrompt(false);
+          setShowAuth(true); // Abrir el modal de auth principal
+        }}
+        onGuest={() => setShowLoginPrompt(false)}
       />
 
       {/* 🔻 Footer */}
