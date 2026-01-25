@@ -413,12 +413,12 @@ export function GameView({
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full transition-opacity duration-300"
+                className="absolute inset-0 w-full h-full object-contain rounded-full transition-opacity duration-300"
                 muted
                 playsInline
                 loop
                 preload="auto"
-                poster="/images/crocodile-poster.jpg"
+                poster="/images/skins/base_croc.jpeg"
                 onError={(e) => {
                   console.error("❌ Error cargando video idle");
                   e.target.style.display = 'none';
@@ -428,7 +428,7 @@ export function GameView({
               <video
                 ref={videoRefBite}
                 src="/videos/crocodile_bite.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full opacity-0 z-0"
+                className="absolute inset-0 w-full h-full object-contain rounded-full opacity-0 z-0"
                 muted
                 playsInline
                 preload="auto"
@@ -439,11 +439,13 @@ export function GameView({
               />
 
               {!videoLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-800 rounded-full">
-                  <div className="text-center text-white p-4">
-                    <div className="text-6xl mb-4">🐊</div>
-                    <p className="text-lg font-bold mb-2">¡Haz clic para ganar!</p>
-                    <p className="text-sm opacity-80">+{Math.floor(getCurrentClickPower())} por click</p>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    <img
+                      src="/images/skins/base_croc.jpeg"
+                      alt="Cargando..."
+                      className="w-full h-full object-cover object-top"
+                    />
                   </div>
                 </div>
               )}
