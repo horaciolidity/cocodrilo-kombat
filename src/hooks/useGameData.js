@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
-  INITIAL_GAME_STATE
+  INITIAL_GAME_STATE,
+  SHOP_ITEMS as FALLBACK_SHOP_ITEMS
 } from '@/config/gameConfig';
 
 export function useGameData(user, gameConfig) {
@@ -501,7 +502,8 @@ export function useGameData(user, gameConfig) {
     referralsCount: stats.referrals_count || 0,
     crocFromRefs: Number(stats.croc_from_refs) || 0,
     coinsFromRefs: Number(stats.coins_from_refs) || 0,
-    playerId: stats.player_id
+    playerId: stats.player_id,
+    activeSkin: stats.active_skin || null
   });
 
   // ... existing getOrCreatePlayer ...
@@ -652,6 +654,7 @@ export function useGameData(user, gameConfig) {
           experience,
           max_energy,
           energy,
+          active_skin,
           updated_at,
           players!inner (
             id,
@@ -679,23 +682,36 @@ export function useGameData(user, gameConfig) {
 
       if (error) throw error;
 
-      const processedData = (data || []).map(row => ({
-        id: row.player_id,
-        name: row.players.username || `Jugador_${row.player_id.slice(0, 6)}`,
-        avatar: row.players.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.players.username || "anon"}`,
-        coins: Number(row.coins) || 0,
-        level: Number(row.level) || 1,
-        tokens: Number(row.native_token_balance) || 0,
-        totalCoins: Number(row.total_coins) || 0,
-        clicks: Number(row.clicks) || 0,
-        experience: Number(row.experience) || 0,
-        energy: Number(row.energy) || 100,
-        maxEnergy: Number(row.max_energy) || 100,
-        isCurrentUser: row.players.user_id === user?.id,
-        lastActive: row.updated_at,
-        user_id: row.players.user_id,
-        joinedDate: row.players.created_at
-      }));
+      const processedData = (data || []).map(row => {
+        // [FIX] Determine avatar based on active skin
+        let userAvatar = row.players.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.players.username || "anon"}`;
+
+        if (row.active_skin) {
+          const shopSource = (configShopItems && configShopItems.length > 0) ? configShopItems : FALLBACK_SHOP_ITEMS;
+          const skin = shopSource.find(s => s.id === row.active_skin);
+          if (skin && skin.image) {
+            userAvatar = skin.image;
+          }
+        }
+
+        return {
+          id: row.player_id,
+          name: row.players.username || `Jugador_${row.player_id.slice(0, 6)}`,
+          avatar: userAvatar,
+          coins: Number(row.coins) || 0,
+          level: Number(row.level) || 1,
+          tokens: Number(row.native_token_balance) || 0,
+          totalCoins: Number(row.total_coins) || 0,
+          clicks: Number(row.clicks) || 0,
+          experience: Number(row.experience) || 0,
+          energy: Number(row.energy) || 100,
+          maxEnergy: Number(row.max_energy) || 100,
+          isCurrentUser: row.players.user_id === user?.id,
+          lastActive: row.updated_at,
+          user_id: row.players.user_id,
+          joinedDate: row.players.created_at
+        };
+      });
 
       rankingCacheRef.current[cacheKey] = {
         data: processedData,

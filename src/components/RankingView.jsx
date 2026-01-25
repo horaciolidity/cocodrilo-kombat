@@ -40,7 +40,8 @@ export function RankingView({
   refreshInterval = 120000,
   loadRanking,
   refreshRanking,
-  gameDataState
+  gameDataState,
+  gameConfig
 }) {
   const { toast } = useToast();
 
@@ -390,7 +391,7 @@ export function RankingView({
                   <div className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'
                     } rounded-full overflow-hidden bg-black/40`}>
                     <img
-                      src={getCrocAvatar(player.id)}
+                      src={player.avatar || getCrocAvatar(player.id)}
                       alt={player.name}
                       className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
                       loading="lazy"
@@ -455,11 +456,25 @@ export function RankingView({
     }
 
     const currentRank = getCurrentUserRank();
+    const { shopItems: allShopItems = [] } = gameConfig || {};
+
+    // Resolve user avatar based on active skin
+    let userAvatar = null;
+    const userActiveSkinId = userGameData.activeSkin;
+
+    if (userActiveSkinId) {
+      const skin = allShopItems.find(s => s.id === userActiveSkinId);
+      if (skin && skin.image) {
+        userAvatar = skin.image;
+      }
+    }
+
     const userData = ranking.find(p => p.isCurrentUser) || {
       name: player.username,
       coins: userGameData.coins || 0,
       level: userGameData.level || 1,
       tokens: userGameData.nativeTokenBalance || 0,
+      avatar: userAvatar,
       lastActive: userGameData.lastActive || new Date().toISOString()
     };
 
@@ -479,7 +494,7 @@ export function RankingView({
 
             <Avatar className="h-14 w-14 border-2 border-primary/50">
               <AvatarImage
-                src={getCrocAvatar(user.id)}
+                src={userData.avatar || getCrocAvatar(user.id)}
                 alt={player.username}
                 onError={(e) => {
                   e.target.onerror = null;
@@ -644,7 +659,7 @@ export function RankingView({
 
               <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 shadow-lg">
                 <AvatarImage
-                  src={getCrocAvatar(player.id)}
+                  src={player.avatar || getCrocAvatar(player.id)}
                   alt={player.name}
                   onError={(e) => {
                     e.target.onerror = null;

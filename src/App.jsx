@@ -651,6 +651,7 @@ function App() {
                 loadRanking={gameData.loadRanking}
                 refreshRanking={gameData.refreshRanking}
                 gameDataState={gameState}
+                gameConfig={gameConfig}
               />
             )}
 
