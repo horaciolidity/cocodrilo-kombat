@@ -412,7 +412,8 @@ export function useGameLogic({
       // 🔥 SINCRONIZAR SOLO LO NECESARIO
       syncGameData({
         coins: newGameState.coins,
-        upgrades: newUpgrades
+        upgrades: newUpgrades,
+        _force: true // [FIX] Forzar sync para evitar rollback
       });
 
       toast({
@@ -422,6 +423,7 @@ export function useGameLogic({
       });
       playSound('upgrade');
     } else {
+      console.warn(`💰 Monedas insuficientes. Tienes: ${gameState.coins}, Requiere: ${price}`);
       toast({
         title: "💰 Monedas Insuficientes",
         description: `Necesitas ${price - gameState.coins} monedas más`,
@@ -938,7 +940,10 @@ export function useGameLogic({
       };
 
       // 📤 SINCRONIZAR CON SUPABASE
-      await syncGameData(syncData);
+      await syncGameData({
+        ...syncData,
+        _force: true // [FIX] Forzar sync en compras
+      });
 
       // 🎉 NOTIFICACIONES
       let title = "✅ Compra Exitosa!";
