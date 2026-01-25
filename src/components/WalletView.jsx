@@ -167,25 +167,10 @@ export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, t
   };
 
 
-  // WalletView.jsx - AGREGAR EN EL COMPONENTE
-  const [crocPrice, setCrocPrice] = useState(tokenPrice || 0.05);
-
-  // 🔄 Actualizar precio periódicamente
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Simular fluctuación suave ±10%
-      const fluctuation = 1 + (Math.random() * 0.2 - 0.1); // ±10%
-      const newPrice = tokenPrice * fluctuation;
-      setCrocPrice(parseFloat(newPrice.toFixed(6)));
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [tokenPrice]);
-
-  // 💰 Calcular valores actualizados
-  const updatedProjectedValue = nativeTokenBalance * crocPrice;
-  const updatedStakeValue = stakeAmount * crocPrice;
-  const updatedRewardsValue = pendingRewards * crocPrice;
+  // 💰 Calcular valores actualizados usando el precio global prop
+  const updatedProjectedValue = nativeTokenBalance * tokenPrice;
+  const updatedStakeValue = stakeAmount * tokenPrice;
+  const updatedRewardsValue = pendingRewards * tokenPrice;
 
 
   return (
@@ -226,7 +211,7 @@ export function WalletView({ toast, playSound, nativeTokenBalance, tokenPrice, t
                 </div>
                 <div className="text-sm text-green-400 flex items-center gap-1">
                   <TrendingUp className="w-4 h-4" />
-                  {nativeTokenBalance.toLocaleString()} CROC @ ${crocPrice.toFixed(6)}
+                  {nativeTokenBalance.toLocaleString()} CROC @ ${tokenPrice.toFixed(6)}
                 </div>
               </div>
             </div>
