@@ -413,7 +413,7 @@ export function GameView({
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full transition-opacity duration-300 scale-[1.1]"
+                className="absolute inset-0 w-full h-full object-cover rounded-full transition-opacity duration-300 scale-[1.05]"
                 style={{ objectPosition: 'center 20%' }}
                 muted
                 playsInline
@@ -429,7 +429,7 @@ export function GameView({
               <video
                 ref={videoRefBite}
                 src="/videos/crocodile_bite.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full opacity-0 z-0 scale-[1.1]"
+                className="absolute inset-0 w-full h-full object-cover rounded-full opacity-0 z-0 scale-[1.05]"
                 style={{ objectPosition: 'center 20%' }}
                 muted
                 playsInline
