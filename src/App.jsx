@@ -501,7 +501,7 @@ function App() {
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <div className="text-lg font-semibold gradient-text">🐊 Cargando Cocodrilo Kombat...</div>
-          <div className="text-sm text-muted-foreground">Sincronizando datos con la nube</div>
+          <div className="text-sm text-muted-foreground">Preparando el Pantano...</div>
         </div>
       </div>
     );

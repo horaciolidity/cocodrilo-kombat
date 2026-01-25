@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  User, 
-  Settings, 
-  Volume2, 
-  VolumeX, 
-  RefreshCw, 
+import {
+  User,
+  Settings,
+  Volume2,
+  VolumeX,
+  RefreshCw,
   Lock,
   Shield,
   Database,
@@ -53,27 +53,27 @@ export function SettingsView({
   const handleManualSync = async () => {
     setIsSyncing(true);
     playSound("uiClick");
-    
+
     try {
       await syncGameData();
-      
+
       toast({
         title: "✅ Sincronización Exitosa",
         description: "Todos tus datos han sido guardados en la nube.",
         duration: 3000,
       });
-      
+
       playSound("reward");
     } catch (error) {
       console.error("❌ Error en sincronización:", error);
-      
+
       toast({
         title: "⚠️ Error de Sincronización",
         description: "No se pudieron guardar los datos. Revisa tu conexión.",
         variant: "destructive",
         duration: 4000,
       });
-      
+
       playSound("error");
     } finally {
       setIsSyncing(false);
@@ -85,7 +85,7 @@ export function SettingsView({
     if (gameData?.verifyDataIntegrity) {
       gameData.verifyDataIntegrity();
       playSound("uiClick");
-      
+
       toast({
         title: "🔍 Verificando Integridad",
         description: "Comparando datos locales con el servidor...",
@@ -105,14 +105,14 @@ export function SettingsView({
     const newSoundState = !soundEnabled;
     setSoundEnabled(newSoundState);
     playSound(newSoundState ? "uiClick" : "uiClose");
-    
+
     // Guardar preferencia en localStorage
     localStorage.setItem("cocodriloKombat_soundEnabled", newSoundState);
-    
+
     toast({
       title: newSoundState ? "🔊 Sonido Activado" : "🔇 Sonido Desactivado",
-      description: newSoundState 
-        ? "Los efectos de sonido están ahora activos." 
+      description: newSoundState
+        ? "Los efectos de sonido están ahora activos."
         : "Los efectos de sonido están silenciados.",
       duration: 2000,
     });
@@ -122,7 +122,7 @@ export function SettingsView({
   const handleShowTutorial = () => {
     setShowTutorial(true);
     playSound("uiClick");
-    
+
     toast({
       title: "🎓 Tutorial",
       description: "Revive el tutorial paso a paso.",
@@ -133,7 +133,7 @@ export function SettingsView({
   // 🚨 Reiniciar progreso - CONFIRMACIÓN MEJORADA
   const handleResetProgress = () => {
     playSound("warning");
-    
+
     const confirmed = window.confirm(
       "⚠️ ¿ESTÁS ABSOLUTAMENTE SEGURO?\n\n" +
       "Esta acción eliminará:\n" +
@@ -144,11 +144,11 @@ export function SettingsView({
       "• Tu nivel y experiencia\n\n" +
       "¿Quieres continuar? Esta acción NO se puede deshacer."
     );
-    
+
     if (confirmed) {
       resetProgress();
       playSound("reset");
-      
+
       toast({
         title: "🔄 Progreso Reiniciado",
         description: "¡Comienza una nueva aventura desde cero!",
@@ -164,13 +164,13 @@ export function SettingsView({
     const newNotificationsState = !notificationsEnabled;
     setNotificationsEnabled(newNotificationsState);
     playSound("uiClick");
-    
+
     localStorage.setItem("cocodriloKombat_notificationsEnabled", newNotificationsState);
-    
+
     toast({
       title: newNotificationsState ? "🔔 Notificaciones Activadas" : "🔕 Notificaciones Desactivadas",
-      description: newNotificationsState 
-        ? "Recibirás notificaciones de eventos importantes." 
+      description: newNotificationsState
+        ? "Recibirás notificaciones de eventos importantes."
         : "Las notificaciones están desactivadas.",
       duration: 2000,
     });
@@ -180,7 +180,7 @@ export function SettingsView({
     <div className="min-h-screen game-bg p-4 mobile-padding">
       <div className="max-w-4xl mx-auto">
         {/* 🏁 Encabezado */}
-        <motion.div 
+        <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -224,14 +224,14 @@ export function SettingsView({
 
           {/* 🔑 Cambio de Contraseña */}
           {user && (
-            <ChangePasswordSection 
-              toast={toast} 
-              playSound={playSound} 
+            <ChangePasswordSection
+              toast={toast}
+              playSound={playSound}
             />
           )}
 
           {/* ⚠️ Zona Peligrosa */}
-          <DangerZoneSection 
+          <DangerZoneSection
             onResetProgress={handleResetProgress}
             showAdvanced={showAdvanced}
             setShowAdvanced={setShowAdvanced}
@@ -264,7 +264,7 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -288,7 +288,7 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
                   {user.email || "No disponible"}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 mr-2 text-gray-400" />
@@ -297,14 +297,14 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
                 <span className="text-muted-foreground text-sm">
                   {user.created_at
                     ? new Date(user.created_at).toLocaleDateString("es-AR", {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })
                     : "—"}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="flex items-center text-sm">
                   <Globe className="w-4 h-4 mr-2 text-gray-400" />
@@ -320,7 +320,7 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 rounded-lg p-4 border border-blue-700/30">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="w-4 h-4 text-green-400" />
@@ -343,7 +343,7 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
             >
               Cerrar Sesión
             </Button>
-            
+
             <Button
               onClick={copyUserId}
               variant="outline"
@@ -359,21 +359,21 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
           <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center mb-4">
             <User className="w-10 h-10 text-gray-500" />
           </div>
-          
+
           <div className="space-y-2">
             <p className="text-lg font-semibold">Modo Invitado</p>
             <p className="text-sm text-muted-foreground">
               Tu progreso no se guardará hasta que inicies sesión.
             </p>
           </div>
-          
+
           <Button
             onClick={handleAuthClick}
             className="w-full mobile-button bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
           >
             Iniciar Sesión / Registrarse
           </Button>
-          
+
           <p className="text-xs text-gray-500">
             Al crear una cuenta obtienes: Guardado automático, Ranking global, y Programa de referidos.
           </p>
@@ -384,15 +384,15 @@ function UserSection({ user, logout, setShowAuth, playSound, toast }) {
 }
 
 // 🎮 Configuración del Juego
-function GameSettingsSection({ 
-  soundEnabled, 
-  onSoundToggle, 
+function GameSettingsSection({
+  soundEnabled,
+  onSoundToggle,
   onShowTutorial,
   notificationsEnabled,
-  onNotificationsToggle 
+  onNotificationsToggle
 }) {
   return (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -479,13 +479,13 @@ function GameSettingsSection({
 }
 
 // ☁️ Sincronización y Datos
-function SyncDataSection({ 
-  gameData, 
-  isSyncing, 
-  onManualSync, 
+function SyncDataSection({
+  gameData,
+  isSyncing,
+  onManualSync,
   onVerifyIntegrity,
   playSound,
-  toast 
+  toast
 }) {
   const lastSync = gameData?.lastSync;
   const syncInProgress = gameData?.syncInProgress || false;
@@ -512,14 +512,14 @@ function SyncDataSection({
 
       const dataStr = JSON.stringify(exportData, null, 2);
       const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
-      
+
       const exportFileDefaultName = `cocodrilo-kombat-backup-${new Date().toISOString().split('T')[0]}.json`;
-      
+
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
-      
+
       playSound("reward");
       toast({
         title: "📥 Datos Exportados",
@@ -538,7 +538,7 @@ function SyncDataSection({
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -572,14 +572,14 @@ function SyncDataSection({
               {lastSync ? new Date(lastSync).toLocaleTimeString() : "Nunca"}
             </span>
           </div>
-          
+
           <div className="w-full bg-gray-700 rounded-full h-1.5">
-            <motion.div 
+            <motion.div
               className="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
-              animate={{ 
+              animate={{
                 width: syncInProgress ? ["0%", "100%", "0%"] : "100%"
               }}
-              transition={{ 
+              transition={{
                 repeat: syncInProgress ? Infinity : 0,
                 duration: 2,
                 ease: "easeInOut"
@@ -644,7 +644,7 @@ function SyncDataSection({
             <Server className="w-4 h-4 text-blue-400" />
             <span className="text-sm font-semibold">Estado del Sistema</span>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Conexión:</span>
@@ -653,17 +653,17 @@ function SyncDataSection({
                 Online
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Base de datos:</span>
-              <span className="text-green-400">Supabase</span>
+              <span className="text-green-400">Servidor Central</span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Arquitectura:</span>
               <span className="text-blue-400">Centralizada</span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Última sincronización:</span>
               <span className="text-gray-300">
@@ -710,21 +710,21 @@ function ChangePasswordSection({ toast, playSound }) {
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.updateUser({ 
-        password: newPassword 
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
       });
-      
+
       if (error) throw error;
 
       toast({
         title: "✅ Contraseña actualizada",
         description: "Tu nueva contraseña fue guardada exitosamente.",
       });
-      
+
       playSound("reward");
       setNewPassword("");
       setConfirmPassword("");
-      
+
     } catch (err) {
       console.error("❌ Error actualizando contraseña:", err);
       toast({
@@ -739,7 +739,7 @@ function ChangePasswordSection({ toast, playSound }) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6 border border-blue-500/30 bg-gradient-to-br from-blue-900/10 to-cyan-900/10"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -830,7 +830,7 @@ function ChangePasswordSection({ toast, playSound }) {
 // ⚠️ Zona Peligrosa
 function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
   return (
-    <motion.div 
+    <motion.div
       className="stats-card rounded-xl p-6 border-2 border-red-500/30 bg-gradient-to-br from-red-900/10 to-orange-900/10"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -841,7 +841,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
           <AlertTriangle className="w-6 h-6 mr-2" />
           Zona de Alto Riesgo
         </h3>
-        
+
         <Button
           onClick={() => setShowAdvanced(!showAdvanced)}
           variant="ghost"
@@ -872,7 +872,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
             <RefreshCw className="w-5 h-5 mr-2" />
             REINICIAR TODO EL PROGRESO
           </Button>
-          
+
           <p className="text-xs text-red-300 text-center">
             Esta acción elimina TODO tu progreso y no se puede deshacer.
           </p>
@@ -880,14 +880,14 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
 
         {/* 🔧 Opciones avanzadas */}
         {showAdvanced && (
-          <motion.div 
+          <motion.div
             className="space-y-3 pt-4 border-t border-red-800/30"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
           >
             <p className="text-sm font-semibold text-orange-400">Opciones Avanzadas:</p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Button
                 variant="outline"
@@ -897,7 +897,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
                 <HardDrive className="w-4 h-4 mr-2" />
                 Limpiar Caché Local
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="border-red-700 text-red-400 hover:bg-red-900/20 hover:text-red-300"
@@ -906,7 +906,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
                 <Network className="w-4 h-4 mr-2" />
                 Forzar Resincronización
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="border-red-700 text-red-400 hover:bg-red-900/20 hover:text-red-300"
@@ -915,7 +915,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
                 <Cpu className="w-4 h-4 mr-2" />
                 Debug del Sistema
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="border-red-700 text-red-400 hover:bg-red-900/20 hover:text-red-300"
@@ -925,7 +925,7 @@ function DangerZoneSection({ onResetProgress, showAdvanced, setShowAdvanced }) {
                 Desconectar de la Nube
               </Button>
             </div>
-            
+
             <div className="p-2 bg-gradient-to-r from-gray-900/30 to-gray-800/30 rounded border border-gray-700/50">
               <p className="text-xs text-gray-400 text-center">
                 ⚙️ Las opciones avanzadas estarán disponibles en futuras actualizaciones.

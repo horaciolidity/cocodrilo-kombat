@@ -869,7 +869,7 @@ function TokenInfoPanel({
       <div className="flex items-center justify-center gap-2 mb-3">
         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         <span className="text-xs text-green-400">
-          Actualizando en tiempo real • Sincronizado con Supabase
+          Mercado en Vivo • Actualizado
         </span>
       </div>
 
