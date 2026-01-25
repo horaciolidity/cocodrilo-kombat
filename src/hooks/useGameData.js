@@ -503,7 +503,7 @@ export function useGameData(user, gameConfig) {
     crocFromRefs: Number(stats.croc_from_refs) || 0,
     coinsFromRefs: Number(stats.coins_from_refs) || 0,
     playerId: stats.player_id,
-    activeSkin: stats.active_skin || null
+    activeSkin: stats.active_skin || 'skin_base'
   });
 
   // ... existing getOrCreatePlayer ...
@@ -684,7 +684,7 @@ export function useGameData(user, gameConfig) {
 
       const processedData = (data || []).map(row => {
         // [FIX] Determine avatar based on active skin
-        let userAvatar = row.players.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.players.username || "anon"}`;
+        let userAvatar = "/images/skins/base_croc.jpeg";
 
         if (row.active_skin) {
           const shopSource = (configShopItems && configShopItems.length > 0) ? configShopItems : FALLBACK_SHOP_ITEMS;

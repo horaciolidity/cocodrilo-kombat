@@ -165,9 +165,9 @@ const ItemCard = memo(function ItemCardComponent({
               <img
                 src={getItemImage(item)}
                 alt={item.name}
-                className="w-full h-full object-cover scale-110 hover:scale-125 transition-transform duration-500"
+                className="w-full h-full object-cover object-top scale-100 hover:scale-110 transition-transform duration-500"
                 onError={(e) => {
-                  e.target.src = `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${item.id}`;
+                  e.target.src = "/images/skins/base_croc.jpeg";
                 }}
               />
             </div>

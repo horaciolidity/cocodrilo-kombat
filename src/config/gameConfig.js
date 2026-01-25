@@ -110,6 +110,7 @@ export const INITIAL_GAME_STATE = {
   crocFromRefs: 0,
   coinsFromRefs: 0,
   playerId: crypto.randomUUID(),
+  activeSkin: 'skin_base'
 };
 
 /* =====================================================
@@ -525,6 +526,19 @@ export const CARDS_DATA = [
 // En gameConfig.js - dentro de SHOP_ITEMS, reemplazar con esto:
 export const SHOP_ITEMS = [
   // 🎨 SKINS (10 skins con imágenes reales)
+  {
+    id: 'skin_base',
+    name: 'Cocodrilo Iniciado',
+    type: 'skin',
+    price: 0,
+    priceCroc: 0,
+    currency: 'both',
+    image: '/images/skins/base_croc.jpeg',
+    description: 'El guerrero del pantano básico. Listo para el combate.',
+    rarity: 'common',
+    requiredLevel: 1,
+    effect: { clickMultiplier: 1 }
+  },
   {
     id: 'skin_golden_croc',
     name: 'Cocodrilo Dorado',

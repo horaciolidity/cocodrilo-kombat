@@ -391,13 +391,13 @@ export function RankingView({
                   <div className={`h-20 w-20 mb-3 border-4 ${isTop ? 'border-yellow-500' : 'border-gray-600'
                     } rounded-full overflow-hidden bg-black/40`}>
                     <img
-                      src={player.avatar || getCrocAvatar(player.id)}
+                      src={player.avatar || "/images/skins/base_croc.jpeg"}
                       alt={player.name}
-                      className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover object-top transform hover:scale-110 transition-transform duration-500"
                       loading="lazy"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = "/avatars/1.png";
+                        e.target.src = "/images/skins/base_croc.jpeg";
                       }}
                     />
                   </div>
@@ -494,11 +494,12 @@ export function RankingView({
 
             <Avatar className="h-14 w-14 border-2 border-primary/50">
               <AvatarImage
-                src={userData.avatar || getCrocAvatar(user.id)}
+                src={userData.avatar || "/images/skins/base_croc.jpeg"}
                 alt={player.username}
+                className="object-top"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = "/avatars/1.png";
+                  e.target.src = "/images/skins/base_croc.jpeg";
                 }}
               />
               <AvatarFallback className="bg-primary/20 text-primary">
@@ -659,11 +660,12 @@ export function RankingView({
 
               <Avatar className="h-12 w-12 mr-3 border-2 border-gray-700 shadow-lg">
                 <AvatarImage
-                  src={player.avatar || getCrocAvatar(player.id)}
+                  src={player.avatar || "/images/skins/base_croc.jpeg"}
                   alt={player.name}
+                  className="object-top"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = "/avatars/1.png";
+                    e.target.src = "/images/skins/base_croc.jpeg";
                   }}
                 />
                 <AvatarFallback className="bg-gray-800 text-gray-300">
