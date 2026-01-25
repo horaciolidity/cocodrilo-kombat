@@ -167,6 +167,29 @@ export function GameView({
     };
 
     initializeVideos();
+
+    // [NEW] Persistent listener for bite video ending
+    const biteVideo = videoRefBite.current;
+    const idleVideo = videoRefIdle.current;
+
+    const handleBiteEnded = () => {
+      if (idleVideo && biteVideo) {
+        biteVideo.style.opacity = '0';
+        biteVideo.style.zIndex = '0';
+        idleVideo.style.opacity = '1';
+        idleVideo.play().catch(() => { });
+      }
+    };
+
+    if (biteVideo) {
+      biteVideo.addEventListener('ended', handleBiteEnded);
+    }
+
+    return () => {
+      if (biteVideo) {
+        biteVideo.removeEventListener('ended', handleBiteEnded);
+      }
+    };
   }, []);
 
   const getCurrentClickPower = () => {
@@ -213,27 +236,19 @@ export function GameView({
 
     if (videoRefIdle.current && videoRefBite.current) {
       try {
-        videoRefIdle.current.pause();
+        // [FIX] Hide idle, show and play bite immediately
+        videoRefIdle.current.style.opacity = '0';
+        videoRefBite.current.style.zIndex = '10';
+        videoRefBite.current.style.opacity = '1';
+
         videoRefBite.current.currentTime = 0;
-
         const playPromise = videoRefBite.current.play();
+
         if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            console.log("🔇 Video de mordida no pudo reproducirse:", err);
-          });
+          playPromise.catch(err => console.log("🔇 Bite video play failed:", err));
         }
-
-        const onBiteEnd = () => {
-          videoRefBite.current.pause();
-          videoRefBite.current.currentTime = 0;
-          videoRefIdle.current.play().catch(() => {
-            videoRefIdle.current.currentTime = 0;
-          });
-        };
-
-        videoRefBite.current.addEventListener('ended', onBiteEnd, { once: true });
       } catch (error) {
-        console.log("🎥 Error en animación de video");
+        console.log("🎥 Error in video animation triggered");
       }
     }
 
@@ -398,7 +413,7 @@ export function GameView({
               <video
                 ref={videoRefIdle}
                 src="/videos/crocodile_idle.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full"
+                className="absolute inset-0 w-full h-full object-cover rounded-full transition-opacity duration-300"
                 muted
                 playsInline
                 loop
@@ -413,7 +428,7 @@ export function GameView({
               <video
                 ref={videoRefBite}
                 src="/videos/crocodile_bite.mp4"
-                className="absolute inset-0 w-full h-full object-cover rounded-full"
+                className="absolute inset-0 w-full h-full object-cover rounded-full opacity-0 z-0"
                 muted
                 playsInline
                 preload="auto"
