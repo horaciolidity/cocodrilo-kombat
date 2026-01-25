@@ -224,6 +224,8 @@ export const useGameConfig = () => {
                     effect: i.effect_data || {}
                 }));
                 setShopItems(mappedItems);
+            } else {
+                setShopItems(FALLBACK_SHOP_ITEMS); // [FIX] Use fallback if DB empty
             }
 
             if (dbCards?.length > 0) {
